@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --primary: #f26522;
+  --primary-dark: #d9530f;
+  --primary-light: #ff8c42;
+  --secondary: #1a1a1a;
+  --muted: #f3f4f6;
+  --border: #e5e5e5;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900;
+  }
+}
+
+@layer components {
+  /* 品牌渐变 */
+  .gradient-brand {
+    background: linear-gradient(135deg, #ff8c42 0%, #f26522 50%, #d9530f 100%);
+  }
+
+  /* 品牌文字渐变 */
+  .gradient-text {
+    background: linear-gradient(135deg, #f26522 0%, #ff8c42 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* 回纹分割线 */
+  .pattern-divider {
+    height: 20px;
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='20' viewBox='0 0 40 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h10v10H0zM10 10h10v10H10zM20 0h10v10H20zM30 10h10v10H30z' fill='%23d4c4b0' fill-opacity='0.3'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+  }
+
+  /* 按钮样式 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white rounded-lg transition-all duration-300;
+    background: linear-gradient(135deg, #f26522 0%, #d9530f 100%);
+  }
+
+  .btn-primary:hover {
+    @apply shadow-lg;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-lg transition-all duration-300;
+  }
+
+  .btn-secondary:hover {
+    @apply border-orange-300 bg-orange-50;
+  }
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f26522;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d9530f;
+}
