@@ -16,7 +16,6 @@ const Header = () => {
       dropdown: [
         { name: "宝宝起名", href: "/baby" },
         { name: "成人改名", href: "/rename" },
-        { name: "起名", href: "/personal" },
       ],
     },
     {
@@ -65,7 +64,7 @@ const Header = () => {
               >
                 <Link
                   href={item.href}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-colors duration-200"
                 >
                   {item.name}
                   {item.dropdown && (
@@ -73,9 +72,15 @@ const Header = () => {
                   )}
                 </Link>
                 
-                {/* Dropdown Menu */}
-                {item.dropdown && activeDropdown === item.name && (
-                  <div className="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-2 animate-fadeIn">
+                {/* Dropdown Menu - 悬停显示 */}
+                {item.dropdown && (
+                  <div 
+                    className={`absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-2 transition-all duration-200 ${
+                      activeDropdown === item.name 
+                        ? 'opacity-100 visible translate-y-0' 
+                        : 'opacity-0 invisible -translate-y-2'
+                    }`}
+                  >
                     {item.dropdown.map((subItem) => (
                       <Link
                         key={subItem.name}

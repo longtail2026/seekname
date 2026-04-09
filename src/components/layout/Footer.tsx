@@ -26,10 +26,7 @@ const Footer = () => {
 
   return (
     <footer className="bg-gray-900 text-white">
-      {/* 回纹装饰线 */}
-      <div className="pattern-divider opacity-50" />
-      
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">

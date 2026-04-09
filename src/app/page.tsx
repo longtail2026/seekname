@@ -84,32 +84,32 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50">
+      <section className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50 flex items-center">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f26522' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }} />
         </div>
         
-        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="animate-fadeIn">
-              <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-orange-100">
+        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center min-h-[calc(100vh-64px)] py-8">
+            <div className="animate-fadeIn py-4">
+              <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-5 py-2.5 rounded-full mb-8 border border-orange-100">
                 <Sparkles className="w-5 h-5 text-orange-500" />
-                <span className="text-sm font-medium text-gray-700">AI智能起名平台</span>
+                <span className="text-base font-medium text-gray-700">AI智能起名平台</span>
               </div>
               
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-4xl md:text-5xl xl:text-6xl font-bold text-gray-900 mb-8 leading-tight">
                 寻一个好名
                 <span className="block gradient-text">许一个未来</span>
               </h1>
               
-              <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl">
+              <p className="text-lg xl:text-xl text-gray-600 mb-12 max-w-2xl leading-relaxed">
                 结合中国传统文化与现代命名艺术，为个人、企业、宠物提供专业、文化、吉祥的命名服务。
                 融合易经五行、姓名磁场学、历史文化典籍的智慧，打造独一无二的好名字。
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-5">
                 <Link
                   href="/personal"
                   className="btn-primary text-lg px-8 py-4"
@@ -127,17 +127,17 @@ export default function Home() {
             </div>
             
             <div className="relative hidden lg:block">
-              <div className="relative bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl p-8 shadow-2xl">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="relative bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl p-5 xl:p-6 shadow-2xl">
+                <div className="grid grid-cols-2 gap-5 xl:gap-6">
                   {services.slice(0, 4).map((service, index) => (
                     <div
                       key={index}
-                      className="bg-white rounded-2xl p-6 shadow-lg transform hover:-translate-y-1 transition-transform duration-300"
+                      className="bg-white rounded-2xl p-5 xl:p-6 shadow-lg transform hover:-translate-y-1 transition-transform duration-300"
                     >
-                      <div className="w-12 h-12 rounded-full gradient-brand flex items-center justify-center mb-4">
-                        <service.icon className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 xl:w-14 xl:h-14 rounded-full gradient-brand flex items-center justify-center mb-3">
+                        <service.icon className="w-6 h-6 xl:w-7 xl:h-7 text-white" />
                       </div>
-                      <h3 className="font-bold text-gray-900 mb-1">{service.title}</h3>
+                      <h3 className="font-bold text-gray-900 mb-1 text-base">{service.title}</h3>
                       <p className="text-sm text-gray-500">{service.subtitle}</p>
                     </div>
                   ))}
@@ -148,11 +148,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 回纹分割线 */}
-      <div className="pattern-divider" />
-
       {/* Services Section */}
-      <section className="py-16 md:py-20 bg-white">
+      <section className="py-16 md:py-20 bg-gradient-to-b from-orange-50/50 to-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 md:mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -168,18 +165,18 @@ export default function Home() {
               <Link
                 key={index}
                 href={service.href}
-                className="group block bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-300"
+                className="group block bg-orange-500 rounded-2xl p-6 md:p-8 border border-orange-400 shadow-sm hover:shadow-xl hover:border-orange-300 hover:bg-orange-400 transition-all duration-300"
               >
-                <div className="w-14 h-14 rounded-xl gradient-brand flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                   <service.icon className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{service.title}</h3>
-                <p className="text-sm text-orange-600 mb-3">{service.subtitle}</p>
-                <p className="text-gray-600 text-sm mb-4">{service.description}</p>
+                <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
+                <p className="text-sm text-orange-100 mb-3">{service.subtitle}</p>
+                <p className="text-orange-50 text-sm mb-4">{service.description}</p>
                 <ul className="space-y-1">
                   {service.features.map((feature, idx) => (
-                    <li key={idx} className="text-sm text-gray-500 flex items-center">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mr-2" />
+                    <li key={idx} className="text-sm text-orange-100 flex items-center">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 mr-2" />
                       {feature}
                     </li>
                   ))}
@@ -189,9 +186,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* 回纹分割线 */}
-      <div className="pattern-divider" />
 
       {/* Features Section */}
       <section className="py-16 md:py-20 bg-gradient-to-br from-orange-500 to-orange-600 text-white">
@@ -233,9 +227,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* 回纹分割线 */}
-      <div className="pattern-divider" />
 
       {/* Testimonials Section */}
       <section className="py-16 md:py-20 bg-gradient-to-br from-orange-50 to-amber-50">

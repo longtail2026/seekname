@@ -33,11 +33,13 @@
     background-clip: text;
   }
 
-  /* 回纹分割线 */
+  /* 回纹分割线 - 使用用户提供的图片 */
   .pattern-divider {
     height: 20px;
-    background-image: url("data:image/svg+xml,%3Csvg width='40' height='20' viewBox='0 0 40 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h10v10H0zM10 10h10v10H10zM20 0h10v10H20zM30 10h10v10H30z' fill='%23d4c4b0' fill-opacity='0.3'/%3E%3C/svg%3E");
+    background-image: url('/images/pattern-divider.png');
     background-repeat: repeat-x;
+    background-position: center;
+    background-size: auto 20px;
   }
 
   /* 按钮样式 */
