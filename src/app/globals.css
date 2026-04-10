@@ -188,7 +188,7 @@
     opacity: 0.4;
   }
 
-  /* 古韵卡片边框 - 传统直角边框风格 */
+  /* 古韵卡片边框 - 传统直角边框风格，四角回纹装饰 */
   .ancient-card {
     @apply bg-white p-8;
     border: 1px solid var(--border);
@@ -197,32 +197,31 @@
       0 2px 4px rgba(44, 24, 16, 0.04),
       0 4px 8px rgba(44, 24, 16, 0.02);
     transition: all 0.3s ease;
-  }
-
-  /* 传统回纹装饰角 */
-  .ancient-card::before,
-  .ancient-card::after {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border: 1px solid var(--gold);
-    opacity: 0.4;
-    transition: all 0.3s ease;
-  }
-
-  .ancient-card::before {
-    top: -1px;
-    left: -1px;
-    border-right: none;
-    border-bottom: none;
-  }
-
-  .ancient-card::after {
-    bottom: -1px;
-    right: -1px;
-    border-left: none;
-    border-top: none;
+    /* 四角回纹装饰 - 使用背景图实现 */
+    background-image:
+      /* 左上角 */
+      linear-gradient(to right, var(--gold) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gold) 1px, transparent 1px),
+      /* 右上角 */
+      linear-gradient(to left, var(--gold) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gold) 1px, transparent 1px),
+      /* 左下角 */
+      linear-gradient(to right, var(--gold) 1px, transparent 1px),
+      linear-gradient(to top, var(--gold) 1px, transparent 1px),
+      /* 右下角 */
+      linear-gradient(to left, var(--gold) 1px, transparent 1px),
+      linear-gradient(to top, var(--gold) 1px, transparent 1px);
+    background-size: 
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px;
+    background-position: 
+      0 0, 0 0,
+      100% 0, 100% 0,
+      0 100%, 0 100%,
+      100% 100%, 100% 100%;
+    background-repeat: no-repeat;
   }
 
   .ancient-card:hover {
@@ -230,13 +229,11 @@
     box-shadow: 
       0 4px 12px rgba(201, 168, 76, 0.08),
       0 8px 24px rgba(44, 24, 16, 0.04);
-  }
-
-  .ancient-card:hover::before,
-  .ancient-card:hover::after {
-    opacity: 0.7;
-    width: 16px;
-    height: 16px;
+    background-size: 
+      16px 1px, 1px 16px,
+      16px 1px, 1px 16px,
+      16px 1px, 1px 16px,
+      16px 1px, 1px 16px;
   }
 
   /* 按钮样式 - 传统古韵风格 */
