@@ -33,7 +33,14 @@ const Header = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-primary-100 shadow-lg">
+    <header 
+      className="fixed top-0 left-0 right-0 z-50 border-b shadow-sm"
+      style={{ 
+        background: 'rgba(253, 250, 244, 0.95)', 
+        backdropFilter: 'blur(8px)',
+        borderColor: '#E5DDD3'
+      }}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 py-2">
           {/* Logo - 印章风格 */}
@@ -76,7 +83,7 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-2">
+          <nav className="hidden lg:flex items-center space-x-1">
             {navItems.map((item) => (
               <div
                 key={item.name}
@@ -86,7 +93,20 @@ const Header = () => {
               >
                 <Link
                   href={item.href}
-                  className="flex items-center px-5 py-3 text-sm font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
+                  className="flex items-center px-4 py-2 text-sm font-medium transition-all duration-200"
+                  style={{ 
+                    color: '#2C1810',
+                    fontFamily: "'Noto Serif SC', serif",
+                    border: '1px solid transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#C9A84C';
+                    e.currentTarget.style.background = '#F8F3EA';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
                   {item.name}
                   {item.dropdown && (
@@ -97,17 +117,34 @@ const Header = () => {
                 {/* Dropdown Menu - 悬停显示 */}
                 {item.dropdown && (
                   <div 
-                    className={`absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-primary-100 py-3 transition-all duration-200 ${
+                    className={`absolute top-full left-0 mt-1 w-48 py-2 transition-all duration-200 ${
                       activeDropdown === item.name 
                         ? 'opacity-100 visible translate-y-0' 
                         : 'opacity-0 invisible -translate-y-2'
                     }`}
+                    style={{ 
+                      background: '#FDFAF4',
+                      border: '1px solid #E5DDD3',
+                      boxShadow: '0 4px 12px rgba(44, 24, 16, 0.08)'
+                    }}
                   >
                     {item.dropdown.map((subItem) => (
                       <Link
                         key={subItem.name}
                         href={subItem.href}
-                        className="block px-4 py-2.5 text-sm text-black hover:text-primary-600 hover:bg-primary-50 transition-all duration-200"
+                        className="block px-4 py-2 text-sm transition-all duration-200"
+                        style={{ 
+                          color: '#2C1810',
+                          fontFamily: "'Noto Serif SC', serif"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#F8F3EA';
+                          e.currentTarget.style.color = '#C84A2A';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = '#2C1810';
+                        }}
                       >
                         {subItem.name}
                       </Link>
@@ -119,10 +156,19 @@ const Header = () => {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* Search Button */}
             <button
-              className="p-2.5 text-black/70 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
+              className="p-2.5 transition-all duration-200"
+              style={{ color: '#5C4A42', border: '1px solid transparent' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#C9A84C';
+                e.currentTarget.style.background = '#F8F3EA';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.background = 'transparent';
+              }}
               aria-label="搜索"
             >
               <Search className="w-5 h-5" />
@@ -131,7 +177,21 @@ const Header = () => {
             {/* Login Button */}
             <Link
               href="/login"
-              className="hidden md:inline-flex px-5 py-2.5 text-sm font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
+              className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200"
+              style={{ 
+                color: '#2C1810',
+                fontFamily: "'Noto Serif SC', serif",
+                border: '1px solid #C9A84C',
+                background: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#F8F3EA';
+                e.currentTarget.style.color = '#C84A2A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#2C1810';
+              }}
             >
               登录
             </Link>
@@ -139,11 +199,17 @@ const Header = () => {
             {/* CTA Button */}
             <Link
               href="/personal"
-              className="hidden sm:inline-flex px-6 py-3 text-sm font-medium text-white transition-all duration-200 items-center"
+              className="hidden sm:inline-flex px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 items-center"
               style={{ 
                 background: '#C84A2A', 
                 border: '1px solid #A63A1E',
-                fontFamily: "'Noto Serif SC', serif"
+                fontFamily: "'Noto Serif SC', serif'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#A63A1E';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#C84A2A';
               }}
             >
               <Sparkles className="w-4 h-4 mr-2" />
@@ -153,7 +219,16 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2.5 text-black/70 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
+              className="lg:hidden p-2.5 transition-all duration-200"
+              style={{ color: '#5C4A42', border: '1px solid transparent' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#C9A84C';
+                e.currentTarget.style.background = '#F8F3EA';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.background = 'transparent';
+              }}
               aria-label="菜单"
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -163,24 +238,53 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden py-6 border-t border-primary-100 animate-fadeIn bg-white/95 backdrop-blur-md">
-            <nav className="flex flex-col space-y-3">
+          <div 
+            className="lg:hidden py-6 border-t animate-fadeIn"
+            style={{ 
+              background: 'rgba(253, 250, 244, 0.98)',
+              borderColor: '#E5DDD3'
+            }}
+          >
+            <nav className="flex flex-col space-y-2">
               {navItems.map((item) => (
                 <div key={item.name}>
                   <Link
                     href={item.href}
-                    className="block px-5 py-3.5 text-base font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200"
+                    className="block px-5 py-3 text-base font-medium transition-all duration-200"
+                    style={{ 
+                      color: '#2C1810',
+                      fontFamily: "'Noto Serif SC', serif",
+                      border: '1px solid transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#C9A84C';
+                      e.currentTarget.style.background = '#F8F3EA';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'transparent';
+                      e.currentTarget.style.background = 'transparent';
+                    }}
                     onClick={() => !item.dropdown && setIsMenuOpen(false)}
                   >
                     {item.name}
                   </Link>
                   {item.dropdown && (
-                    <div className="ml-6 mt-2 space-y-2">
+                    <div className="ml-6 mt-1 space-y-1">
                       {item.dropdown.map((subItem) => (
                         <Link
                           key={subItem.name}
                           href={subItem.href}
-                          className="block px-5 py-2.5 text-sm text-black/70 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                          className="block px-5 py-2 text-sm transition-all duration-200"
+                          style={{ 
+                            color: '#5C4A42',
+                            fontFamily: "'Noto Serif SC', serif"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#C84A2A';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#5C4A42';
+                          }}
                           onClick={() => setIsMenuOpen(false)}
                         >
                           {subItem.name}
@@ -190,21 +294,26 @@ const Header = () => {
                   )}
                 </div>
               ))}
-              <div className="pt-6 border-t border-primary-100 space-y-3">
+              <div className="pt-4 border-t mt-4 space-y-2" style={{ borderColor: '#E5DDD3' }}>
                 <Link
                   href="/login"
-                  className="block px-5 py-3.5 text-base font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200"
+                  className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
+                  style={{ 
+                    color: '#2C1810',
+                    fontFamily: "'Noto Serif SC', serif",
+                    border: '1px solid #C9A84C'
+                  }}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   登录
                 </Link>
                 <Link
                   href="/personal"
-                  className="block px-5 py-3.5 text-base font-medium text-center text-white transition-all duration-200"
+                  className="block px-5 py-3 text-base font-medium text-center text-white transition-all duration-200"
                   style={{ 
                     background: '#C84A2A', 
                     border: '1px solid #A63A1E',
-                    fontFamily: "'Noto Serif SC', serif"
+                    fontFamily: "'Noto Serif SC', serif'
                   }}
                   onClick={() => setIsMenuOpen(false)}
                 >
