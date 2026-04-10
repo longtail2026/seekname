@@ -109,9 +109,9 @@ export default function Home() {
         
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center w-full" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
-            <div className="animate-fade-in-up py-8">
+            <div className="py-8">
               {/* 金色装饰线 + 标签 */}
-              <div className="flex items-center gap-4 mb-8">
+              <div className="flex items-center gap-4 mb-8 animate-ink-spread">
                 <div className="w-12 h-[2px] bg-gradient-to-r from-transparent to-[#C9A84C]"></div>
                 <div className="ancient-badge">
                   <Sparkles className="w-5 h-5 text-[#C9A84C] mr-2" />
@@ -120,24 +120,24 @@ export default function Home() {
                 <div className="w-12 h-[2px] bg-gradient-to-l from-transparent to-[#C9A84C]"></div>
               </div>
               
-              {/* 主标题 - 使用宋体 */}
+              {/* 主标题 - 使用宋体，逐字浮现 */}
               <h1 
-                className="text-5xl md:text-6xl xl:text-7xl font-bold text-[#2C1810] mb-8 leading-[1.3] tracking-wide"
+                className="text-5xl md:text-6xl xl:text-7xl font-bold text-[#2C1810] mb-8 leading-[1.3] tracking-wide animate-char-reveal"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
                 <span className="block">寻一个好名</span>
-                <span className="block text-[#C84A2A] mt-2" style={{ fontFamily: "'Noto Serif SC', serif" }}>许一个未来</span>
+                <span className="block text-[#C84A2A] mt-2 animate-char-reveal delay-200" style={{ fontFamily: "'Noto Serif SC', serif" }}>许一个未来</span>
               </h1>
               
               <p 
-                className="text-xl xl:text-2xl text-[#5C4A42] mb-12 max-w-2xl leading-relaxed"
+                className="text-xl xl:text-2xl text-[#5C4A42] mb-12 max-w-2xl leading-relaxed animate-fade-in-up delay-400"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
                 融合<span className="text-[#C84A2A] font-semibold">易经五行</span>、<span className="text-[#C84A2A] font-semibold">生辰八字</span>、
                 <span className="text-[#C84A2A] font-semibold">文化典籍</span>与现代AI技术，为您提供最专业的命名解决方案。
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex flex-col sm:flex-row gap-6 animate-fade-in-up delay-600">
                 <Link
                   href="/personal"
                   className="btn-primary"
@@ -156,7 +156,7 @@ export default function Home() {
               </div>
               
               {/* 数据统计 - 金色印章风格 */}
-              <div className="mt-14 flex items-center gap-8">
+              <div className="mt-14 flex items-center gap-8 animate-fade-in-up delay-700">
                 {[
                   { num: '10万+', label: '用户选择' },
                   { num: '99%', label: '满意率' },
@@ -178,7 +178,7 @@ export default function Home() {
               </div>
             </div>
             
-            <div className="relative">
+            <div className="relative animate-ink-spread delay-300">
               <div 
                 className="ancient-card p-8 xl:p-10"
                 style={{ background: '#F8F3EA' }}

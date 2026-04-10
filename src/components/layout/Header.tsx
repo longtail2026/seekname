@@ -36,20 +36,42 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-primary-100 shadow-lg">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 py-2">
-          {/* Logo */}
+          {/* Logo - 印章风格 */}
           <Link href="/" className="flex items-center space-x-3 group">
             <div className="flex items-center">
-              {/* Logo图标 */}
-              <div className="w-12 h-12 rounded-xl gradient-brand flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <span className="text-white text-2xl font-bold">名</span>
+              {/* 印章Logo */}
+              <div 
+                className="w-12 h-12 flex items-center justify-center mr-3 transition-all duration-300 group-hover:scale-105"
+                style={{ 
+                  background: '#C84A2A',
+                  border: '2px solid #A63A1E',
+                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.1)'
+                }}
+              >
+                <span 
+                  className="text-white text-xl font-bold tracking-wider"
+                  style={{ fontFamily: "'Noto Serif SC', serif" }}
+                >
+                  名
+                </span>
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold text-black">寻名网</span>
-                <span className="text-xs text-black/60">www.seekname.cn</span>
+                <span 
+                  className="text-2xl font-bold text-[#2C1810]"
+                  style={{ fontFamily: "'Noto Serif SC', serif" }}
+                >
+                  寻名网
+                </span>
+                <span className="text-xs text-[#5C4A42]">www.seekname.cn</span>
               </div>
             </div>
-            <div className="hidden md:block ml-4 pl-4 border-l border-primary-200">
-              <span className="text-sm text-black/70">寻一个好名，许一个未来</span>
+            <div className="hidden md:block ml-4 pl-4 border-l border-[#C9A84C]/30">
+              <span 
+                className="text-sm text-[#5C4A42]"
+                style={{ fontFamily: "'Noto Serif SC', serif" }}
+              >
+                寻一个好名，许一个未来
+              </span>
             </div>
           </Link>
 
@@ -117,7 +139,12 @@ const Header = () => {
             {/* CTA Button */}
             <Link
               href="/personal"
-              className="hidden sm:inline-flex px-6 py-3 text-sm font-medium text-white gradient-brand rounded-xl hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 items-center"
+              className="hidden sm:inline-flex px-6 py-3 text-sm font-medium text-white transition-all duration-200 items-center"
+              style={{ 
+                background: '#C84A2A', 
+                border: '1px solid #A63A1E',
+                fontFamily: "'Noto Serif SC', serif"
+              }}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               免费起名
@@ -173,7 +200,12 @@ const Header = () => {
                 </Link>
                 <Link
                   href="/personal"
-                  className="block px-5 py-3.5 text-base font-medium text-center text-white gradient-brand rounded-xl transition-all duration-200 shadow-lg"
+                  className="block px-5 py-3.5 text-base font-medium text-center text-white transition-all duration-200"
+                  style={{ 
+                    background: '#C84A2A', 
+                    border: '1px solid #A63A1E',
+                    fontFamily: "'Noto Serif SC', serif"
+                  }}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <Sparkles className="w-5 h-5 inline mr-2" />
