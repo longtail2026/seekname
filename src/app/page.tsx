@@ -113,8 +113,8 @@ export default function Home() {
               {/* 金色装饰线 + 标签 */}
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-12 h-[2px] bg-gradient-to-r from-transparent to-[#C9A84C]"></div>
-                <div className="inline-flex items-center space-x-2 bg-[#F8F3EA] px-5 py-2.5 rounded-full border border-[#C9A84C]/30">
-                  <Sparkles className="w-5 h-5 text-[#C9A84C]" />
+                <div className="ancient-badge">
+                  <Sparkles className="w-5 h-5 text-[#C9A84C] mr-2" />
                   <span className="text-base font-medium text-[#2C1810]">AI智能起名</span>
                 </div>
                 <div className="w-12 h-[2px] bg-gradient-to-l from-transparent to-[#C9A84C]"></div>
@@ -272,8 +272,8 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="w-full flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
             <div className="text-center mb-12 md:mb-16">
-              <div className="inline-flex items-center space-x-2 bg-[#C9A84C]/10 px-5 py-2.5 rounded-full mb-6 border border-[#C9A84C]/30">
-                <Sparkles className="w-5 h-5 text-[#C9A84C]" />
+              <div className="ancient-badge mb-6">
+                <Sparkles className="w-5 h-5 text-[#C9A84C] mr-2" />
                 <span className="text-sm font-medium text-[#2C1810]">AI驱动</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[#2C1810]" style={{ fontFamily: "'Noto Serif SC', serif" }}>
@@ -348,7 +348,7 @@ export default function Home() {
                   
                   <div className="flex items-center mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-[#C9A84C] fill-current" />
+                      <span key={i} className="w-5 h-5 flex items-center justify-center mr-1" style={{ color: '#C9A84C', fontFamily: "'Noto Serif SC', serif" }}>★</span>
                     ))}
                   </div>
                   

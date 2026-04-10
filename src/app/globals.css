@@ -288,6 +288,35 @@
     opacity: 0.3;
   }
 
+  /* 传统标签/徽章样式 - 印章风格 */
+  .ancient-badge {
+    @apply inline-flex items-center px-4 py-2 text-sm font-medium;
+    background: var(--background-warm);
+    border: 1px solid var(--gold);
+    color: var(--ink);
+    font-family: 'Noto Serif SC', serif;
+    position: relative;
+  }
+
+  .ancient-badge::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border: 1px solid var(--gold);
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .ancient-badge-primary {
+    background: var(--primary);
+    border-color: var(--primary-dark);
+    color: white;
+  }
+
+  .ancient-badge-primary::before {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
   /* 单屏滚动容器 - 菜单栏固定，每屏高度为calc(100dvh-4rem) */
   .fullscreen-section {
     @apply min-h-[calc(100dvh-4rem)] w-full relative overflow-hidden;
