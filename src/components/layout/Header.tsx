@@ -1,12 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Search, ChevronDown, Sparkles } from "lucide-react";
+import { Menu, X, Search, ChevronDown } from "lucide-react";
 import Link from "next/link";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // 站内搜索逻辑
+      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+    }
+  };
 
   const navItems = [
     { name: "首页", href: "/" },
@@ -93,19 +103,10 @@ const Header = () => {
               >
                 <Link
                   href={item.href}
-                  className="flex items-center px-4 py-2 text-sm font-medium transition-all duration-200"
+                  className="flex items-center px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
                   style={{ 
                     color: '#2C1810',
-                    fontFamily: "'Noto Serif SC', serif",
-                    border: '1px solid transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#C9A84C';
-                    e.currentTarget.style.background = '#F8F3EA';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'transparent';
-                    e.currentTarget.style.background = 'transparent';
+                    fontFamily: "'Noto Serif SC', serif"
                   }}
                 >
                   {item.name}
@@ -117,7 +118,7 @@ const Header = () => {
                 {/* Dropdown Menu - 悬停显示 */}
                 {item.dropdown && (
                   <div 
-                    className={`absolute top-full left-0 mt-1 w-48 py-2 transition-all duration-200 ${
+                    className={`absolute top-full mt-[12px] py-1.5 transition-all duration-200 ${
                       activeDropdown === item.name 
                         ? 'opacity-100 visible translate-y-0' 
                         : 'opacity-0 invisible -translate-y-2'
@@ -125,14 +126,16 @@ const Header = () => {
                     style={{ 
                       background: '#FDFAF4',
                       border: '1px solid #E5DDD3',
-                      boxShadow: '0 4px 12px rgba(44, 24, 16, 0.08)'
+                      boxShadow: '0 4px 12px rgba(44, 24, 16, 0.08)',
+                      left: '-6px',
+                      right: '-6px'
                     }}
                   >
                     {item.dropdown.map((subItem) => (
                       <Link
                         key={subItem.name}
                         href={subItem.href}
-                        className="block px-4 py-2 text-sm transition-all duration-200"
+                        className="block px-4 py-1.5 text-sm text-center transition-all duration-200"
                         style={{ 
                           color: '#2C1810',
                           fontFamily: "'Noto Serif SC', serif"
@@ -157,78 +160,60 @@ const Header = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-3">
-            {/* Search Button */}
-            <button
-              className="p-2.5 transition-all duration-200"
-              style={{ color: '#5C4A42', border: '1px solid transparent' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#C9A84C';
-                e.currentTarget.style.background = '#F8F3EA';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'transparent';
-                e.currentTarget.style.background = 'transparent';
-              }}
-              aria-label="搜索"
-            >
-              <Search className="w-5 h-5" />
-            </button>
+            {/* Search Input */}
+            <form onSubmit={handleSearch} className="relative">
+              <input
+                type="text"
+                placeholder="搜索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                className="w-40 lg:w-48 pl-4 pr-10 py-2 text-sm transition-all duration-200 outline-none"
+                style={{
+                  fontFamily: "'Noto Serif SC', serif",
+                  color: '#2C1810',
+                  background: isSearchFocused ? '#F8F3EA' : 'transparent',
+                  border: isSearchFocused ? '1px solid #C9A84C' : '1px solid #E5DDD3',
+                }}
+              />
+              <button
+                type="submit"
+                className="absolute right-0 top-0 h-full px-3 flex items-center justify-center transition-colors duration-200"
+                style={{ color: isSearchFocused ? '#C84A2A' : '#5C4A42' }}
+                aria-label="搜索"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </form>
 
-            {/* Login Button */}
+            {/* Login & Register Buttons */}
             <Link
               href="/login"
-              className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200"
+              className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
               style={{ 
                 color: '#2C1810',
-                fontFamily: "'Noto Serif SC', serif",
-                border: '1px solid #C9A84C',
-                background: 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#F8F3EA';
-                e.currentTarget.style.color = '#C84A2A';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = '#2C1810';
+                fontFamily: "'Noto Serif SC', serif"
               }}
             >
               登录
             </Link>
-
-            {/* CTA Button */}
             <Link
-              href="/personal"
-              className="hidden sm:inline-flex px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 items-center"
+              href="/register"
+              className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
               style={{ 
-                background: '#C84A2A', 
-                border: '1px solid #A63A1E',
-                fontFamily: "'Noto Serif SC', serif'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#A63A1E';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#C84A2A';
+                color: '#2C1810',
+                fontFamily: "'Noto Serif SC', serif"
               }}
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              免费起名
+              注册
             </Link>
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2.5 transition-all duration-200"
-              style={{ color: '#5C4A42', border: '1px solid transparent' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#C9A84C';
-                e.currentTarget.style.background = '#F8F3EA';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'transparent';
-                e.currentTarget.style.background = 'transparent';
-              }}
+              className="lg:hidden p-2.5 transition-all duration-200 nav-menu-item"
+              style={{ color: '#5C4A42' }}
               aria-label="菜单"
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -250,19 +235,10 @@ const Header = () => {
                 <div key={item.name}>
                   <Link
                     href={item.href}
-                    className="block px-5 py-3 text-base font-medium transition-all duration-200"
+                    className="block px-5 py-3 text-base font-medium transition-all duration-200 nav-menu-item"
                     style={{ 
                       color: '#2C1810',
-                      fontFamily: "'Noto Serif SC', serif",
-                      border: '1px solid transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#C9A84C';
-                      e.currentTarget.style.background = '#F8F3EA';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'transparent';
-                      e.currentTarget.style.background = 'transparent';
+                      fontFamily: "'Noto Serif SC', serif"
                     }}
                     onClick={() => !item.dropdown && setIsMenuOpen(false)}
                   >
@@ -308,17 +284,16 @@ const Header = () => {
                   登录
                 </Link>
                 <Link
-                  href="/personal"
-                  className="block px-5 py-3 text-base font-medium text-center text-white transition-all duration-200"
+                  href="/register"
+                  className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
                   style={{ 
-                    background: '#C84A2A', 
-                    border: '1px solid #A63A1E',
-                    fontFamily: "'Noto Serif SC', serif'
+                    color: '#2C1810',
+                    fontFamily: "'Noto Serif SC', serif",
+                    border: '1px solid #C9A84C'
                   }}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <Sparkles className="w-5 h-5 inline mr-2" />
-                  免费起名
+                  注册
                 </Link>
               </div>
             </nav>

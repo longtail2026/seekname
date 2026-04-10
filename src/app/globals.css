@@ -236,6 +236,45 @@
       16px 1px, 1px 16px;
   }
 
+  /* 导航菜单项 - 回纹细边框悬停效果 */
+  .nav-menu-item {
+    position: relative;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .nav-menu-item::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 1px solid #C9A84C;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+  }
+
+  /* 回纹装饰 - 使用独立伪元素，确保不遮挡鼠标事件 */
+  .nav-menu-item::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    /* 简洁单层细边框，极淡金色 */
+    border: 0.5px solid #D4C9B0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .nav-menu-item:hover::before,
+  .nav-menu-item:hover::after {
+    opacity: 1;
+  }
+
+  .nav-menu-item:hover {
+    background: #F8F3EA;
+    color: #C84A2A !important;
+  }
+
   /* 按钮样式 - 传统古韵风格 */
   .btn-primary {
     @apply inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white transition-all duration-300;
