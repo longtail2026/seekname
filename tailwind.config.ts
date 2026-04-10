@@ -9,25 +9,49 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // 朱砂色系 - 主色调
         primary: {
-          DEFAULT: "#f26522",
-          dark: "#d9530f",
-          light: "#ff8c42",
-          50: "#fff7ed",
-          100: "#ffedd5",
-          200: "#fed7aa",
-          300: "#fdba74",
-          400: "#fb923c",
-          500: "#f97316",
-          600: "#ea580c",
-          700: "#c2410c",
-          800: "#9a3412",
-          900: "#7c2d12",
+          DEFAULT: "#C84A2A",
+          dark: "#A63A1E",
+          light: "#E0603A",
+          50: "#FDF2EF",
+          100: "#F9E5DE",
+          200: "#F0C9BC",
+          300: "#E6A699",
+          400: "#D97A6B",
+          500: "#C84A2A",
+          600: "#B04024",
+          700: "#A63A1E",
+          800: "#8A3018",
+          900: "#6E2613",
         },
-        black: {
-          DEFAULT: "#1a1a1a",
-          light: "#333333",
-          dark: "#000000",
+        // 古铜金色系
+        gold: {
+          DEFAULT: "#C9A84C",
+          light: "#D4BC6E",
+          dark: "#A68A3C",
+          50: "#FCFAF5",
+          100: "#F8F3EA",
+          200: "#F0E7D4",
+          300: "#E5D7B8",
+          400: "#D9C89C",
+          500: "#C9A84C",
+          600: "#B89844",
+          700: "#A68A3C",
+          800: "#8A7232",
+          900: "#6E5A28",
+        },
+        // 宣纸色系
+        paper: {
+          DEFAULT: "#FDFAF4",
+          warm: "#F8F3EA",
+          dark: "#F0EBE3",
+        },
+        // 墨色
+        ink: {
+          DEFAULT: "#2C1810",
+          light: "#4A3A32",
+          muted: "#5C4A42",
         },
       },
       fontFamily: {

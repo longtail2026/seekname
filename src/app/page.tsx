@@ -95,7 +95,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section - 第一屏 */}
-      <section className="fullscreen-section ancient-pattern-bg bg-gradient-to-br from-primary-50 via-white to-primary-100 relative overflow-hidden">
+      <section className="fullscreen-section ancient-pattern-bg relative overflow-hidden">
         {/* 古风装饰元素 */}
         <div className="absolute top-10 left-10 w-24 h-24 opacity-10">
           <Scroll className="w-full h-full text-primary-600" />
@@ -110,62 +110,87 @@ export default function Home() {
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center w-full" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
             <div className="animate-fade-in-up py-8">
-              <div className="inline-flex items-center space-x-3 bg-white/95 backdrop-blur-md px-8 py-4 rounded-2xl mb-10 border-2 border-primary-200 shadow-xl">
-                <Sparkles className="w-6 h-6 text-primary-600" />
-                <span className="text-lg font-bold text-black">AI智能起名平台</span>
-                <div className="ml-3 px-3 py-1 bg-primary-100 rounded-full">
-                  <span className="text-sm font-medium text-primary-700">专业·文化·吉祥</span>
+              {/* 金色装饰线 + 标签 */}
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-[2px] bg-gradient-to-r from-transparent to-[#C9A84C]"></div>
+                <div className="inline-flex items-center space-x-2 bg-[#F8F3EA] px-5 py-2.5 rounded-full border border-[#C9A84C]/30">
+                  <Sparkles className="w-5 h-5 text-[#C9A84C]" />
+                  <span className="text-base font-medium text-[#2C1810]">AI智能起名</span>
                 </div>
+                <div className="w-12 h-[2px] bg-gradient-to-l from-transparent to-[#C9A84C]"></div>
               </div>
               
-              <h1 className="text-5xl md:text-6xl xl:text-7xl font-bold text-black mb-10 leading-tight">
+              {/* 主标题 - 使用宋体 */}
+              <h1 
+                className="text-5xl md:text-6xl xl:text-7xl font-bold text-[#2C1810] mb-8 leading-[1.3] tracking-wide"
+                style={{ fontFamily: "'Noto Serif SC', serif" }}
+              >
                 <span className="block">寻一个好名</span>
-                <span className="block gradient-text mt-4">许一个未来</span>
+                <span className="block text-[#C84A2A] mt-2" style={{ fontFamily: "'Noto Serif SC', serif" }}>许一个未来</span>
               </h1>
               
-              <p className="text-xl xl:text-2xl text-black/80 mb-14 max-w-2xl leading-relaxed font-medium">
-                融合<span className="text-primary-600 font-bold">易经五行</span>、<span className="text-primary-600 font-bold">生辰八字</span>、
-                <span className="text-primary-600 font-bold">文化典籍</span>与现代AI技术，为您提供最专业的命名解决方案。
+              <p 
+                className="text-xl xl:text-2xl text-[#5C4A42] mb-12 max-w-2xl leading-relaxed"
+                style={{ fontFamily: "'Noto Serif SC', serif" }}
+              >
+                融合<span className="text-[#C84A2A] font-semibold">易经五行</span>、<span className="text-[#C84A2A] font-semibold">生辰八字</span>、
+                <span className="text-[#C84A2A] font-semibold">文化典籍</span>与现代AI技术，为您提供最专业的命名解决方案。
               </p>
               
               <div className="flex flex-col sm:flex-row gap-6">
                 <Link
                   href="/personal"
-                  className="btn-primary text-xl px-12 py-6 rounded-2xl shadow-2xl hover:shadow-3xl"
+                  className="btn-primary"
                 >
                   <Sparkles className="w-6 h-6 mr-3" />
                   免费起名体验
-                  <ChevronRight className="ml-3 w-6 h-6" />
+                  <ChevronRight className="ml-2 w-6 h-6" />
                 </Link>
                 <Link
                   href="/about"
-                  className="btn-secondary text-xl px-12 py-6 rounded-2xl shadow-xl hover:shadow-2xl"
+                  className="btn-secondary"
                 >
-                  <Scroll className="w-6 h-6 mr-3" />
+                  <Scroll className="w-6 h-6 mr-3 text-[#C9A84C]" />
                   了解更多
                 </Link>
               </div>
               
-              <div className="mt-16 grid grid-cols-3 gap-6 max-w-lg">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary-600">10万+</div>
-                  <div className="text-sm text-black/70 mt-1">用户选择</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary-600">99%</div>
-                  <div className="text-sm text-black/70 mt-1">满意率</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary-600">30秒</div>
-                  <div className="text-sm text-black/70 mt-1">快速生成</div>
-                </div>
+              {/* 数据统计 - 金色印章风格 */}
+              <div className="mt-14 flex items-center gap-8">
+                {[
+                  { num: '10万+', label: '用户选择' },
+                  { num: '99%', label: '满意率' },
+                  { num: '30秒', label: '快速生成' },
+                ].map((stat, i) => (
+                  <div key={i} className="flex items-center gap-8">
+                    <div className="text-center">
+                      <div 
+                        className="text-3xl font-bold text-[#C84A2A]"
+                        style={{ fontFamily: "'Noto Serif SC', serif" }}
+                      >
+                        {stat.num}
+                      </div>
+                      <div className="text-sm text-[#5C4A42] mt-1">{stat.label}</div>
+                    </div>
+                    {i < 2 && <div className="w-[1px] h-10 bg-[#C9A84C]/30"></div>}
+                  </div>
+                ))}
               </div>
             </div>
             
             <div className="relative">
-              <div className="relative bg-gradient-to-br from-primary-100 to-primary-200 rounded-3xl p-8 xl:p-10 shadow-3xl border-2 border-primary-300/40">
-                <div className="absolute -top-4 -right-4 w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Award className="w-8 h-8 text-white" />
+              <div 
+                className="ancient-card p-8 xl:p-10"
+                style={{ background: '#F8F3EA' }}
+              >
+                <div 
+                  className="absolute -top-3 -right-3 w-14 h-14 flex items-center justify-center"
+                  style={{ 
+                    background: '#C9A84C',
+                    border: '1px solid #A68A3C'
+                  }}
+                >
+                  <Award className="w-7 h-7 text-white" />
                 </div>
                 <div className="grid grid-cols-2 gap-8 xl:gap-10">
                   {services.slice(0, 4).map((service, index) => (
@@ -194,7 +219,7 @@ export default function Home() {
       </section>
 
       {/* Services Section - 第二屏 */}
-      <section className="fullscreen-section cloud-pattern-bg bg-gradient-to-b from-primary-50/80 to-white">
+      <section className="fullscreen-section ancient-pattern-bg" style={{ backgroundColor: '#F8F3EA' }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="w-full flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
             <div className="text-center mb-12 md:mb-16">
@@ -211,7 +236,7 @@ export default function Home() {
                 <Link
                   key={index}
                   href={service.href}
-                  className="group ancient-card hover:border-primary-300"
+                  className="group ancient-card hover:border-gold transition-all duration-300"
                 >
                   <div className="flex items-start mb-6">
                     <div className="ancient-icon-container mr-4 group-hover:scale-110 transition-transform duration-300">
@@ -243,18 +268,18 @@ export default function Home() {
       </section>
 
       {/* Features Section - 第三屏 */}
-      <section className="fullscreen-section ancient-pattern-bg bg-gradient-to-br from-primary-600 to-primary-700 text-white">
+      <section className="fullscreen-section ancient-pattern-bg" style={{ backgroundColor: '#F0EBE3' }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="w-full flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
             <div className="text-center mb-12 md:mb-16">
-              <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-5 py-2.5 rounded-full mb-6">
-                <Sparkles className="w-5 h-5" />
-                <span className="text-sm font-medium">AI驱动</span>
+              <div className="inline-flex items-center space-x-2 bg-[#C9A84C]/10 px-5 py-2.5 rounded-full mb-6 border border-[#C9A84C]/30">
+                <Sparkles className="w-5 h-5 text-[#C9A84C]" />
+                <span className="text-sm font-medium text-[#2C1810]">AI驱动</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[#2C1810]" style={{ fontFamily: "'Noto Serif SC', serif" }}>
                 为什么选择寻名网
               </h2>
-              <p className="text-xl text-primary-100 max-w-3xl mx-auto">
+              <p className="text-xl text-[#5C4A42] max-w-3xl mx-auto">
                 融合传统文化智慧与现代AI技术，为您提供科学的命名方案
               </p>
             </div>
@@ -263,14 +288,14 @@ export default function Home() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 text-center hover:bg-white/20 transition-all duration-300 border border-white/10 hover:border-white/20"
+                  className="ancient-card bg-[#FDFAF4] p-8 text-center"
                 >
-                  <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-6">
+                  <div className="w-16 h-16 flex items-center justify-center mx-auto mb-6" style={{ background: '#C9A84C', border: '1px solid #A68A3C' }}>
                     <feature.icon className="w-8 h-8 text-white" />
                   </div>
-                  <div className="text-3xl md:text-4xl font-bold mb-3">{feature.stat}</div>
-                  <h3 className="text-lg font-semibold mb-3">{feature.title}</h3>
-                  <p className="text-sm text-primary-100">{feature.description}</p>
+                  <div className="text-3xl md:text-4xl font-bold mb-3 text-[#C84A2A]">{feature.stat}</div>
+                  <h3 className="text-lg font-semibold mb-3 text-[#2C1810]">{feature.title}</h3>
+                  <p className="text-sm text-[#5C4A42]">{feature.description}</p>
                 </div>
               ))}
             </div>
@@ -278,7 +303,7 @@ export default function Home() {
             <div className="text-center mt-12">
               <Link
                 href="/personal"
-                className="inline-flex items-center justify-center px-10 py-5 text-lg font-semibold text-primary-600 bg-white rounded-2xl hover:bg-primary-50 shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-1"
+                className="btn-primary px-10 py-5"
               >
                 <Sparkles className="w-6 h-6 mr-3" />
                 立即体验AI起名
@@ -289,18 +314,18 @@ export default function Home() {
       </section>
 
       {/* Combined Testimonials & Footer Section - 第四屏 */}
-      <section className="fullscreen-section ancient-pattern-bg bg-gradient-to-br from-primary-800 via-primary-900 to-black text-white relative">
+      <section className="fullscreen-section ancient-pattern-bg relative" style={{ backgroundColor: '#FDFAF4' }}>
         {/* 客户评价部分 - 占据前2/3高度，添加顶部留白 */}
         <div className="h-2/3 flex flex-col">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center pt-12">
             <div className="text-center mb-10">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 mx-auto mb-4 shadow-xl ancient-border">
+              <div className="inline-flex items-center justify-center w-16 h-16 mx-auto mb-4" style={{ background: '#C9A84C', border: '1px solid #A68A3C' }}>
                 <Award className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              <h2 className="text-2xl md:text-3xl font-bold mb-3 text-[#2C1810]" style={{ fontFamily: "'Noto Serif SC', serif" }}>
                 用户信赖，专业之选
               </h2>
-              <p className="text-base text-primary-200 max-w-2xl mx-auto">
+              <p className="text-base text-[#5C4A42] max-w-2xl mx-auto">
                 数千用户的选择与信任，见证我们的专业与品质
               </p>
             </div>
@@ -309,28 +334,28 @@ export default function Home() {
               {testimonials.map((testimonial, index) => (
                 <div
                   key={index}
-                  className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 ancient-border hover:border-primary-500/30 flex flex-col"
+                  className="ancient-card bg-[#F8F3EA] p-6 flex flex-col"
                 >
                   <div className="flex items-center mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500/20 to-primary-600/20 flex items-center justify-center mr-4 ancient-border">
-                      <testimonial.icon className="w-6 h-6 text-primary-300" />
+                    <div className="w-12 h-12 flex items-center justify-center mr-4" style={{ background: '#F8F3EA', border: '1px solid #C9A84C' }}>
+                      <testimonial.icon className="w-6 h-6 text-[#C9A84C]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-white text-lg">{testimonial.name}</p>
-                      <p className="text-base text-primary-300">{testimonial.role}</p>
+                      <p className="font-semibold text-[#2C1810] text-lg">{testimonial.name}</p>
+                      <p className="text-base text-[#5C4A42]">{testimonial.role}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                      <Star key={i} className="w-5 h-5 text-[#C9A84C] fill-current" />
                     ))}
                   </div>
                   
-                  <p className="text-primary-100 text-lg mb-4 italic leading-relaxed flex-1">"{testimonial.content}"</p>
+                  <p className="text-[#5C4A42] text-lg mb-4 italic leading-relaxed flex-1" style={{ fontFamily: "'Noto Serif SC', serif" }}>"{testimonial.content}"</p>
                   
-                  <div className="pt-4 border-t border-white/10 mt-auto">
-                    <div className="text-base text-primary-400">已验证用户评价</div>
+                  <div className="pt-4 border-t border-[#C9A84C]/20 mt-auto">
+                    <div className="text-base text-[#C9A84C]">已验证用户评价</div>
                   </div>
                 </div>
               ))}
@@ -339,13 +364,13 @@ export default function Home() {
         </div>
         
         {/* 通栏黑底白字页脚 - 占据后1/3高度，在页面最底部 */}
-        <div className="h-1/3 bg-black absolute bottom-0 left-0 right-0">
+        <div className="h-1/3 absolute bottom-0 left-0 right-0" style={{ backgroundColor: '#2C1810' }}>
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               {/* 品牌信息 */}
               <div className="md:col-span-2">
                 <div className="flex items-center space-x-4 mb-3">
-                  <div className="w-12 h-12 rounded-xl gradient-brand flex items-center justify-center shadow-xl ancient-border">
+                  <div className="w-12 h-12 flex items-center justify-center" style={{ background: '#C84A2A', border: '1px solid #A63A1E' }}>
                     <span className="text-white text-xl font-bold">名</span>
                   </div>
                   <div>
@@ -359,7 +384,8 @@ export default function Home() {
                 <div className="flex flex-wrap gap-3">
                   <Link
                     href="/personal"
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white gradient-brand rounded-lg hover:shadow-md transition-all duration-200 ancient-border"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white transition-all duration-200"
+                    style={{ background: '#C84A2A', border: '1px solid #A63A1E', fontFamily: "'Noto Serif SC', serif" }}
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
                     免费起名体验
