@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Search, ChevronDown } from "lucide-react";
+import { Menu, X, Search, ChevronDown, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 const Header = () => {
@@ -33,28 +33,28 @@ const Header = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-primary-100 shadow-lg">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 py-2">
+        <div className="flex items-center justify-between h-20 py-2">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href="/" className="flex items-center space-x-3 group">
             <div className="flex items-center">
               {/* Logo图标 */}
-              <div className="w-10 h-10 rounded-lg gradient-brand flex items-center justify-center mr-2">
-                <span className="text-white text-xl font-bold">名</span>
+              <div className="w-12 h-12 rounded-xl gradient-brand flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                <span className="text-white text-2xl font-bold">名</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-gray-900">寻名网</span>
-                <span className="text-xs text-gray-500">www.seekname.cn</span>
+                <span className="text-2xl font-bold text-black">寻名网</span>
+                <span className="text-xs text-black/60">www.seekname.cn</span>
               </div>
             </div>
-            <div className="hidden md:block ml-4 pl-4 border-l border-gray-200">
-              <span className="text-sm text-gray-600">寻一个好名，许一个未来</span>
+            <div className="hidden md:block ml-4 pl-4 border-l border-primary-200">
+              <span className="text-sm text-black/70">寻一个好名，许一个未来</span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center space-x-2">
             {navItems.map((item) => (
               <div
                 key={item.name}
@@ -64,7 +64,7 @@ const Header = () => {
               >
                 <Link
                   href={item.href}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-colors duration-200"
+                  className="flex items-center px-5 py-3 text-sm font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
                 >
                   {item.name}
                   {item.dropdown && (
@@ -75,7 +75,7 @@ const Header = () => {
                 {/* Dropdown Menu - 悬停显示 */}
                 {item.dropdown && (
                   <div 
-                    className={`absolute top-full left-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-2 transition-all duration-200 ${
+                    className={`absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-primary-100 py-3 transition-all duration-200 ${
                       activeDropdown === item.name 
                         ? 'opacity-100 visible translate-y-0' 
                         : 'opacity-0 invisible -translate-y-2'
@@ -85,7 +85,7 @@ const Header = () => {
                       <Link
                         key={subItem.name}
                         href={subItem.href}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:text-orange-600 hover:bg-orange-50 transition-colors duration-200"
+                        className="block px-4 py-2.5 text-sm text-black hover:text-primary-600 hover:bg-primary-50 transition-all duration-200"
                       >
                         {subItem.name}
                       </Link>
@@ -97,10 +97,10 @@ const Header = () => {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             {/* Search Button */}
             <button
-              className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+              className="p-2.5 text-black/70 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
               aria-label="搜索"
             >
               <Search className="w-5 h-5" />
@@ -109,7 +109,7 @@ const Header = () => {
             {/* Login Button */}
             <Link
               href="/login"
-              className="hidden md:inline-flex px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+              className="hidden md:inline-flex px-5 py-2.5 text-sm font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
             >
               登录
             </Link>
@@ -117,15 +117,16 @@ const Header = () => {
             {/* CTA Button */}
             <Link
               href="/personal"
-              className="hidden sm:inline-flex px-5 py-2 text-sm font-medium text-white gradient-brand rounded-lg hover:shadow-md transition-all duration-200"
+              className="hidden sm:inline-flex px-6 py-3 text-sm font-medium text-white gradient-brand rounded-xl hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 items-center"
             >
+              <Sparkles className="w-4 h-4 mr-2" />
               免费起名
             </Link>
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+              className="lg:hidden p-2.5 text-black/70 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200 border border-transparent hover:border-primary-200"
               aria-label="菜单"
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -135,24 +136,24 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-gray-100 animate-fadeIn">
-            <nav className="flex flex-col space-y-2">
+          <div className="lg:hidden py-6 border-t border-primary-100 animate-fadeIn bg-white/95 backdrop-blur-md">
+            <nav className="flex flex-col space-y-3">
               {navItems.map((item) => (
                 <div key={item.name}>
                   <Link
                     href={item.href}
-                    className="block px-4 py-3 text-base font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+                    className="block px-5 py-3.5 text-base font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200"
                     onClick={() => !item.dropdown && setIsMenuOpen(false)}
                   >
                     {item.name}
                   </Link>
                   {item.dropdown && (
-                    <div className="ml-4 mt-1 space-y-1">
+                    <div className="ml-6 mt-2 space-y-2">
                       {item.dropdown.map((subItem) => (
                         <Link
                           key={subItem.name}
                           href={subItem.href}
-                          className="block px-4 py-2 text-sm text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+                          className="block px-5 py-2.5 text-sm text-black/70 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                           onClick={() => setIsMenuOpen(false)}
                         >
                           {subItem.name}
@@ -162,19 +163,20 @@ const Header = () => {
                   )}
                 </div>
               ))}
-              <div className="pt-4 border-t border-gray-200 space-y-2">
+              <div className="pt-6 border-t border-primary-100 space-y-3">
                 <Link
                   href="/login"
-                  className="block px-4 py-3 text-base font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
+                  className="block px-5 py-3.5 text-base font-medium text-black hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all duration-200"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   登录
                 </Link>
                 <Link
                   href="/personal"
-                  className="block px-4 py-3 text-base font-medium text-center text-white gradient-brand rounded-lg transition-colors duration-200"
+                  className="block px-5 py-3.5 text-base font-medium text-center text-white gradient-brand rounded-xl transition-all duration-200 shadow-lg"
                   onClick={() => setIsMenuOpen(false)}
                 >
+                  <Sparkles className="w-5 h-5 inline mr-2" />
                   免费起名
                 </Link>
               </div>
