@@ -1,0 +1,118 @@
+// seekname 数据库 Schema
+// 对应 seekname_db PostgreSQL 数据库
+// 生成方式：npx prisma generate
+// 推送方式：npx prisma db push  (生产请用 migrate)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// 1. 典籍书目（25 本核心典籍）
+// ─────────────────────────────────────────────
+model ClassicsBook {
+  id          Int              @id @default(autoincrement())
+  origId      Int?             @map("orig_id")
+  name        String           @db.VarChar(100)
+  author      String?          @db.VarChar(100)
+  category    String?          @db.VarChar(20)   // 儒家/道家/史书 等
+  dynasty     String?          @db.VarChar(20)
+  description String?
+
+  entries     ClassicsEntry[]
+
+  @@map("classics_books")
+}
+
+// ─────────────────────────────────────────────
+// 2. 典籍条目（精选名句，用于 AI 取名引用）
+// ─────────────────────────────────────────────
+model ClassicsEntry {
+  id          Int           @id @default(autoincrement())
+  bookId      Int?          @map("book_id")
+  bookName    String?       @map("book_name")  @db.VarChar(100)
+  chapterName String?       @map("chapter_name") @db.VarChar(200)
+  ancientText String        @map("ancient_text")
+  modernText  String?       @map("modern_text")
+  keywords    String[]      // GIN 索引，关键词数组
+
+  book        ClassicsBook? @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId], name: "idx_ce_book")
+  @@map("classics_entries")
+}
+
+// ─────────────────────────────────────────────
+// 3. 人名样本库（88k 条，按姓氏采样）
+// ─────────────────────────────────────────────
+model NameSample {
+  id        Int     @id @default(autoincrement())
+  fullName  String  @map("full_name")  @db.VarChar(30)
+  surname   String? @db.VarChar(10)
+  givenName String? @map("given_name") @db.VarChar(20)
+  gender    String? @db.Char(1)         // M / F / U
+  frequency Int?
+  pinyin    String? @db.VarChar(100)
+
+  @@index([surname], name: "idx_ns_surname")
+  @@index([gender],  name: "idx_ns_gender")
+  @@map("name_samples")
+}
+
+// ─────────────────────────────────────────────
+// 4. 康熙字典（24,097 字，含五行属性）
+// ─────────────────────────────────────────────
+model KangxiDict {
+  id          Int       @id @default(autoincrement())
+  character   String    @db.VarChar(10)
+  pinyin      String?   @db.VarChar(50)
+  radical     String?   @db.VarChar(10)   // 部首
+  strokeCount Int?      @map("stroke_count")
+  meaning     String?
+  wuxing      String?   @db.VarChar(10)   // 金/木/水/火/土
+  source      String?   @db.VarChar(100)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([character],   name: "idx_kd_char")
+  @@index([pinyin],      name: "idx_kd_pinyin")
+  @@index([wuxing],      name: "idx_kd_wuxing")
+  @@map("kangxi_dict")
+}
+
+// ─────────────────────────────────────────────
+// 5. 敏感词库（87,042 条，起名过滤用）
+// ─────────────────────────────────────────────
+model SensitiveWord {
+  id         Int       @id @default(autoincrement())
+  word       String
+  category   String?   @db.VarChar(50)  // 政治/色情/暴力/宗教 等
+  level      Int?                        // 1=警告 2=禁止
+  sourceFile String?   @map("source_file") @db.VarChar(100)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([word],     name: "idx_sw_word")
+  @@index([category], name: "idx_sw_category")
+  @@map("sensitive_words")
+}
+
+// ─────────────────────────────────────────────
+// 6. 五行字库（20 组，起名五行配置用）
+// ─────────────────────────────────────────────
+model WuxingCharacter {
+  id          Int       @id @default(autoincrement())
+  character   String    @db.VarChar(10)
+  wuxing      String?   @db.VarChar(10)  // 金/木/水/火/土
+  meaning     String?
+  suitability String?                    // 适合哪些八字用法
+  pinyin      String?   @db.VarChar(50)
+  strokeCount Int?      @map("stroke_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([character], name: "idx_wx_char")
+  @@index([wuxing],    name: "idx_wx_wuxing")
+  @@map("wuxing_characters")
+}

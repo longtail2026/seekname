@@ -52,3 +52,5 @@ temp/
 # WorkBuddy specific
 .workbuddy/memory/*.md
 !.workbuddy/memory/MEMORY.md
+
+/src/generated/prisma
