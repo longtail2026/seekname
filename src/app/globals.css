@@ -475,14 +475,19 @@
   background: linear-gradient(135deg, #ff8c42 0%, #f26522 100%);
 }
 
-/* 单屏滚动效果 */
+/* 单屏滚动效果 - PC端（≥768px）启用，移动端（<768px）关闭 */
 html {
-  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
 }
 
-.fullscreen-section {
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-  scroll-margin-top: 4rem; /* 补偿固定菜单栏高度 */
+@media (min-width: 768px) {
+  html {
+    scroll-snap-type: y mandatory;
+  }
+  
+  .fullscreen-section {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    scroll-margin-top: 4rem; /* 补偿固定菜单栏高度 */
+  }
 }

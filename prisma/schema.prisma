@@ -116,3 +116,144 @@ model WuxingCharacter {
   @@index([wuxing],    name: "idx_wx_wuxing")
   @@map("wuxing_characters")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 业务系统表（用户、订单、起名记录）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────
+// 7. 用户表
+// ─────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  phone     String?  @unique
+  name      String?  @db.VarChar(50)
+  avatar    String?  // 头像URL
+  gender    String?  @db.Char(1)  // M/F
+  birthDate DateTime? @map("birth_date")
+  
+  // 微信登录相关
+  wxOpenId  String?  @unique @map("wx_openid")
+  wxUnionId String?  @map("wx_unionid")
+  
+  // 账户状态
+  status    String   @default("active") @db.VarChar(20)  // active/banned
+  vipLevel  Int      @default(0) @map("vip_level")        // 0=普通 1=VIP
+  vipExpire DateTime? @map("vip_expire")
+  
+  // 积分/余额
+  points    Int      @default(0)
+  balance   Decimal  @default(0) @db.Decimal(10, 2)  // 元
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // 关联
+  orders       Order[]
+  nameRecords  NameRecord[]
+  
+  @@index([wxOpenId], name: "idx_user_wx")
+  @@index([status],   name: "idx_user_status")
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// 8. 订单表（起名服务购买）
+// ─────────────────────────────────────────────
+model Order {
+  id          String   @id @default(cuid())
+  orderNo     String   @unique @map("order_no") @db.VarChar(32)  // SN202404130001
+  
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  
+  // 订单类型
+  type        String   @db.VarChar(20)  // name=起名 report=详批 vip=会员
+  
+  // 商品信息
+  title       String   @db.VarChar(100)  // 商品名称
+  description String?                    // 商品描述
+  quantity    Int      @default(1)
+  
+  // 金额
+  amount      Decimal  @db.Decimal(10, 2)  // 应付金额
+  discount    Decimal  @default(0) @db.Decimal(10, 2)
+  actualAmount Decimal @map("actual_amount") @db.Decimal(10, 2)  // 实付
+  
+  // 支付信息
+  payMethod   String?  @map("pay_method") @db.VarChar(20)  // wechat/alipay
+  payStatus   String   @default("pending") @map("pay_status") @db.VarChar(20)  // pending/paid/failed/refunded
+  payTime     DateTime? @map("pay_time")
+  payTradeNo  String?  @map("pay_trade_no") @db.VarChar(64)  // 第三方支付流水
+  
+  // 订单状态
+  status      String   @default("pending") @db.VarChar(20)  // pending/processing/completed/closed
+  
+  // 关联的起名记录
+  nameRecordId String? @map("name_record_id")
+  nameRecord   NameRecord? @relation(fields: [nameRecordId], references: [id])
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@index([userId],     name: "idx_order_user")
+  @@index([orderNo],    name: "idx_order_no")
+  @@index([payStatus],  name: "idx_order_pay")
+  @@index([status],     name: "idx_order_status")
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// 9. 起名记录表（每次起名请求的记录）
+// ─────────────────────────────────────────────
+model NameRecord {
+  id          String   @id @default(cuid())
+  
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  
+  // 起名参数
+  surname     String   @db.VarChar(10)   // 姓氏
+  gender      String   @db.Char(1)       // M/F
+  birthDate   DateTime @map("birth_date") // 阳历生日
+  birthTime   String?  @map("birth_time") @db.VarChar(10)  // 时辰
+  
+  // 八字信息（AI分析或用户输入）
+  baziYear    String?  @map("bazi_year") @db.VarChar(10)  // 年柱
+  baziMonth   String?  @map("bazi_month") @db.VarChar(10) // 月柱
+  baziDay     String?  @map("bazi_day") @db.VarChar(10)   // 日柱
+  baziHour    String?  @map("bazi_hour") @db.VarChar(10)  // 时柱
+  
+  // 五行喜忌
+  wuxingLikes String[] @map("wuxing_likes")   // ["木", "火"]
+  wuxingAvoids String[] @map("wuxing_avoids") // ["金"]
+  
+  // 期望寓意
+  expectations String?  // 用户期望的寓意描述
+  style       String?  @db.VarChar(20)  // 文雅/大气/现代/古典
+  
+  // 生成的名字结果（JSON存储）
+  results     Json?    // [{name:"李明轩",pinyin:"li ming xuan",wuxing:"火水木",meaning:"...",source:"..."}]
+  
+  // 状态
+  status      String   @default("generating") @db.VarChar(20)  // generating/completed/failed
+  
+  // 是否已支付查看
+  isPaid      Boolean  @default(false) @map("is_paid")
+  
+  // 引用典籍
+  citedBooks  String[] @map("cited_books")  // ["诗经","论语"]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // 关联
+  orders      Order[]
+  
+  @@index([userId],    name: "idx_nr_user")
+  @@index([surname],   name: "idx_nr_surname")
+  @@index([status],    name: "idx_nr_status")
+  @@index([createdAt], name: "idx_nr_created")
+  @@map("name_records")
+}
