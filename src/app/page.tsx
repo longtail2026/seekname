@@ -307,7 +307,7 @@ export default function Home() {
                 {valueCards.map((card, idx) => (
                   <div
                     key={idx}
-                    className="group p-5 lg:p-6 text-center rounded-2xl transition-all duration-400 hover:-translate-y-1 hover:shadow-xl cursor-default"
+                    className="group p-6 lg:p-8 text-center rounded-2xl transition-all duration-400 hover:-translate-y-1 hover:shadow-xl cursor-default"
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.92), rgba(248,243,234,0.85))',
                       borderTop: `3px solid ${card.color}`,
@@ -316,17 +316,17 @@ export default function Home() {
                   >
                     {/* 图标 */}
                     <div
-                      className="w-14 h-14 lg:w-16 lg:h-16 mx-auto mb-3 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                      className="w-16 h-16 lg:w-20 lg:h-20 mx-auto mb-4 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
                       style={{ background: `${card.color}12` }}
                     >
-                      <card.icon className="w-7 h-7 lg:w-8 lg:h-8" style={{ color: card.color }} />
+                      <card.icon className="w-8 h-8 lg:w-9 lg:h-9" style={{ color: card.color }} />
                     </div>
                     {/* 标题数字 */}
-                    <div className="text-2xl lg:text-[1.75rem] font-bold mb-0.5" style={{ color: card.color, fontFamily: "'Noto Serif SC', serif" }}>
+                    <div className="text-[1.75rem] lg:text-2xl font-bold mb-1" style={{ color: card.color, fontFamily: "'Noto Serif SC', serif" }}>
                       {card.title}
                     </div>
-                    <div className="text-sm font-medium text-[#2C1810]/80 mb-1">{card.subtitle}</div>
-                    <div className="text-xs text-[#5C4A42]/70 leading-relaxed">{card.desc}</div>
+                    <div className="text-sm lg:text-base font-medium text-[#2C1810]/80 mb-1.5">{card.subtitle}</div>
+                    <div className="text-xs lg:text-sm text-[#5C4A42]/70 leading-relaxed">{card.desc}</div>
                   </div>
                 ))}
               </div>
@@ -513,15 +513,15 @@ export default function Home() {
 
       {/* ════════════ 第四屏：信任背书 + 页脚 ════════════ */}
       <section id="screen-4" className="fullscreen-section relative overflow-hidden flex flex-col">
-        {/* 上半部分（约75%）：评价区域 - 浅色背景 */}
-        <div className="flex-[3] flex flex-col items-center justify-center relative"
+        {/* 上半部分（约80%）：评价区域 - 浅色背景 */}
+        <div className="flex-[4] flex flex-col items-center justify-center relative"
           style={{ background: 'linear-gradient(180deg, #FDFAF4 0%, #F5F0E6 100%)', minHeight: 0 }}
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
             {/* 背景分割线 */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E5DDD3] to-transparent" />
 
-            <div className="w-full max-w-6xl">
+            <div className="w-full max-w-6xl mx-auto">
               {/* 标题 */}
               <div className="text-center mb-8 lg:mb-10">
                 <div className="inline-flex items-center gap-2 mb-4">
@@ -529,42 +529,42 @@ export default function Home() {
                   <span className="text-sm tracking-[0.2em] text-[#C9A84C] uppercase font-medium">用户心声</span>
                 </div>
                 <h2
-                  className="text-[1.5rem] sm:text-[1.75rem] lg:text-2xl font-bold text-[#2C1810]"
+                  className="text-[1.75rem] sm:text-2xl lg:text-[2.25rem] font-bold text-[#2C1810]"
                   style={{ fontFamily: "'Noto Serif SC', serif" }}
                 >
                   听听他们怎么说
                 </h2>
-                <p className="mt-2 text-[#5C4A42] text-sm">
+                <p className="mt-2 text-sm lg:text-base text-[#5C4A42]">
                   已服务超过 <span className="text-[#C84A2A] font-bold">128,000+</span> 家庭
                 </p>
               </div>
 
-              {/* 评价卡片 */}
-              <div className="grid md:grid-cols-3 gap-5 lg:gap-6">
+              {/* 评价卡片 - 居中，等宽三列 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-items-center max-w-5xl mx-auto">
                 {testimonials.map((t, idx) => (
                   <div
                     key={idx}
-                    className="p-5 lg:p-6 rounded-2xl transition-all duration-300 hover:-translate-y-1"
+                    className="p-7 lg:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-1 w-full"
                     style={{
-                      background: 'rgba(255,255,255,0.85)',
-                      boxShadow: '0 2px 16px rgba(44,24,16,0.05)'
+                      background: 'rgba(255,255,255,0.9)',
+                      boxShadow: '0 4px 20px rgba(44,24,16,0.06)'
                     }}
                   >
-                    <div className="flex gap-0.5 mb-3">
+                    <div className="flex gap-0.5 mb-4">
                       {[...Array(t.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-[#C9A84C] text-[#C9A84C]" />
+                        <Star key={i} className="w-5 h-5 fill-[#C9A84C] text-[#C9A84C]" />
                       ))}
                     </div>
-                    <p className="text-sm text-[#5C4A42] leading-relaxed mb-4 italic" style={{ lineHeight: '1.7' }}>
+                    <p className="text-sm lg:text-base text-[#5C4A42] leading-relaxed mb-5 italic" style={{ lineHeight: '1.8' }}>
                       &ldquo;{t.content}&rdquo;
                     </p>
                     <div className="flex items-center gap-3 pt-3 border-t border-[#E5DDD3]/50">
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
                         style={{ background: idx === 0 ? '#C84A2A' : idx === 1 ? '#2C5F4A' : '#C9A84C' }}
                       >{t.name[0]}</div>
                       <div>
-                        <div className="font-bold text-sm text-[#2C1810]">{t.name}</div>
+                        <div className="font-semibold text-sm text-[#2C1810]">{t.name}</div>
                         <div className="text-xs text-[#9CA3AF]">{t.role}</div>
                       </div>
                     </div>
@@ -575,7 +575,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 下半部分（约25%）：页脚 - 黑底通栏，突破容器顶到屏幕边缘 */}
+        {/* 下半部分（约20%）：页脚 - 黑底通栏，突破容器顶到屏幕边缘 */}
         <footer className="shrink-0 py-6 lg:py-8 bg-[#1a1a18] text-gray-300 w-full -mx-[calc(100vw/2*-1+50%)] px-[calc(100vw/2-50%)]">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-5">
