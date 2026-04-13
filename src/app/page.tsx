@@ -104,12 +104,20 @@ const testimonials = [
 export default function Home() {
   const [surname, setSurname] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // 标记是否正在使用 IME 输入法（如拼音）
+  const [isComposing, setIsComposing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!surname.trim()) return;
     setIsLoading(true);
     window.location.href = `/naming?surname=${encodeURIComponent(surname)}`;
+  };
+
+  // 统一的输入处理函数
+  const handleInput = (rawValue: string) => {
+    // 只保留中文字符，最多2个
+    return rawValue.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 2);
   };
 
   return (
@@ -170,11 +178,18 @@ export default function Home() {
                       inputMode="text"
                       value={surname}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 2);
-                        setSurname(val);
+                        // IME 输入中（拼音输入过程），允许原始输入，不过滤
+                        if (isComposing) {
+                          setSurname(e.target.value);
+                          return;
+                        }
+                        // 非IME状态：只保留中文
+                        setSurname(handleInput(e.target.value));
                       }}
+                      onCompositionStart={() => setIsComposing(true)}
                       onCompositionEnd={(e) => {
-                        const val = (e.target as HTMLInputElement).value.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 2);
+                        setIsComposing(false);
+                        const val = handleInput((e.target as HTMLInputElement).value);
                         setSurname(val);
                       }}
                       placeholder="请输入您的姓氏"
@@ -438,45 +453,55 @@ export default function Home() {
 
 
       {/* ════════════ 第四屏：信任背书 + 页脚 ════════════ */}
-      <section id="screen-4" className="fullscreen-section relative overflow-hidden" style={{ background: 'linear-gradient(180deg, #FDFAF4 0%, #F5F0E6 50%, #1a1a18 50%, #1a1a18 100%)' }}>
+      <section id="screen-4" className="fullscreen-section relative overflow-hidden">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col">
-          {/* 上半部分：评价区域 */}
-          <div className="flex-1 flex items-center justify-center" style={{ minHeight: 'calc(50dvh - 2rem)' }}>
+          {/* 上半部分（约75%）：评价区域 - 浅色背景 */}
+          <div className="flex-[3] flex flex-col items-center justify-center relative"
+            style={{ background: 'linear-gradient(180deg, #FDFAF4 0%, #F5F0E6 100%)', minHeight: 0 }}
+          >
+            {/* 背景分割线 */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E5DDD3] to-transparent" />
+
             <div className="w-full max-w-6xl">
               {/* 标题 */}
-              <div className="text-center mb-10">
+              <div className="text-center mb-8 lg:mb-10">
                 <div className="inline-flex items-center gap-2 mb-4">
                   <Quote className="w-5 h-5 text-[#C9A84C]" />
                   <span className="text-sm tracking-[0.2em] text-[#C9A84C] uppercase font-medium">用户心声</span>
                 </div>
                 <h2
-                  className="text-[1.75rem] sm:text-2xl lg:text-3xl font-bold text-[#2C1810]"
+                  className="text-[1.5rem] sm:text-[1.75rem] lg:text-2xl font-bold text-[#2C1810]"
                   style={{ fontFamily: "'Noto Serif SC', serif" }}
                 >
                   听听他们怎么说
                 </h2>
-                <p className="mt-2 text-[#5C4A42] text-sm">已服务超过 <span className="text-[#C84A2A] font-bold">128,000+</span> 家庭</p>
+                <p className="mt-2 text-[#5C4A42] text-sm">
+                  已服务超过 <span className="text-[#C84A2A] font-bold">128,000+</span> 家庭
+                </p>
               </div>
 
               {/* 评价卡片 */}
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 gap-5 lg:gap-6">
                 {testimonials.map((t, idx) => (
                   <div
                     key={idx}
-                    className="p-6 lg:p-7 rounded-2xl transition-all duration-300 hover:-translate-y-1"
-                    style={{ background: 'rgba(255,255,255,0.8)', boxShadow: '0 2px 16px rgba(44,24,16,0.05)' }}
+                    className="p-5 lg:p-6 rounded-2xl transition-all duration-300 hover:-translate-y-1"
+                    style={{
+                      background: 'rgba(255,255,255,0.85)',
+                      boxShadow: '0 2px 16px rgba(44,24,16,0.05)'
+                    }}
                   >
-                    <div className="flex gap-0.5 mb-4">
+                    <div className="flex gap-0.5 mb-3">
                       {[...Array(t.rating)].map((_, i) => (
                         <Star key={i} className="w-4 h-4 fill-[#C9A84C] text-[#C9A84C]" />
                       ))}
                     </div>
-                    <p className="text-sm text-[#5C4A42] leading-relaxed mb-5 italic" style={{ lineHeight: '1.8' }}>
+                    <p className="text-sm text-[#5C4A42] leading-relaxed mb-4 italic" style={{ lineHeight: '1.7' }}>
                       &ldquo;{t.content}&rdquo;
                     </p>
                     <div className="flex items-center gap-3 pt-3 border-t border-[#E5DDD3]/50">
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
                         style={{ background: idx === 0 ? '#C84A2A' : idx === 1 ? '#2C5F4A' : '#C9A84C' }}
                       >{t.name[0]}</div>
                       <div>
@@ -490,27 +515,27 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 下半部分：页脚 */}
-          <footer className="py-10 lg:py-12 text-gray-300">
-            <div className="grid md:grid-cols-4 gap-8 mb-8">
+          {/* 下半部分（约25%）：页脚 - 黑底通栏 */}
+          <footer className="shrink-0 py-6 lg:py-8 bg-[#1a1a18] text-gray-300">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-5">
               <div>
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#C84A2A] to-[#A63A1E] rounded-lg flex items-center justify-center shadow-lg">
-                    <span className="text-white font-bold text-lg" style={{ fontFamily: "'Noto Serif SC', serif" }}>名</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-[#C84A2A] to-[#A63A1E] rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-base" style={{ fontFamily: "'Noto Serif SC', serif" }}>名</span>
                   </div>
                   <div>
-                    <div className="font-bold text-white text-lg" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
-                    <div className="text-[11px] text-gray-500">www.seekname.cn</div>
+                    <div className="font-bold text-white text-sm" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
+                    <div className="text-[10px] text-gray-500">www.seekname.cn</div>
                   </div>
                 </div>
-                <p className="text-gray-500 text-sm leading-relaxed">
-                  传承千年起名智慧，融合现代 AI 技术，为每一个生命赋予最美好的名字。
+                <p className="text-gray-500 text-xs leading-relaxed hidden lg:block">
+                  传承千年起名智慧，融合现代 AI 技术。
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold mb-3 text-[#C9A84C] text-sm tracking-wide">服务项目</h4>
-                <ul className="space-y-2.5 text-sm text-gray-500">
+                <h4 className="font-bold mb-2 text-[#C9A84C] text-xs tracking-wide">服务项目</h4>
+                <ul className="space-y-1.5 text-xs text-gray-500">
                   {services.map((s, i) => (
                     <li key={i}><Link href={s.href} className="hover:text-white transition-colors duration-200">{s.title}</Link></li>
                   ))}
@@ -518,17 +543,17 @@ export default function Home() {
               </div>
 
               <div>
-                <h4 className="font-bold mb-3 text-[#C9A84C] text-sm tracking-wide">关于我们</h4>
-                <ul className="space-y-2.5 text-sm text-gray-500">
+                <h4 className="font-bold mb-2 text-[#C9A84C] text-xs tracking-wide">关于我们</h4>
+                <ul className="space-y-1.5 text-xs text-gray-500">
                   {['平台介绍', '专家团队', '联系我们', '加入我们'].map((item, i) => (
-                    <li key={i}><Link href={`/${item.replace(/介绍|团队|我们/g,'')}`} className="hover:text-white transition-colors duration-200">{item}</Link></li>
+                    <li key={i}><Link href="#" className="hover:text-white transition-colors duration-200">{item}</Link></li>
                   ))}
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-bold mb-3 text-[#C9A84C] text-sm tracking-wide">帮助支持</h4>
-                <ul className="space-y-2.5 text-sm text-gray-500">
+                <h4 className="font-bold mb-2 text-[#C9A84C] text-xs tracking-wide">帮助支持</h4>
+                <ul className="space-y-1.5 text-xs text-gray-500">
                   {['使用帮助', '常见问题', '隐私政策', '服务条款'].map((item, i) => (
                     <li key={i}><Link href="#" className="hover:text-white transition-colors duration-200">{item}</Link></li>
                   ))}
@@ -536,7 +561,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-gray-600">
+            <div className="border-t border-gray-800 pt-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[11px] text-gray-600">
               <span>© 2026 寻名网 seekname.cn 版权所有</span>
               <span>ICP备案号：京ICP备XXXXXXXX号-1</span>
             </div>
