@@ -103,6 +103,9 @@ const testimonials = [
 
 export default function Home() {
   const [surname, setSurname] = useState("");
+  const [gender, setGender] = useState<"男"|"女">("男");
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   // 标记是否正在使用 IME 输入法（如拼音）
   const [isComposing, setIsComposing] = useState(false);
@@ -110,8 +113,16 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!surname.trim()) return;
+    if (!birthDate) return;
     setIsLoading(true);
-    window.location.href = `/naming?surname=${encodeURIComponent(surname)}`;
+    // 携带完整参数跳转到起名页面
+    const params = new URLSearchParams({
+      surname,
+      gender,
+      birthDate,
+    });
+    if (birthTime) params.set("birthTime", birthTime);
+    window.location.href = `/naming?${params.toString()}`;
   };
 
   // 统一的输入处理函数
@@ -169,50 +180,98 @@ export default function Home() {
                 <span className="text-[#C84A2A] font-semibold">30秒</span> 为您生成 <span className="text-[#C84A2A] font-semibold">6个</span> 吉祥好名
               </p>
 
-              {/* 起名表单 */}
+              {/* 起名表单 - 完整字段 */}
               <form onSubmit={handleSubmit} className="mb-6">
-                <div className="flex gap-3 max-w-lg mx-auto lg:mx-0">
-                  <div className="relative flex-1 min-w-0">
-                    <input
-                      type="text"
-                      inputMode="text"
-                      value={surname}
-                      onChange={(e) => {
-                        // IME 输入中（拼音输入过程），允许原始输入，不过滤
-                        if (isComposing) {
-                          setSurname(e.target.value);
-                          return;
-                        }
-                        // 非IME状态：只保留中文
-                        setSurname(handleInput(e.target.value));
-                      }}
-                      onCompositionStart={() => setIsComposing(true)}
-                      onCompositionEnd={(e) => {
-                        setIsComposing(false);
-                        const val = handleInput((e.target as HTMLInputElement).value);
-                        setSurname(val);
-                      }}
-                      placeholder="请输入您的姓氏"
-                      className="w-full px-5 py-3.5 text-base sm:text-lg bg-white/90 backdrop-blur-sm border-2 border-[#E5DDD3]
-                                 rounded-xl focus:border-[#C9A84C] focus:outline-none focus:shadow-[0_0_0_3px_rgba(201,168,76,0.15)]
-                                 transition-all duration-300 placeholder:text-[#B0AAA0]"
-                      style={{ fontFamily: "'Noto Serif SC', serif" }}
-                      autoComplete="off"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[#C9A84C]/60 font-medium tracking-wider">姓氏</span>
+                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-5 lg:p-6 shadow-lg border border-[#E5DDD3] max-w-lg mx-auto lg:mx-0">
+                  {/* 第一行：姓氏 + 性别 */}
+                  <div className="flex gap-3 mb-3">
+                    <div className="relative flex-1 min-w-0">
+                      <input
+                        type="text"
+                        inputMode="text"
+                        value={surname}
+                        onChange={(e) => {
+                          if (isComposing) {
+                            setSurname(e.target.value);
+                            return;
+                          }
+                          setSurname(handleInput(e.target.value));
+                        }}
+                        onCompositionStart={() => setIsComposing(true)}
+                        onCompositionEnd={(e) => {
+                          setIsComposing(false);
+                          const val = handleInput((e.target as HTMLInputElement).value);
+                          setSurname(val);
+                        }}
+                        placeholder="请输入您的姓氏"
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#E5DDD3]
+                                   rounded-xl focus:border-[#C9A84C] focus:outline-none focus:shadow-[0_0_0_3px_rgba(201,168,76,0.15)]
+                                   transition-all duration-300 placeholder:text-[#B0AAA0]"
+                        style={{ fontFamily: "'Noto Serif SC', serif" }}
+                        autoComplete="off"
+                      />
+                    </div>
+                    {/* 性别选择 */}
+                    <div className="flex rounded-xl overflow-hidden border border-[#E5DDD3] shrink-0">
+                      {(["男", "女"] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setGender(g)}
+                          className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                            gender === g
+                              ? g === "男"
+                                ? "bg-[#4A90D9] text-white"
+                                : "bg-[#E870A0] text-white"
+                              : "bg-white text-[#5C4A42] hover:bg-gray-50"
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* 第二行：出生日期 + 出生时间 */}
+                  <div className="flex gap-3 mb-4">
+                    <div className="flex-1 min-w-0 relative">
+                      <input
+                        type="date"
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#E5DDD3]
+                                   rounded-xl focus:border-[#C9A84C] focus:outline-none focus:shadow-[0_0_0_3px_rgba(201,168,76,0.15)]
+                                   transition-all duration-300 text-[#2C1810]"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
+                      />
+                    </div>
+                    <div className="relative w-[140px] shrink-0">
+                      <input
+                        type="time"
+                        value={birthTime}
+                        onChange={(e) => setBirthTime(e.target.value)}
+                        placeholder="可选"
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#E5DDD3]
+                                   rounded-xl focus:border-[#C9A84C] focus:outline-none focus:shadow-[0_0_0_3px_rgba(201,168,76,0.15)]
+                                   transition-all duration-300 text-[#2C1810]"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 立即起名按钮 */}
                   <button
                     type="submit"
-                    disabled={!surname.trim() || isLoading}
-                    className="btn-primary whitespace-nowrap px-7 py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                    disabled={!surname.trim() || !birthDate || isLoading}
+                    className="btn-primary w-full py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-base"
                   >
                     {isLoading ? (
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center justify-center gap-2">
                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
-                        分析中
+                        分析中...
                       </span>
                     ) : (
                       <>
@@ -222,7 +281,7 @@ export default function Home() {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-[#B0AAA0] mt-3 ml-1">
+                <p className="text-xs text-[#B0AAA0] mt-3 ml-1 text-center lg:text-left">
                   已有 <span className="text-[#C84A2A] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名
                 </p>
               </form>
@@ -453,12 +512,12 @@ export default function Home() {
 
 
       {/* ════════════ 第四屏：信任背书 + 页脚 ════════════ */}
-      <section id="screen-4" className="fullscreen-section relative overflow-hidden">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col">
-          {/* 上半部分（约75%）：评价区域 - 浅色背景 */}
-          <div className="flex-[3] flex flex-col items-center justify-center relative"
-            style={{ background: 'linear-gradient(180deg, #FDFAF4 0%, #F5F0E6 100%)', minHeight: 0 }}
-          >
+      <section id="screen-4" className="fullscreen-section relative overflow-hidden flex flex-col">
+        {/* 上半部分（约75%）：评价区域 - 浅色背景 */}
+        <div className="flex-[3] flex flex-col items-center justify-center relative"
+          style={{ background: 'linear-gradient(180deg, #FDFAF4 0%, #F5F0E6 100%)', minHeight: 0 }}
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
             {/* 背景分割线 */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E5DDD3] to-transparent" />
 
@@ -514,9 +573,11 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* 下半部分（约25%）：页脚 - 黑底通栏 */}
-          <footer className="shrink-0 py-6 lg:py-8 bg-[#1a1a18] text-gray-300">
+        {/* 下半部分（约25%）：页脚 - 黑底通栏，突破容器顶到屏幕边缘 */}
+        <footer className="shrink-0 py-6 lg:py-8 bg-[#1a1a18] text-gray-300 w-full -mx-[calc(100vw/2*-1+50%)] px-[calc(100vw/2-50%)]">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-5">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -562,11 +623,11 @@ export default function Home() {
             </div>
 
             <div className="border-t border-gray-800 pt-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[11px] text-gray-600">
-              <span>© 2026 寻名网 seekname.cn 版权所有</span>
+              <span>&copy; 2026 寻名网 seekname.cn 版权所有</span>
               <span>ICP备案号：京ICP备XXXXXXXX号-1</span>
             </div>
-          </footer>
-        </div>
+          </div>
+        </footer>
       </section>
     </div>
   );
