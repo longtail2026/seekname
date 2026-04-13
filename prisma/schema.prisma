@@ -92,3 +92,131 @@ model WuxingCharacter {
   @@index([wuxing], map: "idx_wx_wuxing")
   @@map("wuxing_characters")
 }
+
+// ─────────────────────────────────────────────
+// 7. 用户表
+// ─────────────────────────────────────────────
+model User {
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  phone       String?  @unique
+  name        String?  @db.VarChar(50)
+  
+  // 微信相关
+  wxOpenId    String?  @unique @map("wx_openid")
+  wxUnionId   String?  @map("wx_unionid")
+  
+  // 状态
+  status      String   @default("active") @db.VarChar(20)
+  
+  // VIP信息
+  vipLevel    Int      @default(0) @map("vip_level")
+  vipExpire   DateTime? @map("vip_expire")
+  
+  // 积分余额
+  points      Int      @default(0)
+  balance     Decimal  @default(0) @db.Decimal(10, 2)
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // 关联
+  orders      Order[]
+  nameRecords NameRecord[]
+
+  @@index([wxOpenId], map: "idx_user_wx")
+  @@index([status], map: "idx_user_status")
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// 8. 订单表
+// ─────────────────────────────────────────────
+model Order {
+  id          String   @id @default(cuid())
+  orderNo     String   @unique @map("order_no")
+  
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  
+  // 订单类型
+  type        String   @db.VarChar(20)  // name/report/vip
+  
+  // 金额
+  amount      Decimal  @db.Decimal(10, 2)
+  
+  // 支付状态
+  payStatus   String   @default("pending") @map("pay_status") @db.VarChar(20)
+  payMethod   String?  @map("pay_method") @db.VarChar(20)
+  payTime     DateTime? @map("pay_time")
+  
+  // 订单状态
+  status      String   @default("pending") @db.VarChar(20)  // pending/processing/completed/closed
+
+  // 关联的起名记录
+  nameRecordId String? @map("name_record_id")
+  nameRecord   NameRecord? @relation(fields: [nameRecordId], references: [id])
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId], map: "idx_order_user")
+  @@index([orderNo], map: "idx_order_no")
+  @@index([payStatus], map: "idx_order_pay")
+  @@index([status], map: "idx_order_status")
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// 9. 起名记录表
+// ─────────────────────────────────────────────
+model NameRecord {
+  id          String   @id @default(cuid())
+
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+
+  // 起名参数
+  surname     String   @db.VarChar(10)
+  gender      String   @db.Char(1)
+  birthDate   DateTime @map("birth_date")
+  birthTime   String?  @map("birth_time") @db.VarChar(10)
+
+  // 八字信息
+  baziYear    String?  @map("bazi_year") @db.VarChar(10)
+  baziMonth   String?  @map("bazi_month") @db.VarChar(10)
+  baziDay     String?  @map("bazi_day") @db.VarChar(10)
+  baziHour    String?  @map("bazi_hour") @db.VarChar(10)
+
+  // 五行喜忌
+  wuxingLikes String[] @map("wuxing_likes")
+  wuxingAvoids String[] @map("wuxing_avoids")
+
+  // 期望寓意
+  expectations String?
+  style       String?  @db.VarChar(20)
+
+  // 生成的名字结果
+  results     Json?
+
+  // 状态
+  status      String   @default("generating") @db.VarChar(20)
+
+  // 是否已支付查看
+  isPaid      Boolean  @default(false) @map("is_paid")
+
+  // 引用典籍
+  citedBooks  String[] @map("cited_books")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // 关联
+  orders      Order[]
+
+  @@index([userId], map: "idx_nr_user")
+  @@index([surname], map: "idx_nr_surname")
+  @@index([status], map: "idx_nr_status")
+  @@index([createdAt], map: "idx_nr_created")
+  @@map("name_records")
+}

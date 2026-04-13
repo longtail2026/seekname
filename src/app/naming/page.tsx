@@ -26,73 +26,9 @@ const wuxingColors: Record<string, string> = {
   "土": "#8B4513",
 };
 
-// 模拟起名结果
-const mockNames = [
-  { 
-    rank: 1, 
-    name: "李沐宸", 
-    pinyin: "mù chén",
-    wuxing: ["水", "土"],
-    score: 98,
-    meaning: "沐：润泽、洗涤，寓意心灵纯净；宸：帝王居所，象征尊贵与气度",
-    source: "《诗经·小雅》'既见君子，我心则沐'",
-    isPremium: true,
-  },
-  { 
-    rank: 2, 
-    name: "李思远", 
-    pinyin: "sī yuǎn",
-    wuxing: ["金", "土"],
-    score: 96,
-    meaning: "思：思考、智慧，寓意思维敏捷；远：远大、深远，象征志向高远",
-    source: "《论语》'士不可以不弘毅，任重而道远'",
-    isPremium: true,
-  },
-  { 
-    rank: 3, 
-    name: "李若溪", 
-    pinyin: "ruò xī",
-    wuxing: ["木", "水"],
-    score: 94,
-    meaning: "若：如、像，寓意温婉柔美；溪：小溪，象征清澈灵动",
-    source: "《庄子》'相濡以沫，不如相忘于江湖'",
-    isPremium: true,
-  },
-  { 
-    rank: 4, 
-    name: "李浩然", 
-    pinyin: "hào rán",
-    wuxing: ["水", "金"],
-    score: 92,
-    meaning: "浩：浩大、广阔，寓意胸怀宽广；然：自然、如此，象征坦荡正直",
-    source: "《孟子》'吾善养吾浩然之气'",
-    isPremium: false,
-  },
-  { 
-    rank: 5, 
-    name: "李瑾瑜", 
-    pinyin: "jǐn yú",
-    wuxing: ["火", "金"],
-    score: 90,
-    meaning: "瑾：美玉，寓意品德高尚；瑜：美玉的光彩，象征才华出众",
-    source: "《楚辞》'怀瑾握瑜兮，穷不知所示'",
-    isPremium: false,
-  },
-  { 
-    rank: 6, 
-    name: "李景行", 
-    pinyin: "jǐng xíng",
-    wuxing: ["木", "水"],
-    score: 88,
-    meaning: "景：日光、景致，寓意前程光明；行：行走、品行，象征德行高尚",
-    source: "《诗经·小雅》'高山仰止，景行行止'",
-    isPremium: false,
-  },
-];
-
 import { SITE_CONFIG, isPremiumRank } from "@/lib/config";
 
-// 根据配置更新名字的付费状态
+// 模拟起名结果（根据配置自动计算 isPremium）
 const mockNames = [
   { 
     rank: 1, 

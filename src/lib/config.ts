@@ -29,6 +29,9 @@ export const SITE_CONFIG = {
     // 生成的名字总数
     totalNames: 6,
     
+    // 免费显示的名字数量（从排名后往前数）
+    freeCount: 3,
+    
     // 是否显示八字分析
     showBaziAnalysis: true,
     
