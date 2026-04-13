@@ -356,18 +356,51 @@
     border-color: rgba(255, 255, 255, 0.3);
   }
 
-  /* 单屏滚动容器 - 菜单栏固定，每屏高度为calc(100dvh-4rem) */
+  /* 单屏滚动容器 - 精确一屏，不得跨屏 */
   .fullscreen-section {
-    @apply min-h-[calc(100dvh-4rem)] w-full relative overflow-hidden;
+    @apply w-full relative;
+    height: calc(100dvh - 4rem);
+    min-height: 500px;
+    overflow: hidden;
   }
 
-  /* 卡片样式 */
+  /* 卡片样式 - 合并为一个定义（避免重复） */
   .ancient-card {
-    @apply bg-white rounded-3xl p-8 shadow-xl border border-primary-100 hover:shadow-2xl transition-all duration-300;
+    @apply bg-white rounded-2xl p-6 lg:p-8;
+    border: 1px solid var(--border);
+    position: relative;
+    box-shadow:
+      0 2px 4px rgba(44, 24, 16, 0.04),
+      0 4px 8px rgba(44, 24, 16, 0.02);
+    transition: all 0.35s ease;
+    background-image:
+      linear-gradient(to right, var(--gold) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gold) 1px, transparent 1px),
+      linear-gradient(to left, var(--gold) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gold) 1px, transparent 1px),
+      linear-gradient(to right, var(--gold) 1px, transparent 1px),
+      linear-gradient(to top, var(--gold) 1px, transparent 1px),
+      linear-gradient(to left, var(--gold) 1px, transparent 1px),
+      linear-gradient(to top, var(--gold) 1px, transparent 1px);
+    background-size:
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px;
+    background-position:
+      0 0, 0 0,
+      100% 0, 100% 0,
+      0 100%, 0 100%,
+      100% 100%, 100% 100%;
+    background-repeat: no-repeat;
   }
 
   .ancient-card:hover {
-    @apply transform -translate-y-2;
+    border-color: var(--gold);
+    box-shadow:
+      0 4px 16px rgba(201, 168, 76, 0.08),
+      0 8px 24px rgba(44, 24, 16, 0.04);
+    @apply -translate-y-1;
   }
 
   /* 标题样式 */
