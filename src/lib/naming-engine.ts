@@ -10,6 +10,8 @@
  */
 
 import { prisma } from "./prisma";
+import { DeepSeekIntegration } from "./deepseek-integration";
+import { PhoneticOptimizer } from "./phonetic-optimizer";
 
 // 类型定义
 export interface NamingRequest {
@@ -102,12 +104,29 @@ export interface NamingResult {
 
 /**
  * 1. 意图解析层 - 使用大模型解析用户输入
- * 注意：这里实现一个简化版本，实际应该调用大模型API
+ * 支持两种模式：DeepSeek AI解析 或 规则解析
  */
 export async function parseIntent(request: NamingRequest): Promise<StructuredIntent> {
-  // 简化版：从现有参数提取，或使用规则解析
-  // 实际应该调用大模型API（豆包/通义/文心等）
+  // 如果有原始输入文本，优先使用AI解析
+  if (request.rawInput && request.rawInput.trim().length > 10) {
+    try {
+      if (DeepSeekIntegration.isAvailable()) {
+        console.log('意图解析层: 使用DeepSeek AI解析');
+        const aiIntent = await DeepSeekIntegration.parseIntent(request.rawInput, {
+          surname: request.surname,
+          gender: request.gender,
+          birthDate: request.birthDate,
+          birthTime: request.birthTime,
+        });
+        return aiIntent;
+      }
+    } catch (error) {
+      console.warn('DeepSeek意图解析失败，使用规则解析:', error);
+    }
+  }
   
+  // 规则解析（回退方案）
+  console.log('意图解析层: 使用规则解析');
   const defaultIntent: StructuredIntent = {
     surname: request.surname || "张",
     gender: request.gender || "F",
@@ -606,39 +625,42 @@ function isChineseCharacter(char: string): boolean {
 }
 
 function checkHarmony(char1: CharacterInfo, char2: CharacterInfo): boolean {
-  // 简化版音律和谐度检查
-  // 实际应该使用更复杂的平仄、韵母检查
+  // 使用音律优化模块进行更专业的检查
   
-  const pinyin1 = char1.pinyin.toLowerCase();
-  const pinyin2 = char2.pinyin.toLowerCase();
+  const pinyin1 = char1.pinyin || '';
+  const pinyin2 = char2.pinyin || '';
   
   // 避免完全相同的拼音
-  if (pinyin1 === pinyin2) return false;
+  if (pinyin1.toLowerCase() === pinyin2.toLowerCase()) return false;
   
-  // 避免不和谐的声母组合
-  const badCombinations = [
-    ["zh", "ch"], ["ch", "sh"], ["sh", "zh"],
-    ["z", "c"], ["c", "s"], ["s", "z"]
-  ];
+  // 提取音调
+  const tone1 = PhoneticOptimizer.extractTone(pinyin1);
+  const tone2 = PhoneticOptimizer.extractTone(pinyin2);
   
-  // 提取声母（简化版）
-  const getInitial = (pinyin: string): string => {
-    if (!pinyin) return "";
-    const initials = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "z", "c", "s", "r", "y", "w"];
-    for (const init of initials) {
-      if (pinyin.startsWith(init)) return init;
-    }
-    return pinyin.charAt(0);
-  };
+  // 检查平仄搭配
+  const pingzeResult = PhoneticOptimizer.checkPingze(tone1, tone2);
+  if (!pingzeResult.isHarmonious) {
+    return false;
+  }
   
-  const init1 = getInitial(pinyin1);
-  const init2 = getInitial(pinyin2);
+  // 提取声母
+  const initial1 = PhoneticOptimizer.extractInitial(pinyin1);
+  const initial2 = PhoneticOptimizer.extractInitial(pinyin2);
   
-  // 检查是否为不和谐组合
-  for (const [bad1, bad2] of badCombinations) {
-    if ((init1 === bad1 && init2 === bad2) || (init1 === bad2 && init2 === bad1)) {
-      return false;
-    }
+  // 检查声母和谐度
+  const initialResult = PhoneticOptimizer.checkInitialHarmony(initial1, initial2);
+  if (!initialResult.isHarmonious) {
+    return false;
+  }
+  
+  // 提取韵母
+  const final1 = PhoneticOptimizer.extractFinal(pinyin1);
+  const final2 = PhoneticOptimizer.extractFinal(pinyin2);
+  
+  // 检查韵母和谐度
+  const finalResult = PhoneticOptimizer.checkFinalHarmony(final1, final2);
+  if (!finalResult.isHarmonious) {
+    return false;
   }
   
   return true;

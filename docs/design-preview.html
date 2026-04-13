@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>寻名网 - 墨韵流金设计系统</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       CSS 变量 - 墨韵流金设计系统
+       ================================================================ */
+    :root {
+      /* 品牌色 */
+      --color-ink: #1A1A2E;
+      --color-ink-light: #2D2D4A;
+      --color-ink-dark: #0F0F1A;
+      --color-gold: #D4AF37;
+      --color-gold-light: #F7E7B2;
+      --color-gold-dark: #B8962E;
+      --color-teal: #4A7C7E;
+      --color-teal-light: #6B9EA0;
+      --color-teal-dark: #3A6264;
+
+      /* 中性色 */
+      --color-dark: #16213E;
+      --color-muted: #4A6572;
+      --color-border: #E8E4DD;
+      --color-border-light: #F0EDE8;
+      --color-light: #F7F5F0;
+      --color-white: #FFFFFF;
+
+      /* 语义色 */
+      --color-success: #10B981;
+      --color-success-bg: #D1FAE5;
+      --color-warning: #F59E0B;
+      --color-warning-bg: #FEF3C7;
+      --color-error: #EF4444;
+      --color-error-bg: #FEE2E2;
+
+      /* 五行色 */
+      --color-wood: #2E7D32;
+      --color-wood-bg: #E8F5E9;
+      --color-fire: #C62828;
+      --color-fire-bg: #FFEBEE;
+      --color-earth: #F57F17;
+      --color-earth-bg: #FFF8E1;
+      --color-metal: #455A64;
+      --color-metal-bg: #ECEFF1;
+      --color-water: #1565C0;
+      --color-water-bg: #E3F2FD;
+
+      /* 间距 */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-12: 48px;
+      --space-16: 64px;
+
+      /* 圆角 */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+
+      /* 阴影 */
+      --shadow-sm: 0 2px 8px rgba(26, 26, 46, 0.06);
+      --shadow-md: 0 4px 16px rgba(26, 26, 46, 0.1);
+      --shadow-lg: 0 8px 32px rgba(26, 26, 46, 0.12);
+      --shadow-gold: 0 8px 24px rgba(212, 175, 55, 0.3);
+
+      /* 字体 */
+      --font-serif: 'Noto Serif SC', serif;
+      --font-sans: 'Noto Sans SC', sans-serif;
+      --font-display: 'Inter', sans-serif;
+
+      /* 动画 */
+      --ease-ink: cubic-bezier(0.25, 0.1, 0.25, 1);
+      --duration-ink: 800ms;
+      --duration-normal: 300ms;
+    }
+
+    /* ================================================================
+       基础样式
+       ================================================================ */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--color-ink);
+      background-color: var(--color-light);
+      min-height: 100vh;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-serif);
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    /* ================================================================
+       墨韵动画
+       ================================================================ */
+    @keyframes inkReveal {
+      0% {
+        opacity: 0;
+        filter: blur(10px);
+        transform: scale(0.98) translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        filter: blur(0);
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes goldPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 30px 15px rgba(212, 175, 55, 0);
+      }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .animate-ink {
+      animation: inkReveal var(--duration-ink) var(--ease-ink) forwards;
+      opacity: 0;
+    }
+
+    .animate-fade-up {
+      animation: fadeInUp 0.6s ease forwards;
+      opacity: 0;
+    }
+
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+    .delay-600 { animation-delay: 0.6s; }
+
+    /* ================================================================
+       Header 导航
+       ================================================================ */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 72px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--color-border-light);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      padding: 0 48px;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+
+    .logo-text {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-ink);
+    }
+
+    .logo-text span {
+      color: var(--color-gold);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      font-size: 15px;
+      color: var(--color-muted);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--color-ink);
+      background: var(--color-light);
+    }
+
+    .nav-link.active {
+      color: var(--color-ink);
+      font-weight: 500;
+    }
+
+    .nav-cta {
+      margin-left: 16px;
+    }
+
+    /* ================================================================
+       Hero 区域
+       ================================================================ */
+    .hero {
+      min-height: 100vh;
+      padding: 120px 48px 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212, 175, 55, 0.1), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(74, 124, 126, 0.08), transparent);
+    }
+
+    .hero-pattern {
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.03'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm10 0c0-5.523-4.477-10-10-10s-10 4.477-10 10 4.477 10 10 10 10-4.477 10-10z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.8;
+    }
+
+    .hero-content {
+      position: relative;
+      max-width: 1200px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .hero-text {
+      animation-delay: 0.2s;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      font-size: 14px;
+      color: var(--color-muted);
+      margin-bottom: 24px;
+      animation: fadeInUp 0.6s ease forwards;
+      animation-delay: 0.3s;
+      opacity: 0;
+    }
+
+    .hero-badge-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--color-teal);
+      border-radius: 50%;
+      animation: goldPulse 2s ease-in-out infinite;
+    }
+
+    .hero-title {
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      opacity: 0;
+      animation: fadeInUp 0.6s ease forwards;
+      animation-delay: 0.4s;
+    }
+
+    .hero-title .accent {
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold), var(--color-gold-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 22px;
+      color: var(--color-muted);
+      margin-bottom: 32px;
+      opacity: 0;
+      animation: fadeInUp 0.6s ease forwards;
+      animation-delay: 0.5s;
+    }
+
+    .hero-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 40px;
+      opacity: 0;
+      animation: fadeInUp 0.6s ease forwards;
+      animation-delay: 0.6s;
+    }
+
+    .hero-feature {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      color: var(--color-muted);
+    }
+
+    .hero-feature-icon {
+      width: 24px;
+      height: 24px;
+      background: var(--color-light);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-teal);
+      font-size: 12px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      opacity: 0;
+      animation: fadeInUp 0.6s ease forwards;
+      animation-delay: 0.7s;
+    }
+
+    /* 按钮 */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 52px;
+      padding: 0 32px;
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 500;
+      text-decoration: none;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      color: var(--color-dark);
+      background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 50%, var(--color-gold-dark) 100%);
+      background-size: 200% auto;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-gold);
+      background-position: right center;
+    }
+
+    .btn-secondary {
+      color: var(--color-ink);
+      background: transparent;
+      border: 1px solid var(--color-ink);
+    }
+
+    .btn-secondary:hover {
+      background: var(--color-white);
+    }
+
+    .btn-ghost {
+      color: var(--color-teal);
+      background: transparent;
+      border: none;
+    }
+
+    .btn-ghost:hover {
+      background: var(--color-light);
+    }
+
+    /* 英雄区右侧卡片 */
+    .hero-card {
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      opacity: 0;
+      animation: inkReveal var(--duration-ink) var(--ease-ink) forwards;
+      animation-delay: 0.5s;
+    }
+
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--color-gold);
+      border-radius: 16px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .hero-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .hero-card-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .hero-card-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .hero-card-desc {
+      font-size: 14px;
+      color: var(--color-muted);
+    }
+
+    .hero-card-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-ink);
+    }
+
+    .form-label .required {
+      color: var(--color-error);
+    }
+
+    .form-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 16px;
+      font-size: 15px;
+      color: var(--color-ink);
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--color-gold);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+    }
+
+    .form-input::placeholder {
+      color: var(--color-muted);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-radio-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .form-radio {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      color: var(--color-ink);
+    }
+
+    .form-radio input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--color-gold);
+    }
+
+    /* 统计数据 */
+    .hero-stats {
+      display: flex;
+      gap: 32px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--color-border-light);
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-gold);
+    }
+
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--color-muted);
+      margin-top: 2px;
+    }
+
+    /* ================================================================
+       服务卡片区域
+       ================================================================ */
+    .section {
+      padding: 100px 48px;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 60px;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      color: var(--color-teal);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 40px;
+      color: var(--color-ink);
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      font-size: 18px;
+      color: var(--color-muted);
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .service-card {
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .service-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--color-gold), var(--color-teal));
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .service-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--color-gold);
+    }
+
+    .service-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .service-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      background: var(--color-light);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      transition: all 0.3s ease;
+    }
+
+    .service-card:hover .service-icon {
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+      transform: scale(1.1);
+    }
+
+    .service-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--color-ink);
+      margin-bottom: 8px;
+    }
+
+    .service-desc {
+      font-size: 14px;
+      color: var(--color-muted);
+      margin-bottom: 16px;
+    }
+
+    .service-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+      color: var(--color-teal);
+      text-decoration: none;
+    }
+
+    .service-link:hover {
+      color: var(--color-teal-dark);
+    }
+
+    /* ================================================================
+       名字结果展示
+       ================================================================ */
+    .results-section {
+      background: var(--color-white);
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .result-card {
+      background: linear-gradient(180deg, #FEFCF8 0%, var(--color-white) 100%);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 28px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .result-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .result-card.featured {
+      border: 2px solid var(--color-gold);
+    }
+
+    .result-card.featured::before {
+      content: '推荐';
+      position: absolute;
+      top: -12px;
+      right: 24px;
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+      color: var(--color-dark);
+      padding: 4px 16px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .result-name {
+      font-family: var(--font-serif);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--color-ink);
+    }
+
+    .result-pinyin {
+      font-size: 14px;
+      color: var(--color-muted);
+      margin-top: 4px;
+    }
+
+    .result-score {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 16px;
+      background: linear-gradient(180deg, var(--color-gold-light), var(--color-gold));
+      border-radius: 8px;
+    }
+
+    .result-score-value {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-dark);
+      line-height: 1;
+    }
+
+    .result-score-label {
+      font-size: 10px;
+      color: var(--color-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .result-divider {
+      height: 1px;
+      background: var(--color-border-light);
+      margin: 16px 0;
+    }
+
+    .result-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    .result-badge.wood {
+      background: var(--color-wood-bg);
+      color: var(--color-wood);
+    }
+
+    .result-badge.water {
+      background: var(--color-water-bg);
+      color: var(--color-water);
+    }
+
+    .result-badge.fire {
+      background: var(--color-fire-bg);
+      color: var(--color-fire);
+    }
+
+    .result-badge.source {
+      background: var(--color-light);
+      color: var(--color-muted);
+    }
+
+    .result-quote {
+      background: var(--color-light);
+      border-left: 3px solid var(--color-gold);
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 16px;
+    }
+
+    .result-quote-text {
+      font-family: var(--font-serif);
+      font-size: 14px;
+      color: var(--color-ink);
+      margin-bottom: 4px;
+    }
+
+    .result-quote-source {
+      font-size: 12px;
+      color: var(--color-muted);
+    }
+
+    .result-meaning {
+      font-size: 14px;
+      color: var(--color-muted);
+      line-height: 1.6;
+    }
+
+    /* ================================================================
+       组件展示
+       ================================================================ */
+    .components-section {
+      background: var(--color-light);
+    }
+
+    .components-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .component-block {
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .component-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--color-ink);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .component-demos {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 按钮组 */
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* 徽章组 */
+    .badge-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      padding: 4px 12px;
+    }
+
+    .badge-gold {
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+      color: var(--color-dark);
+    }
+
+    .badge-teal {
+      background: var(--color-teal);
+      color: white;
+    }
+
+    .badge-wood {
+      background: var(--color-wood-bg);
+      color: var(--color-wood);
+    }
+
+    .badge-water {
+      background: var(--color-water-bg);
+      color: var(--color-water);
+    }
+
+    /* 评分徽章 */
+    .score-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 20px;
+      background: linear-gradient(180deg, var(--color-gold-light), var(--color-gold));
+      border-radius: var(--radius-md);
+    }
+
+    .score-badge-value {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--color-dark);
+      line-height: 1;
+    }
+
+    .score-badge-label {
+      font-size: 11px;
+      color: var(--color-dark);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    /* ================================================================
+       Footer
+       ================================================================ */
+    .footer {
+      background: var(--color-ink);
+      color: white;
+      padding: 80px 48px 40px;
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 48px;
+    }
+
+    .footer-brand {
+      max-width: 300px;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .footer-logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+
+    .footer-logo-text {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .footer-desc {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.8;
+    }
+
+    .footer-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 20px;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-link {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-link:hover {
+      color: var(--color-gold);
+    }
+
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 60px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* ================================================================
+       响应式
+       ================================================================ */
+    @media (max-width: 1200px) {
+      .hero-content {
+        grid-template-columns: 1fr;
+        gap: 60px;
+      }
+
+      .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .results-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .components-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .footer-content {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        padding: 0 24px;
+      }
+
+      .nav {
+        display: none;
+      }
+
+      .hero {
+        padding: 100px 24px 60px;
+      }
+
+      .hero-title {
+        font-size: 40px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .services-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 60px 24px;
+      }
+
+      .section-title {
+        font-size: 32px;
+      }
+
+      .footer {
+        padding: 60px 24px 30px;
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="#" class="header-logo">
+      <div class="logo-icon">名</div>
+      <div class="logo-text">寻名<span>网</span></div>
+    </a>
+    <nav class="nav">
+      <a href="#" class="nav-link active">首页</a>
+      <a href="#" class="nav-link">个人起名</a>
+      <a href="#" class="nav-link">公司起名</a>
+      <a href="#" class="nav-link">名字测评</a>
+      <a href="#" class="nav-link">关于我们</a>
+      <a href="#" class="btn btn-primary nav-cta">免费体验</a>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-pattern"></div>
+    <div class="hero-content">
+      <div class="hero-text">
+        <div class="hero-badge">
+          <span class="hero-badge-dot"></span>
+          AI智能起名 · 融合传统文化
+        </div>
+        <h1 class="hero-title animate-ink">
+          寻一个好名<br>
+          <span class="accent">许一个未来</span>
+        </h1>
+        <p class="hero-subtitle animate-fade-up delay-100">
+          融合易经五行、生辰八字、文化典籍与现代AI技术<br>
+          为您提供最专业的命名解决方案
+        </p>
+        <div class="hero-features animate-fade-up delay-200">
+          <div class="hero-feature">
+            <span class="hero-feature-icon">☯</span>
+            <span>易经五行分析</span>
+          </div>
+          <div class="hero-feature">
+            <span class="hero-feature-icon">📚</span>
+            <span>百万典籍名句</span>
+          </div>
+          <div class="hero-feature">
+            <span class="hero-feature-icon">⚡</span>
+            <span>30秒智能生成</span>
+          </div>
+        </div>
+        <div class="hero-actions animate-fade-up delay-300">
+          <a href="#" class="btn btn-primary">立即体验 →</a>
+          <a href="#" class="btn btn-secondary">了解更多</a>
+        </div>
+      </div>
+      
+      <div class="hero-card">
+        <div class="hero-card-header">
+          <div class="hero-card-icon">✨</div>
+          <div>
+            <div class="hero-card-title">智能起名</div>
+            <div class="hero-card-desc">填写基本信息，开启您的起名之旅</div>
+          </div>
+        </div>
+        <form class="hero-card-form">
+          <div class="form-group">
+            <label class="form-label">姓氏 <span class="required">*</span></label>
+            <input type="text" class="form-input" placeholder="请输入姓氏，如：王" value="王">
+          </div>
+          <div class="form-group">
+            <label class="form-label">性别</label>
+            <div class="form-radio-group">
+              <label class="form-radio">
+                <input type="radio" name="gender" value="male" checked>
+                <span>男</span>
+              </label>
+              <label class="form-radio">
+                <input type="radio" name="gender" value="female">
+                <span>女</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">出生日期</label>
+              <input type="date" class="form-input" value="2024-03-15">
+            </div>
+            <div class="form-group">
+              <label class="form-label">出生时辰</label>
+              <select class="form-input">
+                <option>子时 (23:00-01:00)</option>
+                <option>丑时 (01:00-03:00)</option>
+                <option>寅时 (03:00-05:00)</option>
+                <option>卯时 (05:00-07:00)</option>
+                <option selected>辰时 (07:00-09:00)</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+            开始起名 ✨
+          </button>
+        </form>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-value">10万+</div>
+            <div class="hero-stat-label">用户选择</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value">99%</div>
+            <div class="hero-stat-label">满意率</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value">30秒</div>
+            <div class="hero-stat-label">快速生成</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services Section -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-badge">✨ 专业服务</div>
+      <h2 class="section-title">全方位命名解决方案</h2>
+      <p class="section-desc">无论是个人起名、公司命名还是宠物取名，我们都提供专业的智能服务</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">👤</div>
+        <h3 class="service-title">个人起名</h3>
+        <p class="service-desc">结合生辰八字、五行命理，为宝宝或成人量身定制吉祥好名</p>
+        <a href="#" class="service-link">了解更多 →</a>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🏢</div>
+        <h3 class="service-title">公司起名</h3>
+        <p class="service-desc">基于行业特点、品牌定位，打造易记易传播的企业名称</p>
+        <a href="#" class="service-link">了解更多 →</a>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🐾</div>
+        <h3 class="service-title">宠物起名</h3>
+        <p class="service-desc">根据宠物品种、性格特点，起个有趣又贴切的名字</p>
+        <a href="#" class="service-link">了解更多 →</a>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">⭐</div>
+        <h3 class="service-title">名字测评</h3>
+        <p class="service-desc">运用姓名学原理，对现有名字进行专业评分和分析</p>
+        <a href="#" class="service-link">了解更多 →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results Preview Section -->
+  <section class="section results-section">
+    <div class="section-header">
+      <div class="section-badge">📊 智能分析</div>
+      <h2 class="section-title">专业名字测评报告</h2>
+      <p class="section-desc">基于五行、典故、寓意等多维度分析，为您推荐最佳名字</p>
+    </div>
+    <div class="results-grid">
+      <div class="result-card featured">
+        <div class="result-header">
+          <div>
+            <div class="result-name">梓涵</div>
+            <div class="result-pinyin">Zǐ Hán</div>
+          </div>
+          <div class="result-score">
+            <span class="result-score-value">92</span>
+            <span class="result-score-label">综合分</span>
+          </div>
+        </div>
+        <div class="result-divider"></div>
+        <div class="result-meta">
+          <span class="result-badge wood">木</span>
+          <span class="result-badge water">水</span>
+          <span class="result-badge source">诗经</span>
+        </div>
+        <div class="result-quote">
+          <div class="result-quote-text">「维桑与梓，必恭敬止」</div>
+          <div class="result-quote-source">——《诗经·小雅》</div>
+        </div>
+        <p class="result-meaning">梓为故乡之树，涵为包容之量。寓意孩子饮水思源、品性高洁、心胸宽广。</p>
+      </div>
+      
+      <div class="result-card">
+        <div class="result-header">
+          <div>
+            <div class="result-name">沐晨</div>
+            <div class="result-pinyin">Mù Chén</div>
+          </div>
+          <div class="result-score">
+            <span class="result-score-value">88</span>
+            <span class="result-score-label">综合分</span>
+          </div>
+        </div>
+        <div class="result-divider"></div>
+        <div class="result-meta">
+          <span class="result-badge wood">木</span>
+          <span class="result-badge fire">火</span>
+          <span class="result-badge source">康熙字典</span>
+        </div>
+        <div class="result-quote">
+          <div class="result-quote-text">「沐」洗涤也，「晨」朝阳也</div>
+          <div class="result-quote-source">——康熙字典</div>
+        </div>
+        <p class="result-meaning">寓意如晨露洗涤心灵，朝气蓬勃，充满希望与活力。</p>
+      </div>
+      
+      <div class="result-card">
+        <div class="result-header">
+          <div>
+            <div class="result-name">诗涵</div>
+            <div class="result-pinyin">Shī Hán</div>
+          </div>
+          <div class="result-score">
+            <span class="result-score-value">85</span>
+            <span class="result-score-label">综合分</span>
+          </div>
+        </div>
+        <div class="result-divider"></div>
+        <div class="result-meta">
+          <span class="result-badge metal">金</span>
+          <span class="result-badge water">水</span>
+          <span class="result-badge source">唐诗</span>
+        </div>
+        <div class="result-quote">
+          <div class="result-quote-text">「腹有诗书气自华」</div>
+          <div class="result-quote-source">——苏轼</div>
+        </div>
+        <p class="result-meaning">寓意才华横溢、气质高雅，学识渊博、修养深厚。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Components Demo Section -->
+  <section class="section components-section">
+    <div class="section-header">
+      <div class="section-badge">🎨 设计系统</div>
+      <h2 class="section-title">组件规范展示</h2>
+      <p class="section-desc">「墨韵流金」设计系统组件示例</p>
+    </div>
+    <div class="components-grid">
+      <!-- Buttons -->
+      <div class="component-block">
+        <h3 class="component-title">按钮 Button</h3>
+        <div class="component-demos">
+          <div class="btn-group">
+            <button class="btn btn-primary">主要按钮</button>
+            <button class="btn btn-secondary">次要按钮</button>
+            <button class="btn btn-ghost">幽灵按钮</button>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" style="height: 40px; padding: 0 20px; font-size: 14px;">中按钮</button>
+            <button class="btn btn-primary" style="height: 32px; padding: 0 16px; font-size: 13px;">小按钮</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div class="component-block">
+        <h3 class="component-title">徽章 Badge</h3>
+        <div class="component-demos">
+          <div class="badge-group">
+            <span class="badge badge-gold">金</span>
+            <span class="badge badge-teal">青瓷</span>
+            <span class="badge badge-wood">木</span>
+            <span class="badge badge-water">水</span>
+            <span class="badge" style="background: #FFEBEE; color: #C62828;">火</span>
+            <span class="badge" style="background: #FFF8E1; color: #F57F17;">土</span>
+            <span class="badge" style="background: #ECEFF1; color: #455A64;">金</span>
+          </div>
+          <div class="badge-group" style="margin-top: 16px;">
+            <div class="score-badge">
+              <span class="score-badge-value">92</span>
+              <span class="score-badge-label">综合分</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score Cards -->
+      <div class="component-block">
+        <h3 class="component-title">评分展示</h3>
+        <div class="component-demos">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 100px; background: var(--color-wood-bg); padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: var(--color-wood);">95</div>
+              <div style="font-size: 12px; color: var(--color-muted);">音韵</div>
+            </div>
+            <div style="flex: 1; min-width: 100px; background: var(--color-water-bg); padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: var(--color-water);">90</div>
+              <div style="font-size: 12px; color: var(--color-muted);">五行</div>
+            </div>
+            <div style="flex: 1; min-width: 100px; background: var(--color-gold-light); padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: var(--color-gold-dark);">92</div>
+              <div style="font-size: 12px; color: var(--color-muted);">寓意</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="footer-logo-icon">名</div>
+          <div class="footer-logo-text">寻名网</div>
+        </div>
+        <p class="footer-desc">
+          寻一个好名，许一个未来。我们融合易经五行、生辰八字、文化典籍与现代AI技术，为您提供最专业的命名解决方案。
+        </p>
+      </div>
+      <div>
+        <h4 class="footer-title">快速链接</h4>
+        <div class="footer-links">
+          <a href="#" class="footer-link">首页</a>
+          <a href="#" class="footer-link">个人起名</a>
+          <a href="#" class="footer-link">公司起名</a>
+          <a href="#" class="footer-link">名字测评</a>
+        </div>
+      </div>
+      <div>
+        <h4 class="footer-title">服务支持</h4>
+        <div class="footer-links">
+          <a href="#" class="footer-link">帮助中心</a>
+          <a href="#" class="footer-link">常见问题</a>
+          <a href="#" class="footer-link">用户协议</a>
+          <a href="#" class="footer-link">隐私政策</a>
+        </div>
+      </div>
+      <div>
+        <h4 class="footer-title">联系我们</h4>
+        <div class="footer-links">
+          <a href="#" class="footer-link">contact@seekname.cn</a>
+          <a href="#" class="footer-link">www.seekname.cn</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 寻名网 SeekName 保留所有权利</span>
+      <span>寻一个好名，许一个未来</span>
+    </div>
+  </footer>
+</body>
+</html>
