@@ -6,28 +6,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* 宣纸色系 */
-  --background: #FDFAF4;
-  --background-warm: #F8F3EA;
-  --foreground: #2C1810;
-  --foreground-muted: #5C4A42;
-  
-  /* 主色调 - 朱砂橙 */
-  --primary: #C84A2A;
-  --primary-dark: #A63A1E;
-  --primary-light: #E0603A;
-  
-  /* 古韵金色 */
-  --gold: #C9A84C;
-  --gold-light: #D4BC6E;
-  --gold-dark: #A68A3C;
-  
-  /* 辅助色 */
-  --ink: #2C1810;
-  --ink-light: #4A3A32;
-  --secondary: #2C1810;
-  --muted: #F0EBE3;
-  --border: #E5DDD3;
+  /* 宣纸色系 - 干净温暖的底色 */
+  --background: #FFFCF7;
+  --background-warm: #FFF8F0;
+  --foreground: #2D1B0E;
+  --foreground-muted: #5A4334;
+
+  /* ═══ 主色调 - 活力橙 ═══ */
+  /* 核心主色：温暖明亮的活力橙，替代之前的暗红#C84A2A */
+  --primary: #E86A17;
+  --primary-dark: #C8540A;
+  --primary-light: #FF8A33;
+  --primary-glow: rgba(232, 106, 23, 0.12);
+
+  /* ═══ 辅助色 - 统一到暖色体系 ═══ */
+  /* 琥珀金：用于装饰线条、点缀、次要强调（替代旧金色） */
+  --gold: #D4941A;
+  --gold-light: #E8B02E;
+  --gold-dark: #B07814;
+
+  /* 墨色：文字和深色区域 */
+  --ink: #2D1B0E;
+  --ink-light: #4A3528;
+  --secondary: #2D1B0E;
+  --muted: #F5EDE0;
+  --border: #E8DDD0;
+
+  /* ═══ 功能色 - 全部基于暖橙色调 ═══ */
+  --success: #2EAD5A;    /* 绿色保持（自然/正确） */
+  --warning: #D4941A;   /* 琥珀=警告 */
+  --error: #E85A3A;     /* 偏红的橙=错误 */
+  --info: #E86A17;      /* 橙=信息提示 */
 }
 
 @layer base {
@@ -271,32 +280,34 @@
   }
 
   .nav-menu-item:hover {
-    background: #F8F3EA;
-    color: #C84A2A !important;
+    background: var(--background-warm);
+    color: var(--primary) !important;
   }
 
-  /* 按钮样式 - 传统古韵风格 */
+  /* 按钮样式 - 活力橙主色 */
   .btn-primary {
     @apply inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white transition-all duration-300;
-    background: var(--primary);
-    border: 1px solid var(--primary-dark);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border: none;
+    border-radius: 12px;
     position: relative;
     font-family: 'Noto Serif SC', serif;
+    box-shadow: 0 2px 8px rgba(232, 106, 23, 0.25);
   }
 
   .btn-primary::before {
     content: '';
     position: absolute;
     inset: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     pointer-events: none;
     border-radius: inherit;
   }
 
   .btn-primary:hover {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(200, 74, 42, 0.25);
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(232, 106, 23, 0.35);
   }
 
   .btn-secondary {
@@ -397,10 +408,10 @@
   }
 
   .ancient-card:hover {
-    border-color: var(--gold);
+    border-color: var(--primary);
     box-shadow:
-      0 4px 16px rgba(201, 168, 76, 0.08),
-      0 8px 24px rgba(44, 24, 16, 0.04);
+      0 4px 20px rgba(232, 106, 23, 0.12),
+      0 8px 32px rgba(45, 27, 14, 0.04);
     @apply -translate-y-1;
   }
 
@@ -491,22 +502,22 @@
 .delay-700 { animation-delay: 0.7s; }
 .delay-800 { animation-delay: 0.8s; }
 
-/* 自定义滚动条 */
+/* 自定义滚动条 - 橙色系 */
 ::-webkit-scrollbar {
   width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--muted);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #f26522 0%, #d9530f 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #ff8c42 0%, #f26522 100%);
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
 }
 
 /* 单屏滚动效果 - PC端（≥768px）启用，移动端（<768px）关闭 */
