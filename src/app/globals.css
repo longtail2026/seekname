@@ -39,13 +39,25 @@
   --info: #E86A17;      /* 橙=信息提示 */
 }
 
+  /* ═══ 中国风窗棂格纹底纹 ═══ */
+  /* 简洁的田字格/井字格窗棂图案，大气有序 */
+
 @layer base {
   body {
     @apply antialiased;
-    background-color: var(--background);
     color: var(--foreground);
     font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     scroll-behavior: smooth;
+    /* ═══ 宣纸肌理背景 ═══ */
+    /* 使用密集点阵模拟宣纸纤维感，确保跨浏览器可见 */
+    background-color: #FFFCF7;
+    background-image:
+      /* 主点阵 - 模拟纤维 */
+      radial-gradient(circle at 25% 25%, rgba(139, 119, 101, 0.15) 1px, transparent 1px),
+      radial-gradient(circle at 75% 75%, rgba(139, 119, 101, 0.12) 1px, transparent 1px),
+      radial-gradient(circle at 50% 50%, rgba(180, 160, 140, 0.08) 0.5px, transparent 0.5px);
+    background-size: 8px 8px, 12px 12px, 6px 6px;
+    background-repeat: repeat;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -284,30 +296,30 @@
     color: var(--primary) !important;
   }
 
-  /* 按钮样式 - 活力橙主色 */
+  /* 按钮样式 - 墨色沉稳 */
   .btn-primary {
     @apply inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white transition-all duration-300;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, #2D1B0E 0%, #1a120c 100%);
     border: none;
     border-radius: 12px;
     position: relative;
     font-family: 'Noto Serif SC', serif;
-    box-shadow: 0 2px 8px rgba(232, 106, 23, 0.25);
+    box-shadow: 0 2px 8px rgba(45, 27, 14, 0.3);
   }
 
   .btn-primary::before {
     content: '';
     position: absolute;
     inset: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     pointer-events: none;
     border-radius: inherit;
   }
 
   .btn-primary:hover {
-    background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+    background: linear-gradient(135deg, #3D2B1E 0%, #2D1B0E 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(232, 106, 23, 0.35);
+    box-shadow: 0 6px 20px rgba(45, 27, 14, 0.4);
   }
 
   .btn-secondary {

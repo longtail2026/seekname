@@ -134,7 +134,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* ════════════ 第一屏：Hero 入口 ════════════ */}
-      <section id="screen-1" className="fullscreen-section ancient-pattern-bg relative overflow-hidden">
+      <section id="screen-1" className="fullscreen-section ancient-pattern-bg relative overflow-hidden" style={{ backgroundColor: 'rgba(255,252,247,0.65)' }}>
         {/* 水墨背景装饰 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-[#2D1B0E]/6 to-transparent blur-3xl" />
@@ -361,7 +361,7 @@ export default function Home() {
 
 
       {/* ════════════ 第二屏：能力展示（Why Us） ════════════ */}
-      <section id="screen-2" className="fullscreen-section relative overflow-hidden" style={{ background: 'linear-gradient(180deg, #FFFBF5 0%, #FFF8F0 100%)' }}>
+      <section id="screen-2" className="fullscreen-section relative overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,251,245,0.68) 0%, rgba(255,248,240,0.68) 100%)' }}>
         {/* 背景 */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E86A17]/20 to-transparent" />
@@ -444,7 +444,7 @@ export default function Home() {
 
 
       {/* ════════════ 第三屏：服务矩阵（What We Offer） ════════════ */}
-      <section id="screen-3" className="fullscreen-section ancient-pattern-bg relative overflow-hidden">
+      <section id="screen-3" className="fullscreen-section ancient-pattern-bg relative overflow-hidden" style={{ backgroundColor: 'rgba(255,252,247,0.65)' }}>>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="w-full max-w-6xl flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
             {/* 标题 */}
@@ -542,7 +542,7 @@ export default function Home() {
       <section id="screen-4" className="fullscreen-section relative overflow-hidden flex flex-col">
         {/* 上半部分（约80%）：评价区域 - 浅色背景 */}
         <div className="flex-[4] flex flex-col items-center justify-center relative"
-          style={{ background: 'linear-gradient(180deg, #FFFCF7 0%, #FFF8F0 100%)', minHeight: 0 }}
+          style={{ background: 'linear-gradient(180deg, rgba(255,252,247,0.68) 0%, rgba(255,248,240,0.68) 100%)', minHeight: 0 }}
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
             {/* 背景分割线 */}
