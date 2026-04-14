@@ -56,10 +56,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 初始化时获取当前登录状态
   const fetchSession = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/session");
+      // 优先用 cookie（same-origin 模式自动携带），fallback 到 localStorage token
+      const token = typeof window !== "undefined"
+        ? localStorage.getItem("seekname_token")
+        : null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch("/api/auth/session", {
+        method: "GET",
+        credentials: "same-origin",
+        headers,
+      });
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
+        // 同步更新 localStorage 缓存
+        if (data.user) {
+          localStorage.setItem("seekname_user", JSON.stringify(data.user));
+        }
       }
     } catch (error) {
       console.error("[Auth] Failed to fetch session:", error);
@@ -93,9 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(data.user);
 
-        // 同时存 localStorage（供客户端 API 调用时使用）
+        // 统一使用 seekname_* key 存储（和 Header 组件一致）
         if (data.token) {
-          localStorage.setItem("auth_token", data.token);
+          localStorage.setItem("seekname_token", data.token);
+          localStorage.setItem("seekname_user", JSON.stringify(data.user));
         }
 
         return { success: true };
@@ -137,13 +154,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 登出
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/auth/session", { method: "POST" });
+      await fetch("/api/auth/session", {
+        method: "POST",
+        credentials: "same-origin",
+      });
     } catch (error) {
       console.error("[Logout Error]", error);
     }
     setUser(null);
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("seekname_token");
+    localStorage.removeItem("seekname_user");
     router.push("/");
+    router.refresh();
   }, [router]);
 
   // 刷新用户信息

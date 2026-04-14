@@ -9,11 +9,19 @@ import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 
 /**
- * 获取当前登录用户（通过 Cookie）
+ * 获取当前登录用户（通过 Cookie 或 Authorization Header）
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get("auth-token")?.value;
+    // 优先从 cookie 获取，fallback 到 Authorization header
+    let token = request.cookies.get("auth-token")?.value;
+
+    if (!token) {
+      const authHeader = request.headers.get("Authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+    }
 
     if (!token) {
       return NextResponse.json({ user: null }, { status: 200 });
