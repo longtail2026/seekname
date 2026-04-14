@@ -550,64 +550,59 @@ html {
 
 /* ═══════════════════════════════════════════
    古风卷轴画卷 - 起名表单专用
+   布局：轴杆在上，宣纸悬挂在下
    ═══════════════════════════════════════════ */
 
 .scroll-painting {
   position: relative;
   display: flex;
-  align-items: stretch;
-  filter: drop-shadow(0 4px 16px rgba(44, 24, 16, 0.12));
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 6px 20px rgba(44, 24, 16, 0.15));
 }
 
-/* 卷轴轴杆 - 左右两侧（必须先定义，让宣纸覆盖在轴杆上） */
+/* ─── 轴杆（水平方向，宽卷轴） ─── */
 .scroll-rod {
-  width: 18px;
-  min-height: 100%;
+  width: 100%;
+  height: 18px;
   flex-shrink: 0;
   position: relative;
-  border-radius: 2px;
-  /* 木纹渐变 */
+  border-radius: 3px;
+  /* 木纹渐变 - 圆柱立体感 */
   background:
     repeating-linear-gradient(180deg,
       transparent 0px,
-      rgba(0,0,0,0.02) 1px,
+      rgba(0,0,0,0.015) 1px,
       transparent 2px,
-      transparent 6px
+      transparent 5px
     ),
-    linear-gradient(90deg,
+    linear-gradient(180deg,
       #5D3A1F 0%,
-      #7A4F2E 15%,
+      #7A4F2E 18%,
       #8B5E3C 35%,
       #A0724A 50%,
       #8B5E3C 65%,
-      #7A4F2E 85%,
+      #7A4F2E 82%,
       #5D3A1F 100%
     );
   box-shadow:
-    2px 0 6px rgba(44, 24, 16, 0.25),
-    inset -1px 0 2px rgba(0,0,0,0.3),
-    inset 1px 0 2px rgba(255,255,255,0.1);
+    0 2px 6px rgba(44, 24, 16, 0.3),
+    inset 0 -1px 2px rgba(0,0,0,0.3),
+    inset 0 1px 2px rgba(255,255,255,0.15);
 }
 
-.scroll-rod-right {
-  box-shadow:
-    -2px 0 6px rgba(44, 24, 16, 0.25),
-    inset 1px 0 2px rgba(0,0,0,0.3),
-    inset -1px 0 2px rgba(255,255,255,0.1);
-}
-
-/* 轴杆顶部装饰头（金属帽） */
+/* 轴杆两端装饰头（金属帽） - 左右两侧 */
 .scroll-rod::before,
 .scroll-rod::after {
   content: '';
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 26px;
-  height: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 28px;
   border-radius: 2px;
   background:
-    linear-gradient(135deg,
+    linear-gradient(90deg,
       #C9A84C 0%,
       #E8D48B 25%,
       #F0E4A8 50%,
@@ -615,77 +610,83 @@ html {
       #B08D30 100%
     );
   box-shadow:
-    0 1px 3px rgba(0,0,0,0.2),
-    inset 0 1px 0 rgba(255,255,255,0.4);
+    1px 0 3px rgba(0,0,0,0.2),
+    inset 1px 0 0 rgba(255,255,255,0.4);
 }
 
 .scroll-rod::before {
-  top: -5px;
+  left: -5px;
 }
 
 .scroll-rod::after {
-  bottom: -5px;
+  right: -5px;
 }
 
-/* 卷轴主体（宣纸区域）- 与轴杆无缝连接 */
+/* 上方轴杆 */
+.scroll-rod-top {
+  z-index: 2;
+  border-radius: 3px 3px 1px 1px;
+}
+
+/* 下方轴杆 */
+.scroll-rod-bottom {
+  z-index: 2;
+  border-radius: 1px 1px 3px 3px;
+}
+
+/* ─── 宣纸区域 - 悬挂在轴杆下方 ─── */
 .scroll-body {
-  flex: 1;
-  padding: 28px 24px 24px;
-  margin: 0;
+  width: calc(100% - 6px);
+  padding: 16px 20px;
   background:
     /* 极淡的宣纸纤维纹理 */
     linear-gradient(180deg,
       rgba(255,248,235,0) 0%,
-      rgba(255,248,235,0.4) 3%,
-      rgba(255,248,235,0) 6%,
-      rgba(255,248,235,0) 94%,
-      rgba(255,248,235,0.4) 97%,
+      rgba(255,248,235,0.3) 4%,
+      rgba(255,248,235,0) 8%,
+      rgba(255,248,235,0) 92%,
+      rgba(255,248,235,0.3) 96%,
       rgba(255,248,235,0) 100%
     ),
     linear-gradient(135deg, #F8F0E0 0%, #EDE4D0 50%, #F8F0E0 100%);
-  /* 左右边框模拟宣纸与轴杆的衔接 */
-  border-top: 1px solid #C8B898;
-  border-bottom: 1px solid #C8B898;
-  border-left: none;
-  border-right: none;
+  border-left: 1px solid #C8B898;
+  border-right: 1px solid #C8B898;
   position: relative;
-  /* 让宣纸微微覆盖到轴杆上，形成连续感 */
-  margin-left: -2px;
-  margin-right: -2px;
-  z-index: 1;
   box-shadow:
-    inset 0 0 40px rgba(160, 130, 80, 0.05),
-    inset 0 0 8px rgba(160, 130, 80, 0.03);
+    inset 0 0 30px rgba(160, 130, 80, 0.06),
+    inset 0 0 6px rgba(160, 130, 80, 0.04);
 }
 
-/* 卷轴上下边缘卷曲阴影效果 */
-.scroll-body::before,
+/* 宣纸上方 - 紧贴上轴杆的卷曲阴影 */
+.scroll-body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: linear-gradient(180deg,
+    rgba(80, 55, 25, 0.12) 0%,
+    rgba(80, 55, 25, 0.03) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* 宣纸下方 - 紧贴下轴杆的卷曲阴影 */
 .scroll-body::after {
   content: '';
   position: absolute;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 14px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.scroll-body::before {
-  top: 0;
-  background: linear-gradient(180deg,
-    rgba(100, 75, 35, 0.08) 0%,
-    rgba(100, 75, 35, 0.02) 50%,
-    transparent 100%
-  );
-}
-
-.scroll-body::after {
-  bottom: 0;
+  height: 10px;
   background: linear-gradient(0deg,
-    rgba(100, 75, 35, 0.08) 0%,
-    rgba(100, 75, 35, 0.02) 50%,
+    rgba(80, 55, 25, 0.12) 0%,
+    rgba(80, 55, 25, 0.03) 60%,
     transparent 100%
   );
+  pointer-events: none;
 }
 
 /* 卷轴内输入框背景 */
