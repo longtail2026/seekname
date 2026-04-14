@@ -543,16 +543,15 @@ export default function SettingsPage() {
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "linear-gradient(135deg, #FDF8F3 0%, #F5EDE0 50%, #EDE5D8 100%)",
+        paddingTop: 56, /* 补偿 fixed header 高度 */
       }}
     >
       {/* 主内容区 */}
       <main
         style={{
           maxWidth: 640,
-          margin: "36px auto",
-          padding: "0 20px",
+          margin: "0 auto",
+          padding: "32px 20px 60px",
         }}
       >
         {/* 页面标题 */}
@@ -576,10 +575,13 @@ export default function SettingsPage() {
         ) : (
           <div
             style={{
-              background: "rgba(255,255,255,0.85)",
+              background: "rgba(255,255,255,0.9)",
+              backdropFilter: "blur(8px)",
               borderRadius: 16,
               padding: "36px 32px",
-              boxShadow: "0 4px 24px rgba(74,52,40,0.06)",
+              boxShadow:
+                "0 2px 8px rgba(74,52,40,0.04), 0 4px 16px rgba(74,52,40,0.02)",
+              border: "1px solid #DDD0C0",
             }}
           >
             {/* 消息提示 */}

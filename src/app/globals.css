@@ -380,12 +380,15 @@
     border-color: rgba(255, 255, 255, 0.3);
   }
 
-  /* 单屏滚动容器 - 精确一屏，不得跨屏 */
+  /* 单屏滚动容器 - 补偿 fixed header */
   .fullscreen-section {
     @apply w-full relative;
-    height: calc(100dvh - 4rem);
+    /* fixed header 高度约 56px，用 padding-top 补偿让内容可见 */
+    height: calc(100dvh);
     min-height: 500px;
     overflow: hidden;
+    margin-top: 56px;
+    border-radius: 0;
   }
 
   /* 卡片样式 - 合并为一个定义（避免重复） */

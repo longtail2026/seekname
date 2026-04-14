@@ -94,14 +94,16 @@ export default function Header() {
   return (
     <header
       style={{
-        background: "rgba(255,255,255,0.75)",
+        background: "rgba(255,255,255,0.85)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         borderBottom: "1px solid rgba(232,106,23,0.12)",
-        padding: "14px 0",
-        position: "sticky",
+        padding: "12px 0",
+        position: "fixed",
         top: 0,
-        zIndex: 100,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
       }}
     >
       <div
@@ -154,24 +156,6 @@ export default function Header() {
             }
           >
             首页
-          </Link>
-          <Link
-            href="/personal"
-            style={{
-              fontSize: 15,
-              color: "#6B5A4E",
-              textDecoration: "none",
-              fontFamily: "'Noto Sans SC', sans-serif",
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.color = "#E86A17")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.color = "#6B5A4E")
-            }
-          >
-            我的订单
           </Link>
 
           {/* 用户区域 */}
