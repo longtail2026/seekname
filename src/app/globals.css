@@ -559,11 +559,79 @@ html {
   filter: drop-shadow(0 4px 16px rgba(44, 24, 16, 0.12));
 }
 
-/* 卷轴主体（宣纸区域） */
+/* 卷轴轴杆 - 左右两侧（必须先定义，让宣纸覆盖在轴杆上） */
+.scroll-rod {
+  width: 18px;
+  min-height: 100%;
+  flex-shrink: 0;
+  position: relative;
+  border-radius: 2px;
+  /* 木纹渐变 */
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0px,
+      rgba(0,0,0,0.02) 1px,
+      transparent 2px,
+      transparent 6px
+    ),
+    linear-gradient(90deg,
+      #5D3A1F 0%,
+      #7A4F2E 15%,
+      #8B5E3C 35%,
+      #A0724A 50%,
+      #8B5E3C 65%,
+      #7A4F2E 85%,
+      #5D3A1F 100%
+    );
+  box-shadow:
+    2px 0 6px rgba(44, 24, 16, 0.25),
+    inset -1px 0 2px rgba(0,0,0,0.3),
+    inset 1px 0 2px rgba(255,255,255,0.1);
+}
+
+.scroll-rod-right {
+  box-shadow:
+    -2px 0 6px rgba(44, 24, 16, 0.25),
+    inset 1px 0 2px rgba(0,0,0,0.3),
+    inset -1px 0 2px rgba(255,255,255,0.1);
+}
+
+/* 轴杆顶部装饰头（金属帽） */
+.scroll-rod::before,
+.scroll-rod::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 12px;
+  border-radius: 2px;
+  background:
+    linear-gradient(135deg,
+      #C9A84C 0%,
+      #E8D48B 25%,
+      #F0E4A8 50%,
+      #D4B860 75%,
+      #B08D30 100%
+    );
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+.scroll-rod::before {
+  top: -5px;
+}
+
+.scroll-rod::after {
+  bottom: -5px;
+}
+
+/* 卷轴主体（宣纸区域）- 与轴杆无缝连接 */
 .scroll-body {
   flex: 1;
   padding: 28px 24px 24px;
-  margin: 0 18px;
+  margin: 0;
   background:
     /* 极淡的宣纸纤维纹理 */
     linear-gradient(180deg,
@@ -574,14 +642,20 @@ html {
       rgba(255,248,235,0.4) 97%,
       rgba(255,248,235,0) 100%
     ),
-    linear-gradient(135deg, #FBF5E6 0%, #F5ECDA 50%, #FBF5E6 100%);
-  border: 1px solid #D4C4A8;
+    linear-gradient(135deg, #F8F0E0 0%, #EDE4D0 50%, #F8F0E0 100%);
+  /* 左右边框模拟宣纸与轴杆的衔接 */
+  border-top: 1px solid #C8B898;
+  border-bottom: 1px solid #C8B898;
   border-left: none;
   border-right: none;
   position: relative;
+  /* 让宣纸微微覆盖到轴杆上，形成连续感 */
+  margin-left: -2px;
+  margin-right: -2px;
+  z-index: 1;
   box-shadow:
-    inset 0 0 40px rgba(160, 130, 80, 0.06),
-    inset 0 0 8px rgba(160, 130, 80, 0.04);
+    inset 0 0 40px rgba(160, 130, 80, 0.05),
+    inset 0 0 8px rgba(160, 130, 80, 0.03);
 }
 
 /* 卷轴上下边缘卷曲阴影效果 */
@@ -591,7 +665,7 @@ html {
   position: absolute;
   left: 0;
   right: 0;
-  height: 18px;
+  height: 14px;
   pointer-events: none;
   z-index: 2;
 }
@@ -599,8 +673,8 @@ html {
 .scroll-body::before {
   top: 0;
   background: linear-gradient(180deg,
-    rgba(120, 90, 40, 0.10) 0%,
-    rgba(120, 90, 40, 0.03) 60%,
+    rgba(100, 75, 35, 0.08) 0%,
+    rgba(100, 75, 35, 0.02) 50%,
     transparent 100%
   );
 }
@@ -608,80 +682,25 @@ html {
 .scroll-body::after {
   bottom: 0;
   background: linear-gradient(0deg,
-    rgba(120, 90, 40, 0.10) 0%,
-    rgba(120, 90, 40, 0.03) 60%,
+    rgba(100, 75, 35, 0.08) 0%,
+    rgba(100, 75, 35, 0.02) 50%,
     transparent 100%
   );
 }
 
-/* 卷轴轴杆 - 左右两侧 */
-.scroll-rod {
-  width: 22px;
-  min-height: 100%;
-  flex-shrink: 0;
-  position: relative;
-  border-radius: 4px;
-  /* 木纹渐变 */
-  background:
-    repeating-linear-gradient(180deg,
-      transparent 0px,
-      rgba(0,0,0,0.02) 1px,
-      transparent 2px,
-      transparent 6px
-    ),
-    linear-gradient(90deg,
-      #6B4226 0%,
-      #8B5E3C 20%,
-      #A0724A 40%,
-      #8B5E3C 55%,
-      #6B4226 70%,
-      #7A5030 85%,
-      #6B4226 100%
-    );
-  box-shadow:
-    2px 0 6px rgba(44, 24, 16, 0.2),
-    -1px 0 3px rgba(44, 24, 16, 0.1);
-}
-
-.scroll-rod-right {
-  box-shadow:
-    -2px 0 6px rgba(44, 24, 16, 0.2),
-    1px 0 3px rgba(44, 24, 16, 0.1);
-}
-
-/* 轴杆顶部装饰头（金属帽） */
-.scroll-rod::before,
-.scroll-rod::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 30px;
-  height: 14px;
-  border-radius: 3px;
-  background:
-    linear-gradient(135deg,
-      #C9A84C 0%,
-      #E8D48B 25%,
-      #F0E4A8 50%,
-      #D4B860 75%,
-      #B08D30 100%
-    );
-  box-shadow:
-    0 1px 3px rgba(0,0,0,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.4);
-}
-
-.scroll-rod::before {
-  top: -6px;
-}
-
-.scroll-rod::after {
-  bottom: -6px;
-}
-
 /* 卷轴内输入框背景 */
 .scroll-input-bg {
-  background: rgba(255, 252, 245, 0.85);
+  background: rgba(255, 252, 245, 0.9);
   border: 1px solid #C4A882;
+}
+
+/* 卷轴内性别按钮组 */
+.scroll-gender-btn {
+  border: 1px solid #C4A882;
+  border-radius: 0;
+}
+
+/* 卷轴内提交按钮 */
+.scroll-submit-btn {
+  border-radius: 0;
 }

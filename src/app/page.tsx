@@ -185,10 +185,8 @@ export default function Home() {
                 {/* 卷轴容器 */}
                 <div className="scroll-painting relative max-w-lg">
                   {/* 左侧轴杆 */}
-                  <div className="scroll-rod scroll-rod-left" />
-                  {/* 右侧轴杆 */}
-                  <div className="scroll-rod scroll-rod-right" />
-                  {/* 卷轴主体（宣纸） */}
+                  <div className="scroll-rod" />
+                  {/* 卷轴主体（宣纸）- z-index覆盖在轴杆上实现无缝连接 */}
                   <div className="scroll-body">
                     {/* 第一行：姓氏 + 性别 */}
                     <div className="flex gap-3 mb-3">
@@ -292,6 +290,8 @@ export default function Home() {
                       )}
                     </button>
                   </div>
+                  {/* 右侧轴杆 */}
+                  <div className="scroll-rod" />
                 </div>
                 <p className="text-xs text-[#B0AAA0] mt-2 ml-1 text-center lg:text-left">
                   已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名
