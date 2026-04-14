@@ -444,7 +444,7 @@ export default function Home() {
 
 
       {/* ════════════ 第三屏：服务矩阵（What We Offer） ════════════ */}
-      <section id="screen-3" className="fullscreen-section ancient-pattern-bg relative overflow-hidden" style={{ backgroundColor: 'rgba(255,252,247,0.65)' }}>>
+      <section id="screen-3" className="fullscreen-section ancient-pattern-bg relative overflow-hidden" style={{ backgroundColor: 'rgba(255,252,247,0.65)' }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
           <div className="w-full max-w-6xl flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
             {/* 标题 */}
