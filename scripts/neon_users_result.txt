@@ -1,0 +1,19 @@
+=== Neon users 表结构 ===
+  id                   | text         | 可空: NO
+  email                | text         | 可空: YES
+  phone                | text         | 可空: YES
+  name                 | character varying | 可空: YES
+  avatar               | text         | 可空: YES
+  gender               | character    | 可空: YES
+  birth_date           | timestamp without time zone | 可空: YES
+  wx_openid            | text         | 可空: YES
+  wx_unionid           | text         | 可空: YES
+  status               | character varying | 可空: NO
+  vip_level            | integer      | 可空: NO
+  vip_expire           | timestamp without time zone | 可空: YES
+  points               | integer      | 可空: NO
+  balance              | numeric      | 可空: NO
+  created_at           | timestamp without time zone | 可空: NO
+  updated_at           | timestamp without time zone | 可空: NO
+
+已有 password 列: 否（需要添加）

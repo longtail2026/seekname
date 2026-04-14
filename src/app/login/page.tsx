@@ -172,8 +172,8 @@ function LoginForm() {
                   border: "1px solid #DDD0C0",
                   color: "#2D1B0E",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "#E86A17")}
-                onBlur={(e) => (e.target.style.borderColor = "#DDD0C0")}
+                onFocus={(e) => { (e.target as HTMLElement).style.borderColor = "#E86A17"; }}
+                onBlur={(e) => { (e.target as HTMLElement).style.borderColor = "#DDD0C0"; }}
               />
             </div>
 
@@ -198,20 +198,16 @@ function LoginForm() {
                     border: "1px solid #DDD0C0",
                     color: "#2D1B0E",
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = "#E86A17")}
-                  onBlur={(e) => (e.target.style.borderColor = "#DDD0C0")}
+                  onFocus={(e) => { (e.target as HTMLElement).style.borderColor = "#E86A17"; }}
+                  onBlur={(e) => { (e.target as HTMLElement).style.borderColor = "#DDD0C0"; }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors duration-200"
                   style={{ color: "#B0AAA0" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "#E86A17")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "#B0AAA0")
-                  }
+                  onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = "#E86A17"}
+                  onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = "#B0AAA0"}
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -228,8 +224,8 @@ function LoginForm() {
                 type="button"
                 className="text-sm transition-colors duration-200"
                 style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#999" }}
-                onMouseEnter={(e) => (e.target.style.color = "#E86A17")}
-                onMouseLeave={(e) => (e.target.style.color = "#999")}
+                onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "#E86A17"; }}
+                onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "#999"; }}
               >
                 忘记密码？
               </button>
@@ -283,8 +279,8 @@ function LoginForm() {
               href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
               className="font-medium transition-colors duration-200"
               style={{ color: "#E86A17", fontFamily: "'Noto Sans SC', sans-serif" }}
-              onMouseEnter={(e) => (e.target.style.textDecoration = "underline")}
-              onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.textDecoration = "underline"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.textDecoration = "none"}
             >
               立即注册
             </Link>
@@ -306,8 +302,8 @@ function LoginForm() {
             href="/"
             className="text-sm transition-colors duration-200 inline-flex items-center gap-1"
             style={{ color: "#B0AAA0", fontFamily: "'Noto Sans SC', sans-serif" }}
-            onMouseEnter={(e) => (e.target.style.color = "#E86A17")}
-            onMouseLeave={(e) => (e.target.style.color = "#B0AAA0")}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = "#E86A17"}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = "#B0AAA0"}
           >
             ← 返回首页
           </Link>
