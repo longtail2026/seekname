@@ -182,7 +182,7 @@ export default function Home() {
 
               {/* 起名表单 - 完整字段 */}
               <form onSubmit={handleSubmit} className="mb-6">
-                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-5 lg:p-6 shadow-lg border border-[#E8DDD0] max-w-lg mx-auto lg:mx-0">
+                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-5 lg:p-6 shadow-lg border border-[#C8B8A8] max-w-lg mx-auto lg:mx-0">
                   {/* 第一行：姓氏 + 性别 */}
                   <div className="flex gap-3 mb-3">
                     <div className="relative flex-1 min-w-0">
@@ -204,7 +204,7 @@ export default function Home() {
                           setSurname(val);
                         }}
                         placeholder="请输入您的姓氏"
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#E8DDD0]
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#C8B8A8]
                                    rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
                                    transition-all duration-300 placeholder:text-[#B0AAA0]"
                         style={{ fontFamily: "'Noto Serif SC', serif" }}
@@ -212,7 +212,7 @@ export default function Home() {
                       />
                     </div>
                     {/* 性别选择 */}
-                    <div className="flex rounded-xl overflow-hidden border border-[#E8DDD0] shrink-0">
+                    <div className="flex rounded-xl overflow-hidden border border-[#C8B8A8] shrink-0">
                       {(["男", "女"] as const).map((g) => (
                         <button
                           key={g}
@@ -239,7 +239,7 @@ export default function Home() {
                         type="date"
                         value={birthDate}
                         onChange={(e) => setBirthDate(e.target.value)}
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#E8DDD0]
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#C8B8A8]
                                    rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
                                    transition-all duration-300 text-[#2D1B0E]"
                         style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
@@ -251,7 +251,7 @@ export default function Home() {
                         value={birthTime}
                         onChange={(e) => setBirthTime(e.target.value)}
                         placeholder="可选"
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#E8DDD0]
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#C8B8A8]
                                    rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
                                    transition-all duration-300 text-[#2D1B0E]"
                         style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
@@ -311,16 +311,16 @@ export default function Home() {
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,248,240,0.85))',
                       borderTop: `3px solid ${card.color}`,
-                      border: '1px solid transparent',
-                      boxShadow: '0 2px 16px rgba(44,24,16,0.05)',
+                      border: '1px solid #D4C4B0',
+                      boxShadow: '0 2px 16px rgba(44,24,16,0.06)',
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLDivElement).style.borderColor = '#E86A17';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 24px rgba(232,106,23,0.15)';
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 24px rgba(232,106,23,0.18)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(44,24,16,0.05)';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = '#D4C4B0';
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(44,24,16,0.06)';
                     }}
                   >
                     {/* 图标 */}
@@ -396,14 +396,14 @@ export default function Home() {
                 <div
                   key={idx}
                   className="group text-center p-6 lg:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-1"
-                  style={{ background: 'rgba(255,255,255,0.75)', border: '1px solid transparent', boxShadow: '0 2px 20px rgba(44,24,16,0.04)' }}
+                  style={{ background: 'rgba(255,255,255,0.80)', border: '1px solid #D4C4B0', boxShadow: '0 2px 20px rgba(44,24,16,0.06)' }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLDivElement).style.borderColor = '#E86A17';
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 24px rgba(232,106,23,0.15)';
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 24px rgba(232,106,23,0.18)';
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent';
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 20px rgba(44,24,16,0.04)';
+                    (e.currentTarget as HTMLDivElement).style.borderColor = '#D4C4B0';
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 20px rgba(44,24,16,0.06)';
                   }}
                 >
                   <div
@@ -426,7 +426,7 @@ export default function Home() {
 
             {/* 底部说明 */}
             <div className="mt-10 text-center">
-              <div className="inline-flex items-center gap-6 px-8 py-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(201,168,76,0.2)' }}>
+              <div className="inline-flex items-center gap-6 px-8 py-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.70)', border: '1px solid rgba(201,168,76,0.40)' }}>
                 <div className="flex items-center gap-2">
                   <UnlockIcon className="w-5 h-5 text-green-600" />
                   <span className="text-sm text-[#2D1B0E]"><strong>免费查看</strong> 排名 4-6 名</span>
@@ -468,7 +468,7 @@ export default function Home() {
                   key={idx}
                   href={svc.href}
                   className="group block relative overflow-hidden rounded-2xl p-7 lg:p-8 transition-all duration-400 hover:-translate-y-1 hover:shadow-2xl"
-                  style={{ background: 'linear-gradient(145deg, #FFFFFF, #FFFCF7)', border: '1px solid #F5EDE0', boxShadow: '0 2px 20px rgba(44,24,16,0.04)' }}
+                  style={{ background: 'linear-gradient(145deg, #FFFFFF, #FFFCF7)', border: '1px solid #D4C4B0', boxShadow: '0 2px 20px rgba(44,24,16,0.06)' }}
                   onMouseEnter={(e) => {
                     const el = e.currentTarget;
                     el.style.borderColor = '#E86A17';
@@ -476,8 +476,8 @@ export default function Home() {
                   }}
                   onMouseLeave={(e) => {
                     const el = e.currentTarget;
-                    el.style.borderColor = '#F5EDE0';
-                    el.style.boxShadow = '0 2px 20px rgba(44,24,16,0.04)';
+                    el.style.borderColor = '#D4C4B0';
+                    el.style.boxShadow = '0 2px 20px rgba(44,24,16,0.06)';
                   }}
                 >
                   {/* 左侧色条 */}
@@ -594,7 +594,7 @@ export default function Home() {
                     <p className="text-sm lg:text-base text-[#5A4334] leading-relaxed mb-5 italic" style={{ lineHeight: '1.8' }}>
                       &ldquo;{t.content}&rdquo;
                     </p>
-                    <div className="flex items-center gap-3 pt-3 border-t border-[#E8DDD0]/50">
+                    <div className="flex items-center gap-3 pt-3 border-t border-[#C8B8A8]/60">
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
                         style={{ background: idx === 0 ? '#E86A17' : idx === 1 ? '#D4941A' : '#F09A3A' }}
