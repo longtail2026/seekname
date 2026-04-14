@@ -1,41 +1,25 @@
 /**
  * AI 起名 API
  * POST /api/name/generate
- * 
+ *
+ * 每次调用自动创建订单记录（免费和付费统一）
+ * 订单包含完整起名信息，供后台数据分析
+ *
  * 请求体：
- * {
- *   surname: string       // 姓氏
- *   gender: "M" | "F"     // 性别
- *   birthDate: string     // 生日 YYYY-MM-DD
- *   birthTime?: string    // 时辰（可选）
- *   expectations?: string // 期望寓意
- *   style?: string        // 风格：elegant/modern/classic
- * }
- * 
+ *   surname, gender, birthDate, birthTime?, expectations?, style?
+ *
  * 响应：
- * {
- *   success: true,
- *   data: {
- *     recordId: string,
- *     names: Array<{
- *       name: string,
- *       pinyin: string,
- *       wuxing: string,
- *       meaning: string,
- *       source?: { book: string, text: string }
- *     }>
- *   }
- * }
+ *   success, data: { orderId, orderNo, wuxing, names }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateOrderNo, generateAnonymousName } from "@/lib/order";
+import { verifyToken } from "@/lib/auth";
 
-// 起名配置
+// ─── 起名配置 ───
 const NAME_CONFIG = {
-  // 每个姓氏生成的名字数量
   countPerSurname: 5,
-  // 五行对应常用字（从康熙字典中筛选）
   wuxingChars: {
     "金": ["铭", "锦", "钧", "铮", "铄", "钰", "鑫", "锐", "锋", "铭"],
     "木": ["林", "森", "桐", "楠", "梓", "柏", "松", "桦", "柳", "梅"],
@@ -45,14 +29,18 @@ const NAME_CONFIG = {
   },
 };
 
+// 业务类别映射
+const CATEGORY_MAP: Record<string, string> = {
+  personal: "个人起名",
+  company: "公司起名",
+  pet: "宠物起名",
+  evaluate: "名字测评",
+};
+
 // 根据八字计算五行喜忌（简化版）
 function calculateWuxing(birthDate: string, birthTime?: string) {
-  // 这里应该是复杂的八字计算逻辑
-  // 简化版：根据出生月份粗略判断
   const month = new Date(birthDate).getMonth() + 1;
-  
-  // 春季(2-4月)喜金，夏季(5-7月)喜水，秋季(8-10月)喜木，冬季(11-1月)喜火
-  const seasonMap: Record<number, { likes: string[], avoids: string[] }> = {
+  const seasonMap: Record<number, { likes: string[]; avoids: string[] }> = {
     1: { likes: ["火"], avoids: ["水"] },
     2: { likes: ["金"], avoids: ["木"] },
     3: { likes: ["金"], avoids: ["木"] },
@@ -66,7 +54,6 @@ function calculateWuxing(birthDate: string, birthTime?: string) {
     11: { likes: ["火"], avoids: ["水"] },
     12: { likes: ["火"], avoids: ["水"] },
   };
-  
   return seasonMap[month] || { likes: ["土"], avoids: [] };
 }
 
@@ -93,9 +80,7 @@ async function queryClassics(keywords: string[], limit: number = 3) {
 // 从康熙字典查询字
 async function queryKangxiChars(chars: string[]) {
   const dict = await prisma.kangxiDict.findMany({
-    where: {
-      character: { in: chars },
-    },
+    where: { character: { in: chars } },
     select: {
       character: true,
       pinyin: true,
@@ -115,44 +100,41 @@ async function generateNames(
   expectations?: string
 ) {
   const names = [];
-  
-  // 获取喜用五行的字
   const preferredChars: string[] = [];
   for (const wx of wuxingLikes) {
-    const chars = NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars];
-    if (chars) {
-      preferredChars.push(...chars);
-    }
+    const chars =
+      NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars];
+    if (chars) preferredChars.push(...chars);
   }
-  
-  // 查询这些字的康熙字典信息
+
   const charInfo = await queryKangxiChars(preferredChars.slice(0, 20));
-  const charMap = new Map(charInfo.map(c => [c.character, c]));
-  
-  // 根据性别和期望筛选合适的字
-  const suitableChars = preferredChars.filter(char => {
+  const charMap = new Map(charInfo.map((c) => [c.character, c]));
+
+  const suitableChars = preferredChars.filter((char) => {
     const info = charMap.get(char);
-    if (!info) return false;
-    // 这里可以添加更多筛选逻辑
-    return true;
+    return !!info;
   });
-  
-  // 生成名字组合（双字名）
-  const count = Math.min(NAME_CONFIG.countPerSurname, Math.floor(suitableChars.length / 2));
-  
+
+  const count = Math.min(
+    NAME_CONFIG.countPerSurname,
+    Math.floor(suitableChars.length / 2)
+  );
+
   for (let i = 0; i < count; i++) {
     const char1 = suitableChars[i * 2];
     const char2 = suitableChars[i * 2 + 1];
-    
     if (!char1 || !char2) continue;
-    
+
     const info1 = charMap.get(char1);
     const info2 = charMap.get(char2);
-    
+
     const fullName = surname + char1 + char2;
-    const pinyin = [info1?.pinyin?.split(",")[0] || "", info2?.pinyin?.split(",")[0] || ""].join(" ");
+    const pinyin = [
+      info1?.pinyin?.split(",")[0] || "",
+      info2?.pinyin?.split(",")[0] || "",
+    ].join(" ");
     const wuxing = (info1?.wuxing || "") + (info2?.wuxing || "");
-    
+
     names.push({
       name: fullName,
       givenName: char1 + char2,
@@ -162,37 +144,114 @@ async function generateNames(
       strokeCount: (info1?.strokeCount || 0) + (info2?.strokeCount || 0),
     });
   }
-  
+
   return names;
 }
 
 // 为名字匹配典籍出处
 async function attachSources(names: any[], expectations?: string) {
-  const keywords = expectations 
+  const keywords = expectations
     ? expectations.split(/[,，\s]+/).filter(Boolean)
     : ["德", "才", "智", "仁", "义"];
-  
+
   const entries = await queryClassics(keywords, 5);
-  
-  // 简单匹配：给每个名字随机分配一个典籍出处
+
   return names.map((name, index) => {
     const entry = entries[index % entries.length];
     return {
       ...name,
-      source: entry ? {
-        book: entry.bookName,
-        text: entry.ancientText?.slice(0, 50) + "...",
-        fullText: entry.modernText,
-      } : undefined,
+      source: entry
+        ? {
+            book: entry.bookName,
+            text: entry.ancientText?.slice(0, 50) + "...",
+            fullText: entry.modernText,
+          }
+        : undefined,
     };
   });
+}
+
+/**
+ * 创建订单记录（每次起名调用都会创建）
+ */
+async function createOrder(params: {
+  userId?: string | null;
+  userName?: string | null;
+  category: string;
+  surname: string;
+  gender: string;
+  birthDate: string;
+  birthTime?: string;
+  expectations?: string;
+  style?: string;
+  results: any[];
+}) {
+  const orderNo = generateOrderNo();
+  const now = new Date();
+  const isPaid = false; // 目前全部免费，后续接入支付后根据业务判断
+
+  try {
+    // 先创建起名记录
+    const nameRecord = await prisma.nameRecord.create({
+      data: {
+        userId: params.userId || "",
+        surname: params.surname,
+        gender: params.gender === "M" ? "male" : params.gender === "F" ? "female" : params.gender,
+        birthDate: new Date(params.birthDate),
+        birthTime: params.birthTime,
+        wuxingLikes: [], // 由 calculateWuxing 填充
+        wuxingAvoids: [],
+        expectations: params.expectations,
+        style: params.style,
+        results: params.results as any,
+        status: "completed",
+      },
+    });
+
+    // 再创建订单（关联起名记录）
+    const order = await prisma.order.create({
+      data: {
+        orderNo,
+        userId: params.userId || "", // 匿名用户为空字符串
+        type: params.category,
+        amount: isPaid ? 9.9 : 0, // 免费起名 = 0 元
+        payStatus: isPaid ? "paid" : "free", // free 表示免费无需支付
+        status: "completed",
+        nameRecordId: nameRecord.id,
+      },
+    });
+
+    // 返回订单信息（用于前端展示）
+    return {
+      id: order.id,
+      orderNo: order.orderNo,
+      type: order.type,
+      amount: Number(order.amount),
+      payStatus: order.payStatus,
+      status: order.status,
+      createdAt: order.createdAt.toISOString(),
+      nameRecordId: nameRecord.id,
+    };
+  } catch (e) {
+    console.error("[Create Order Error]", e);
+    // 即使订单创建失败也不阻断主流程
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { surname, gender, birthDate, birthTime, expectations, style } = body;
-    
+    const {
+      surname,
+      gender,
+      birthDate,
+      birthTime,
+      expectations,
+      style,
+      category = "personal", // 默认个人起名
+    } = body;
+
     // 参数校验
     if (!surname || !gender || !birthDate) {
       return NextResponse.json(
@@ -200,61 +259,97 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    if (!["M", "F"].includes(gender)) {
-      return NextResponse.json(
-        { success: false, error: "性别只能是 M(男) 或 F(女)" },
-        { status: 400 }
-      );
+
+    // ── 获取当前用户（如果已登录）──
+    let currentUser: { id: string; name?: string | null } | null = null;
+    let anonymousName: string | null = null;
+
+    // 尝试从 cookie 获取用户
+    const token =
+      request.cookies.get("auth-token")?.value ||
+      request.headers.get("Authorization")?.replace("Bearer ", "");
+
+    if (token) {
+      try {
+        const payload = await verifyToken(token);
+        if (payload) {
+          const user = await prisma.user.findUnique({
+            where: { id: payload.userId },
+            select: { id: true, name: true },
+          });
+          if (user) currentUser = user;
+        }
+      } catch {}
     }
-    
-    // 计算五行喜忌
+
+    if (!currentUser) {
+      anonymousName = generateAnonymousName();
+    }
+
+    // ── 计算五行喜忌 ──
     const wuxingResult = calculateWuxing(birthDate, birthTime);
-    
-    // 生成名字
+
+    // ── 生成名字 ──
     const rawNames = await generateNames(
       surname,
       gender,
       wuxingResult.likes,
       expectations
     );
-    
-    // 附加典籍出处
+
+    // ── 附加典籍出处 ──
     const namesWithSource = await attachSources(rawNames, expectations);
-    
-    // 创建起名记录（可选，如果有用户信息）
-    let recordId: string | undefined;
-    try {
-      const record = await prisma.nameRecord.create({
-        data: {
-          surname,
-          gender,
-          birthDate: new Date(birthDate),
-          birthTime,
-          wuxingLikes: wuxingResult.likes,
-          wuxingAvoids: wuxingResult.avoids,
-          expectations,
-          style,
-          results: namesWithSource,
-          status: "completed",
-          // 如果有用户ID，可以关联
-          userId: "", // 暂时为空，后续接入用户系统
-        },
-      });
-      recordId = record.id;
-    } catch (e) {
-      console.log("记录创建失败（可能表不存在）:", e);
-    }
-    
+
+    // ── 创建订单记录（每次必建）──
+    const order = await createOrder({
+      userId: currentUser?.id || null,
+      userName: currentUser?.name || anonymousName,
+      category: CATEGORY_MAP[category] || category,
+      surname,
+      gender,
+      birthDate,
+      birthTime,
+      expectations,
+      style,
+      results: namesWithSource,
+    });
+
+    // 构建返回的订单详情（给前端/后台用）
+    const orderDetail = order
+      ? {
+          orderNo: order.orderNo,
+          userName: currentUser?.name || anonymousName || "匿名用户",
+          category: CATEGORY_MAP[category] || category,
+          date: nowStr(),
+          time: nowTimeStr(),
+          detail: {
+            surname,
+            gender: gender === "M" ? "男" : gender === "F" ? "女" : gender,
+            birthDate,
+            birthTime,
+            expectations,
+            style,
+          },
+          candidates: namesWithSource.map((n) => ({
+            name: n.name,
+            pinyin: n.pinyin,
+            wuxing: n.wuxing,
+            meaning: n.meaning,
+            source: n.source,
+          })),
+        }
+      : null;
+
     return NextResponse.json({
       success: true,
       data: {
-        recordId,
+        orderId: order?.id,
+        orderNo: order?.orderNo,
+        orderDetail,
         wuxing: wuxingResult,
         names: namesWithSource,
       },
     });
-    
   } catch (error) {
     console.error("起名 API 错误:", error);
     return NextResponse.json(
@@ -264,10 +359,25 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// 辅助：当前时间字符串
+function nowStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+function nowTimeStr(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
 // 测试接口
 export async function GET() {
   return NextResponse.json({
-    message: "AI 起名 API",
-    usage: "POST /api/name/generate with body: { surname, gender, birthDate, birthTime?, expectations?, style? }",
+    message: "AI 起名 API - 每次调用自动生成订单",
+    usage:
+      "POST /api/name/generate with body: { surname, gender, birthDate, birthTime?, expectations?, style?, category? }",
   });
 }

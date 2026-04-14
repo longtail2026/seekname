@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -19,6 +19,7 @@ export default function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // 检查登录状态
@@ -39,9 +40,10 @@ export default function Header() {
         }
       } catch {}
 
-      // 验证 session
+      // 验证 session（带 credentials 以发送 cookie）
       fetch("/api/auth/session", {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "same-origin",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
         .then((res) => res.json())
         .then((data) => {
@@ -56,15 +58,31 @@ export default function Header() {
         })
         .catch(() => {});
     }
-
-    // 点击外部关闭下拉菜单
-    const handleClickOutside = () => setDropdownOpen(false);
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
+
+  // 点击外部关闭下拉菜单（只在 dropdown 区域外触发）
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownOpen &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownOpen]);
 
   const handleLogout = async () => {
     if (typeof window === "undefined") return;
+    try {
+      await fetch("/api/auth/session", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {}
     localStorage.removeItem("seekname_token");
     localStorage.removeItem("seekname_user");
     setUser(null);
@@ -114,7 +132,7 @@ export default function Header() {
           寻名
         </Link>
 
-        {/* 桌面导航 */}
+        {/* 桌面导航 —— 只保留核心入口，账号相关放入头像下拉 */}
         <nav
           style={{ display: "flex", gap: 32, alignItems: "center" }}
           className="desktop-nav"
@@ -153,25 +171,7 @@ export default function Header() {
               ((e.currentTarget as HTMLElement).style.color = "#6B5A4E")
             }
           >
-            我的起名
-          </Link>
-          <Link
-            href="/settings"
-            style={{
-              fontSize: 15,
-              color: "#6B5A4E",
-              textDecoration: "none",
-              fontFamily: "'Noto Sans SC', sans-serif",
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.color = "#E86A17")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.color = "#6B5A4E")
-            }
-          >
-            账号设置
+            我的订单
           </Link>
 
           {/* 用户区域 */}
@@ -180,11 +180,13 @@ export default function Header() {
               <Link href="/login">
                 <button
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "#E86A17";
+                    (e.currentTarget as HTMLElement).style.borderColor =
+                      "#E86A17";
                     (e.currentTarget as HTMLElement).style.color = "#E86A17";
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "#DDD0C0";
+                    (e.currentTarget as HTMLElement).style.borderColor =
+                      "#DDD0C0";
                     (e.currentTarget as HTMLElement).style.color = "#6B5A4E";
                   }}
                   style={{
@@ -204,10 +206,14 @@ export default function Header() {
               <Link href="/register">
                 <button
                   onMouseEnter={(e) =>
-                    (e.currentTarget as HTMLElement).style.background = "#D55A0B"
+                    ((
+                      e.currentTarget as HTMLElement
+                    ).style.background = "#D55A0B")
                   }
                   onMouseLeave={(e) =>
-                    (e.currentTarget as HTMLElement).style.background = "#E86A17"
+                    ((
+                      e.currentTarget as HTMLElement
+                    ).style.background = "#E86A17")
                   }
                   style={{
                     padding: "7px 18px",
@@ -228,15 +234,10 @@ export default function Header() {
             </div>
           ) : (
             /* 已登录 - 头像 + 下拉菜单 */
-            <div
-              style={{ position: "relative" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDropdownOpen(!dropdownOpen);
-              }}
-            >
+            <div ref={dropdownRef} style={{ position: "relative" }}>
               {/* 头像/昵称触发区 */}
               <div
+                onClick={() => setDropdownOpen(!dropdownOpen)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -245,7 +246,9 @@ export default function Header() {
                   padding: "4px 8px",
                   borderRadius: 20,
                   transition: "background 0.2s",
-                  border: dropdownOpen ? "1px solid #E86A17" : "1px solid transparent",
+                  border: dropdownOpen
+                    ? "1px solid #E86A17"
+                    : "1px solid transparent",
                 }}
                 onMouseEnter={(e) => {
                   if (!dropdownOpen)
@@ -287,9 +290,9 @@ export default function Header() {
                       fontFamily: "'Noto Sans SC', sans-serif",
                     }}
                   >
-                    {(user.name || user.email || user.phone || "?").charAt(
-                      0
-                    ).toUpperCase()}
+                    {(user.name || user.email || user.phone || "?")
+                      .charAt(0)
+                      .toUpperCase()}
                   </span>
                 )}
                 <span
@@ -309,7 +312,9 @@ export default function Header() {
                   style={{
                     fontSize: 10,
                     color: "#999",
-                    transform: dropdownOpen ? "rotate(180deg)" : "rotate(0)",
+                    transform: dropdownOpen
+                      ? "rotate(180deg)"
+                      : "rotate(0)",
                     transition: "transform 0.2s",
                     display: "inline-block",
                   }}
@@ -325,16 +330,18 @@ export default function Header() {
                     position: "absolute",
                     top: "calc(100% + 8px)",
                     right: 0,
-                    width: 180,
-                    background: "rgba(255,255,255,0.95)",
+                    width: 200,
+                    background: "rgba(255,255,255,0.97)",
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
                     borderRadius: 12,
-                    boxShadow: "0 8px 32px rgba(74,52,40,0.15)",
-                    border: "1px solid rgba(232,106,23,0.1)",
+                    boxShadow:
+                      "0 8px 32px rgba(74,52,40,0.18), 0 2px 8px rgba(74,52,40,0.08)",
+                    border: "1px solid rgba(232,106,23,0.12)",
                     padding: "8px 0",
                     zIndex: 200,
                   }}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {/* 用户信息 */}
                   <div
@@ -371,26 +378,20 @@ export default function Header() {
                         VIP {user.vipLevel}
                       </span>
                     )}
-                    {user.points > 0 && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "#888",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                          marginTop: 2,
-                          display: "block",
-                        }}
-                      >
-                        积分：{user.points}
-                      </span>
-                    )}
                   </div>
 
-                  {/* 菜单项 */}
+                  {/* 菜单项：我的订单 + 账号设置 + 退出 */}
                   {[
-                    { label: "🏠 我的起名", href: "/personal" },
-                    { label: "⚙️ 账号设置", href: "/settings" },
-                    { label: "📋 历史订单", href: "/orders" },
+                    {
+                      label: "📋 我的订单",
+                      href: "/orders",
+                      desc: "查看起名历史记录",
+                    },
+                    {
+                      label: "⚙️ 账号设置",
+                      href: "/settings",
+                      desc: "头像/个人信息管理",
+                    },
                   ].map((item) => (
                     <Link
                       key={item.href}
@@ -399,22 +400,39 @@ export default function Header() {
                       style={{
                         display: "block",
                         padding: "10px 16px",
-                        fontSize: 14,
-                        color: "#4A3428",
                         textDecoration: "none",
-                        fontFamily: "'Noto Sans SC', sans-serif",
                         transition: "background 0.15s",
                       }}
                       onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "rgba(232,106,23,0.06)")
+                        ((
+                          e.currentTarget as HTMLElement
+                        ).style.background = "rgba(232,106,23,0.06)")
                       }
                       onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background =
-                          "transparent")
+                        ((
+                          e.currentTarget as HTMLElement
+                        ).style.background = "transparent")
                       }
                     >
-                      {item.label}
+                      <div
+                        style={{
+                          fontSize: 14,
+                          color: "#4A3428",
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                        }}
+                      >
+                        {item.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#AAA",
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                          marginTop: 1,
+                        }}
+                      >
+                        {item.desc}
+                      </div>
                     </Link>
                   ))}
 
@@ -444,12 +462,14 @@ export default function Header() {
                       transition: "background 0.15s",
                     }}
                     onMouseEnter={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background =
-                        "rgba(192,57,43,0.05)")
+                      ((
+                        e.currentTarget as HTMLElement
+                      ).style.background = "rgba(192,57,43,0.05)")
                     }
                     onMouseLeave={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background =
-                        "transparent")
+                      ((
+                        e.currentTarget as HTMLElement
+                      ).style.background = "transparent")
                     }
                   >
                     退出登录
@@ -480,8 +500,10 @@ export default function Header() {
               height: 2,
               background: "#4A3428",
               borderRadius: 1,
+              transform: mobileMenuOpen
+                ? "rotate(45deg) translate(5px,5px)"
+                : "none",
               transition: "transform 0.2s",
-              transform: mobileMenuOpen ? "rotate(45deg) translate(5px,5px)" : "none",
             }}
           />
           <span
@@ -491,6 +513,7 @@ export default function Header() {
               background: "#4A3428",
               borderRadius: 1,
               opacity: mobileMenuOpen ? 0 : 1,
+              transition: "opacity 0.2s",
             }}
           />
           <span
@@ -499,8 +522,10 @@ export default function Header() {
               height: 2,
               background: "#4A3428",
               borderRadius: 1,
+              transform: mobileMenuOpen
+                ? "rotate(-45deg) translate(5px,-5px)"
+                : "none",
               transition: "transform 0.2s",
-              transform: mobileMenuOpen ? "rotate(-45deg) translate(5px,-5px)" : "none",
             }}
           />
         </button>
@@ -511,10 +536,9 @@ export default function Header() {
         <div
           className="mobile-menu"
           style={{
-            display: "none",
             borderTop: "1px solid rgba(232,106,23,0.1)",
             padding: "16px 24px",
-            background: "rgba(255,255,255,0.9)",
+            background: "rgba(255,255,255,0.95)",
           }}
         >
           <nav
@@ -548,76 +572,40 @@ export default function Header() {
                 padding: "6px 0",
               }}
             >
-              我的起名
-            </Link>
-            <Link
-              href="/settings"
-              onClick={() => setMobileMenuOpen(false)}
-              style={{
-                fontSize: 15,
-                color: "#4A3428",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-                padding: "6px 0",
-              }}
-            >
-              账号设置
-            </Link>
-            <Link
-              href="/orders"
-              onClick={() => setMobileMenuOpen(false)}
-              style={{
-                fontSize: 15,
-                color: "#4A3428",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-                padding: "6px 0",
-              }}
-            >
-              历史订单
+              起名服务
             </Link>
 
-            {!user ? (
+            {user ? (
               <>
                 <Link
-                  href="/login"
+                  href="/orders"
                   onClick={() => setMobileMenuOpen(false)}
                   style={{
-                    display: "block",
-                    marginTop: 8,
-                    textAlign: "center",
-                    padding: "10px",
-                    border: "1px solid #E86A17",
-                    borderRadius: 8,
-                    color: "#E86A17",
-                    textDecoration: "none",
                     fontSize: 15,
+                    color: "#4A3428",
+                    textDecoration: "none",
                     fontFamily: "'Noto Sans SC', sans-serif",
+                    padding: "6px 0",
                   }}
                 >
-                  登录
+                  📋 我的订单
                 </Link>
                 <Link
-                  href="/register"
+                  href="/settings"
                   onClick={() => setMobileMenuOpen(false)}
                   style={{
-                    display: "block",
-                    textAlign: "center",
-                    padding: "10px",
-                    background: "#E86A17",
-                    borderRadius: 8,
-                    color: "#FFF",
-                    textDecoration: "none",
                     fontSize: 15,
+                    color: "#4A3428",
+                    textDecoration: "none",
                     fontFamily: "'Noto Sans SC', sans-serif",
+                    padding: "6px 0",
                   }}
                 >
-                  注册
+                  ⚙️ 账号设置
                 </Link>
-              </>
-            ) : (
-              <>
-                <div style={{ borderTop: "1px solid #EEE8DD", paddingTop: 10 }}>
+                <div
+                  style={{ borderTop: "1px solid #EEE8DD", paddingTop: 10 }}
+                >
                   <p
                     style={{
                       fontSize: 13,
@@ -660,24 +648,59 @@ export default function Header() {
                   退出登录
                 </button>
               </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{
+                    display: "block",
+                    marginTop: 8,
+                    textAlign: "center",
+                    padding: "10px",
+                    border: "1px solid #E86A17",
+                    borderRadius: 8,
+                    color: "#E86A17",
+                    textDecoration: "none",
+                    fontSize: 15,
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                  }}
+                >
+                  登录
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    padding: "10px",
+                    background: "#E86A17",
+                    borderRadius: 8,
+                    color: "#FFF",
+                    textDecoration: "none",
+                    fontSize: 15,
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                  }}
+                >
+                  注册
+                </Link>
+              </>
             )}
           </nav>
         </div>
       )}
 
-      <style jsx global>{`
+      {/* 用 Tailwind class 控制响应式，避免 styled-jsx 在 App Router 的兼容性问题 */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
-          .desktop-nav {
-            display: none !important;
-          }
-          .mobile-menu-btn {
-            display: flex !important;
-          }
-          .mobile-menu {
-            display: block !important;
-          }
+          .desktop-nav { display: none !important; }
+          .mobile-menu-btn { display: flex !important; }
         }
-      `}</style>
+        @media (min-width: 769px) {
+          .mobile-menu { display: none !important; }
+        }
+      `}} />
     </header>
   );
 }

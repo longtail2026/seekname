@@ -3,63 +3,93 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Package, Clock, CheckCircle } from "lucide-react";
 
-// 订单状态映射
-const STATUS_MAP: Record<string, { text: string; color: string }> = {
-  pending: { text: "待支付", color: "#F39C12" },
-  paid: { text: "已支付", color: "#27AE60" },
-  failed: { text: "支付失败", color: "#E74C3C" },
-  refunded: { text: "已退款", color: "#95A5A6" },
-};
-
-// 支付方式映射
-const PAY_METHOD_MAP: Record<string, string> = {
-  wechat: "微信支付",
-  alipay: "支付宝",
-};
+// 订单数据类型
+interface OrderItem {
+  id: string;
+  orderNo: string;
+  type: string;          // 业务类别
+  amount: number;
+  payStatus: string;     // paid / free / pending
+  status: string;        // completed / pending
+  createdAt: string;
+  nameRecord?: {
+    id: string;
+    surname: string;
+    gender: string;
+    results: any;        // JSON 候选名字列表
+  };
+}
 
 export default function OrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
+    // 检查登录状态
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("seekname_token")
         : null;
+
     if (!token) {
       router.push("/login");
       return;
     }
 
-    fetch("/api/user/orders", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-          return;
+    // 加载订单列表（同时获取用户名）
+    Promise.all([
+      fetch("/api/user/orders", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => res.json()),
+      fetch("/api/auth/session", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => res.json()),
+    ])
+      .then(([ordersData, sessionData]) => {
+        if (sessionData.user) {
+          setUserName(sessionData.user.name || sessionData.user.email || sessionData.user.phone || null);
         }
-        setOrders(data.orders || []);
+        if (ordersData.orders && Array.isArray(ordersData.orders)) {
+          setOrders(ordersData.orders as OrderItem[]);
+        } else if (ordersData.error) {
+          setError(ordersData.error);
+        }
       })
-      .catch(() => setError("网络错误，请重试"))
+      .catch(() => setError("加载失败，请重试"))
       .finally(() => setLoading(false));
   }, [router]);
 
-  // 格式化日期
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  // 格式化日期时间
+  function formatDateTime(isoStr: string): string {
+    const d = new Date(isoStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
+    ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  }
+
+  // 格式化金额
+  function formatAmount(amount: number, payStatus: string): string {
+    if (payStatus === "free") return "免费";
+    return `¥${amount.toFixed(2)}`;
+  }
+
+  // 获取候选名字文本
+  function getCandidateNames(results: any): string[] {
+    if (!results) return [];
+    if (Array.isArray(results)) {
+      return results.map((r: any) => r.name || r).filter(Boolean);
+    }
+    return [];
+  }
 
   // ── 渲染 ──
   return (
@@ -70,378 +100,345 @@ export default function OrdersPage() {
           "linear-gradient(135deg, #FDF8F3 0%, #F5EDE0 50%, #EDE5D8 100%)",
       }}
     >
-      {/* 顶部导航条 */}
-      <header
-        style={{
-          background: "rgba(255,255,255,0.7)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(232,106,23,0.1)",
-          padding: "14px 0",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "0 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Link
-            href="/"
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "#4A3428",
-              textDecoration: "none",
-              fontFamily: "'Noto Serif SC', serif",
-              letterSpacing: 2,
-            }}
-          >
-            寻名
-          </Link>
-          <nav style={{ display: "flex", gap: 28, alignItems: "center" }}>
-            <Link
-              href="/"
-              style={{
-                fontSize: 15,
-                color: "#6B5A4E",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-              }}
-            >
-              首页
-            </Link>
-            <Link
-              href="/personal"
-              style={{
-                fontSize: 15,
-                color: "#6B5A4E",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-              }}
-            >
-              我的起名
-            </Link>
-            <Link
-              href="/settings"
-              style={{
-                fontSize: 15,
-                color: "#6B5A4E",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-              }}
-            >
-              账号设置
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      {/* 主内容区 */}
       <main
         style={{
-          maxWidth: 800,
+          maxWidth: 900,
           margin: "36px auto",
           padding: "0 20px",
         }}
       >
         {/* 页面标题 */}
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 700,
-            color: "#4A3428",
-            textAlign: "center",
-            marginBottom: 28,
-            fontFamily: "'Noto Serif SC', serif",
-          }}
-        >
-          历史订单
-        </h1>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <h1
+            style={{
+              fontSize: 26,
+              fontWeight: 700,
+              color: "#4A3428",
+              fontFamily: "'Noto Serif SC', serif",
+            }}
+          >
+            我的订单
+          </h1>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#999",
+              marginTop: 6,
+              fontFamily: "'Noto Sans SC', sans-serif",
+            }}
+          >
+            {userName ? `账号：${userName}` : ""} · 所有起名记录均在此展示
+          </p>
+        </div>
 
         {loading ? (
           <div
-            style={{ textAlign: "center", padding: "60px 0", color: "#999" }}
+            style={{
+              textAlign: "center",
+              padding: "60px 0",
+              color: "#999",
+              fontFamily: "'Noto Sans SC', sans-serif",
+            }}
           >
-            加载中...
+            <Package
+              style={{ display: "inline-block", animation: "spin 1s linear infinite" }}
+              size={32}
+            />
+            <p style={{ marginTop: 12 }}>加载中...</p>
           </div>
         ) : error ? (
           <div
             style={{
               textAlign: "center",
-              padding: "40px",
+              padding: "40px 0",
               background: "rgba(255,255,255,0.7)",
-              borderRadius: 12,
-              color: "#C0392B",
+              borderRadius: 16,
             }}
           >
-            <p>{error}</p>
-            <button
-              onClick={() => window.location.reload()}
+            <p style={{ color: "#C0392B", fontSize: 15 }}>{error}</p>
+            <Link
+              href="/personal"
               style={{
-                marginTop: 12,
-                padding: "8px 24px",
-                border: "none",
-                borderRadius: 6,
-                background: "#E86A17",
-                color: "#FFF",
-                cursor: "pointer",
-                fontFamily: "'Noto Sans SC', sans-serif",
+                display: "inline-block",
+                marginTop: 16,
+                color: "#E86A17",
+                textDecoration: "none",
                 fontSize: 14,
+                fontFamily: "'Noto Sans SC', sans-serif",
               }}
             >
-              重试
-            </button>
+              ← 去起一个名字
+            </Link>
           </div>
         ) : orders.length === 0 ? (
           /* 空状态 */
           <div
             style={{
               textAlign: "center",
-              padding: "60px 20px",
+              padding: "60px 24px",
               background: "rgba(255,255,255,0.7)",
-              borderRadius: 12,
+              borderRadius: 16,
+              boxShadow: "0 4px 24px rgba(74,52,40,0.06)",
             }}
           >
-            <span style={{ fontSize: 56 }}>📋</span>
+            <span style={{ fontSize: 48 }}>📋</span>
             <p
               style={{
-                marginTop: 16,
                 fontSize: 16,
-                color: "#888",
+                color: "#6B5A4E",
+                marginTop: 12,
                 fontFamily: "'Noto Sans SC', sans-serif",
               }}
             >
-              暂无订单记录
+              还没有订单记录
             </p>
             <p
               style={{
-                marginTop: 6,
                 fontSize: 13,
                 color: "#AAA",
+                marginTop: 6,
                 fontFamily: "'Noto Sans SC', sans-serif",
               }}
             >
-              完成起名服务支付后，订单会显示在这里
+              使用起名服务后，订单将自动记录在这里
             </p>
             <Link
-              href="/"
+              href="/personal"
               style={{
                 display: "inline-block",
-                marginTop: 16,
+                marginTop: 18,
                 padding: "10px 28px",
-                borderRadius: 8,
                 background: "#E86A17",
                 color: "#FFF",
+                borderRadius: 8,
                 textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
                 fontSize: 15,
                 fontWeight: 500,
+                fontFamily: "'Noto Sans SC', sans-serif",
               }}
             >
-              去起名 →
+              立即起名
             </Link>
           </div>
         ) : (
           /* 订单列表 */
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* 列头说明 */}
+            <div
+              style={{
+                padding: "10px 16px",
+                background: "rgba(232,106,23,0.05)",
+                border: "1px solid rgba(232,106,23,0.1)",
+                borderRadius: 8,
+                fontSize: 13,
+                color: "#888",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                textAlign: "center",
+              }}
+            >
+              每行一条订单：用户名 — 订单号 — 业务类别 — 时间 — 候选名字
+            </div>
+
             {orders.map((order) => {
-              const status = STATUS_MAP[order.status] || {
-                text: order.status,
-                color: "#666",
-              };
+              const candidates = getCandidateNames(order.nameRecord?.results);
               return (
                 <div
                   key={order.id}
                   style={{
-                    background: "rgba(255,255,255,0.85)",
+                    background: "rgba(255,255,255,0.88)",
+                    border: "1px solid #DDD0C0",
                     borderRadius: 12,
-                    padding: "20px 24px",
-                    boxShadow: "0 2px 12px rgba(74,52,40,0.05)",
+                    overflow: "hidden",
+                    transition: "border-color 0.2s",
                   }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor = "#E86A17")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor = "#DDD0C0")
+                  }
                 >
-                  {/* 订单头部 */}
+                  {/* 第一行：核心信息 */}
                   <div
                     style={{
                       display: "flex",
-                      justifyContent: "space-between",
+                      flexWrap: "wrap",
                       alignItems: "center",
-                      marginBottom: 12,
-                    }}
+                      gap: "8px 16px",
+                      padding: "14px 18px",
+                      borderBottom:
+                        candidates.length > 0
+                          ? "1px dashed #EEE8DD"
+                          : "none",
+                      }}
                   >
+                    {/* 用户名 */}
                     <span
                       style={{
-                        fontSize: 13,
-                        color: "#888",
+                        fontWeight: 600,
+                        color: "#4A3428",
+                        fontSize: 14,
                         fontFamily: "'Noto Sans SC', sans-serif",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      订单号：{order.orderNo}
+                      {userName || "匿名"}
                     </span>
+
+                    {/* 分隔 */}
+                    <span style={{ color: "#DDD0C0" }}>·</span>
+
+                    {/* 订单号 */}
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: 13,
+                        color: "#E86A17",
+                        fontWeight: 500,
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {order.orderNo}
+                    </span>
+
+                    {/* 分隔 */}
+                    <span style={{ color: "#DDD0C0" }}>·</span>
+
+                    {/* 业务类别 */}
+                    <span
+                      style={{
+                        padding: "2px 10px",
+                        borderRadius: 10,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        background: "rgba(232,106,23,0.08)",
+                        color: "#E86A17",
+                        fontFamily: "'Noto Sans SC', sans-serif",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {order.type}
+                    </span>
+
+                    {/* 分隔 */}
+                    <span style={{ color: "#DDD0C0" }}>·</span>
+
+                    {/* 金额/免费 */}
                     <span
                       style={{
                         fontSize: 13,
                         fontWeight: 600,
-                        color: status.color,
+                        color: order.payStatus === "free" ? "#27AE60" : "#E86A17",
                         fontFamily: "'Noto Sans SC', sans-serif",
-                        padding: "3px 10px",
-                        borderRadius: 12,
-                        background: `${status.color}15`,
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      {status.text}
+                      {formatAmount(order.amount, order.payStatus)}
+                    </span>
+
+                    {/* 弹性空间 + 时间 */}
+                    <span style={{ flex: 1 }} />
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#BBB",
+                        fontFamily: "'Noto Sans SC', sans-serif",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatDateTime(order.createdAt)}
                     </span>
                   </div>
 
-                  {/* 订单详情 */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                      gap: 10,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <div>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "#999",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        金额
-                      </span>
-                      <p
-                        style={{
-                          fontSize: 18,
-                          fontWeight: 700,
-                          color: "#E86A17",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        ¥{order.amount.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "#999",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        支付方式
-                      </span>
-                      <p
-                        style={{
-                          fontSize: 14,
-                          color: "#4A3428",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        {PAY_METHOD_MAP[order.payMethod] || order.payMethod || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "#999",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        下单时间
-                      </span>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "#4A3428",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        {formatDate(order.createdAt)}
-                      </p>
-                    </div>
-                    {order.payTime && (
-                      <div>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            color: "#999",
-                            fontFamily: "'Noto Sans SC', sans-serif",
-                          }}
-                        >
-                          支付时间
-                        </span>
-                        <p
-                          style={{
-                            fontSize: 13,
-                            color: "#4A3428",
-                            fontFamily: "'Noto Sans SC', sans-serif",
-                          }}
-                        >
-                          {formatDate(order.payTime)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 关联的起名记录 */}
-                  {order.nameRecord && (
+                  {/* 第二行：订单详情（姓氏/性别/出生信息）+ 候选名字 */}
+                  {(candidates.length > 0 || order.nameRecord) && (
                     <div
                       style={{
-                        borderTop: "1px dashed #EEE8DD",
-                        paddingTop: 12,
+                        padding: "12px 18px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        background: "#FAF7F2",
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "#999",
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                        }}
-                      >
-                        起名记录：
-                      </span>
-                      <div
-                        style={{
-                          marginTop: 6,
-                          padding: "8px 12px",
-                          background: "#FAF7F2",
-                          borderRadius: 6,
-                          fontSize: 13,
-                          fontFamily: "'Noto Sans SC', sans-serif",
-                          color: "#4A3428",
-                        }}
-                      >
-                        <span style={{ fontWeight: 500 }}>
-                          {order.nameRecord.surname}姓 ·{" "}
-                          {order.nameRecord.gender === "male"
-                            ? "男"
-                            : order.nameRecord.gender === "female"
-                            ? "女"
-                            : ""}
-                        </span>
-                        {order.nameRecord.results && (
-                          <span
-                            style={{
-                              marginLeft: 10,
-                              color: "#E86A17",
-                              fontSize: 12,
-                            }}
-                          >
-                            已生成候选名字
+                      {/* 起名参数摘要 */}
+                      {order.nameRecord && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "6px 14px",
+                            fontSize: 12,
+                            color: "#888",
+                            fontFamily: "'Noto Sans SC', sans-serif",
+                          }}
+                        >
+                          <span>
+                            <strong style={{ color: "#4A3428" }}>
+                              {order.nameRecord.surname}姓
+                            </strong>{" "}
+                            ·{" "}
+                            {order.nameRecord.gender === "male"
+                              ? "男"
+                              : order.nameRecord.gender === "female"
+                              ? "女"
+                              : order.nameRecord.gender}
                           </span>
-                        )}
-                      </div>
+                          <span>已生成 {candidates.length} 个候选名字</span>
+                          <CheckCircle size={13} style={{ color: "#27AE60" }} />
+                        </div>
+                      )}
+
+                      {/* 候选名字标签 */}
+                      {candidates.length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 6,
+                          }}
+                        >
+                          {candidates.map((name: string, idx: number) => (
+                            <span
+                              key={idx}
+                              style={{
+                                padding: "4px 12px",
+                                borderRadius: 6,
+                                background: "#FFF",
+                                border: `1px solid ${
+                                  idx === 0
+                                    ? "#E86A17"
+                                    : idx <= 2
+                                    ? "rgba(232,106,23,0.25)"
+                                    : "#EEDDCC"
+                                }`,
+                                fontSize: 14,
+                                fontWeight: idx <= 2 ? 600 : 400,
+                                color:
+                                  idx === 0
+                                    ? "#E86A17"
+                                    : idx <= 2
+                                    ? "#C8540A"
+                                    : "#8B7355",
+                                fontFamily: "'Noto Serif SC', serif",
+                              }}
+                            >
+                              {name}
+                              {idx < 3 && (
+                                <span
+                                  style={{
+                                    fontSize: 9,
+                                    marginLeft: 3,
+                                    opacity: 0.5,
+                                  }}
+                                >
+                                  #{idx + 1}
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -449,55 +446,22 @@ export default function OrdersPage() {
             })}
           </div>
         )}
+      </main>
 
-        {/* 底部导航 */}
-        <div
+      {/* 底部返回 */}
+      <div style={{ textAlign: "center", paddingBottom: 32 }}>
+        <Link
+          href="/personal"
           style={{
-            textAlign: "center",
-            marginTop: 24,
-            display: "flex",
-            justifyContent: "center",
-            gap: 20,
+            fontSize: 14,
+            color: "#E86A17",
+            textDecoration: "none",
+            fontFamily: "'Noto Sans SC', sans-serif",
           }}
         >
-          <Link
-            href="/settings"
-            style={{
-              fontSize: 14,
-              color: "#E86A17",
-              textDecoration: "none",
-              fontFamily: "'Noto Sans SC', sans-serif",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration =
-                "underline")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration = "none")
-            }
-          >
-            ← 账号设置
-          </Link>
-          <Link
-            href="/personal"
-            style={{
-              fontSize: 14,
-              color: "#E86A17",
-              textDecoration: "none",
-              fontFamily: "'Noto Sans SC', sans-serif",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration =
-                "underline")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration = "none")
-            }
-          >
-            我的起名 →
-          </Link>
-        </div>
-      </main>
+          ← 继续起名
+        </Link>
+      </div>
     </div>
   );
 }

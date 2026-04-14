@@ -1,12 +1,363 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   OCCUPATIONS,
   HOBBIES,
 } from "@/lib/constants";
+
+// ─── 头像裁剪组件 ───
+function AvatarCropModal({
+  src,
+  onConfirm,
+  onCancel,
+}: {
+  src: string;
+  onConfirm: (blob: Blob) => void;
+  onCancel: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // 图片状态
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const CIRCLE_SIZE = 240; // 裁剪圆直径
+
+  // 加载图片
+  useEffect(() => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      setImg(image);
+      // 初始缩放：让图片短边填满圆
+      const s = Math.max(CIRCLE_SIZE / image.width, CIRCLE_SIZE / image.height) * 1.3;
+      setScale(s);
+      setPos({ x: 0, y: 0 });
+    };
+    image.src = src;
+  }, [src]);
+
+  // 绘制裁剪预览（圆 + 图）
+  useEffect(() => {
+    if (!img || !canvasRef.current) return;
+    const cv = canvasRef.current;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displaySize = CIRCLE_SIZE + 60; // 圆外留边
+    cv.width = displaySize * dpr;
+    cv.height = displaySize * dpr;
+    cv.style.width = `${displaySize}px`;
+    cv.style.height = `${displaySize}px`;
+    ctx.scale(dpr, dpr);
+
+    // 清空（半透明暗底）
+    ctx.clearRect(0, 0, displaySize, displaySize);
+
+    // 绘制图片（可移动/缩放）
+    const cx = displaySize / 2;
+    const cy = displaySize / 2;
+    const w = img.width * scale;
+    const h = img.height * scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, CIRCLE_SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(
+      img,
+      cx - w / 2 + pos.x,
+      cy - h / 2 + pos.y,
+      w,
+      h
+    );
+    ctx.restore();
+
+    // 绘制裁剪圆边框
+    ctx.strokeStyle = "#E86A17";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, CIRCLE_SIZE / 2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 十字辅助线
+    ctx.strokeStyle = "rgba(232,106,23,0.3)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - CIRCLE_SIZE / 2, cy);
+    ctx.lineTo(cx + CIRCLE_SIZE / 2, cy);
+    ctx.moveTo(cx, cy - CIRCLE_SIZE / 2);
+    ctx.lineTo(cx, cy + CIRCLE_SIZE / 2);
+    ctx.stroke();
+  }, [img, pos, scale]);
+
+  // 拖拽处理
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setDragging(true);
+      setDragStart({ x: e.clientX - pos.x, y: e.clientY - pos.y });
+    },
+    [pos]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!dragging || !img) return;
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPos({ x: newX, y: newY });
+    },
+    [dragging, dragStart, img]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setDragging(false);
+  }, []);
+
+  // 缩放滑块
+  const handleZoomIn = () =>
+    setScale((prev) => Math.min(prev * 1.15, 5));
+  const handleZoomOut = () =>
+    setScale((prev) => Math.max(prev / 1.15, 0.5));
+
+  // 确认裁剪 → 输出圆形 blob
+  const handleConfirm = () => {
+    if (!img) return;
+    const outCanvas = document.createElement("canvas");
+    const outSize = CIRCLE_SIZE; // 输出分辨率
+    outCanvas.width = outSize;
+    outCanvas.height = outSize;
+    const outCtx = outCanvas.getContext("2d");
+    if (!outCtx) return;
+
+    // 画圆形裁剪区域
+    const cx = outSize / 2;
+    const cy = outSize / 2;
+    const r = outSize / 2;
+    outCtx.beginPath();
+    outCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    outCtx.closePath();
+    outCtx.clip();
+
+    const w = img.width * scale;
+    const h = img.height * scale;
+
+    // 计算源坐标（从显示坐标反推）
+    // 显示时：图片中心在 (displaySize/2 + pos.x, displaySize/2 + pos.y)
+    // 显示尺寸 = (w, h)，输出尺寸 = (outSize, outSize)
+    const displaySize = CIRCLE_SIZE + 60;
+    const ratio = outSize / displaySize; // 输出 vs 显示 的比例
+    const sx = (displaySize / 2 + pos.x) - w / 2; // 显示中图片左上角 x
+    const sy = (displaySize / 2 + pos.y) - h / 2; // 显示中图片左上角 y
+
+    outCtx.drawImage(img, sx * ratio, sy * ratio, w * ratio, h * ratio);
+
+    outCanvas.toBlob(
+      (blob) => {
+        if (blob) onConfirm(blob);
+      },
+      "image/png",
+      0.92
+    );
+  };
+
+  if (!img) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          background: "rgba(0,0,0,0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onClick={onCancel}
+      >
+        <div
+          style={{
+            background: "#FFF",
+            borderRadius: 16,
+            padding: 40,
+            color: "#4A3428",
+            fontFamily: "'Noto Sans SC', sans-serif",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          加载图片中...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.65)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: "rgba(255,255,255,0.95)",
+          borderRadius: 20,
+          padding: "24px",
+          maxWidth: "95vw",
+          maxHeight: "95vh",
+          overflow: "auto",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "#4A3428",
+            textAlign: "center",
+            marginBottom: 6,
+            fontFamily: "'Noto Serif SC', serif",
+          }}
+        >
+          裁剪头像
+        </h3>
+        <p
+          style={{
+            fontSize: 13,
+            color: "#999",
+            textAlign: "center",
+            marginBottom: 16,
+            fontFamily: "'Noto Sans SC', sans-serif",
+          }}
+        >
+          拖动调整位置，滚轮或按钮调整大小
+        </p>
+
+        {/* Canvas 裁剪区 */}
+        <div
+          ref={containerRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{
+            cursor: dragging ? "grabbing" : "grab",
+            margin: "0 auto",
+            marginBottom: 14,
+            touchAction: "none",
+            userSelect: "none" as any,
+          }}
+        >
+          <canvas ref={canvasRef} />
+        </div>
+
+        {/* 缩放控制 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            marginBottom: 18,
+          }}
+        >
+          <button
+            onClick={handleZoomOut}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "1px solid #DDD0C0",
+              background: "#FFF",
+              fontSize: 18,
+              cursor: "pointer",
+              lineHeight: "34px",
+              textAlign: "center",
+            }}
+          >
+            −
+          </button>
+          <span
+            style={{
+              fontSize: 13,
+              color: "#888",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              minWidth: 50,
+              textAlign: "center",
+            }}
+          >
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            onClick={handleZoomIn}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "1px solid #DDD0C0",
+              background: "#FFF",
+              fontSize: 18,
+              cursor: "pointer",
+              lineHeight: "34px",
+              textAlign: "center",
+            }}
+          >
+            +
+          </button>
+        </div>
+
+        {/* 按钮 */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              padding: "11px",
+              borderRadius: 8,
+              border: "1px solid #DDD0C0",
+              background: "transparent",
+              fontSize: 15,
+              cursor: "pointer",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              color: "#6B5A4E",
+            }}
+          >
+            取消
+          </button>
+          <button
+            onClick={handleConfirm}
+            style={{
+              flex: 1,
+              padding: "11px",
+              borderRadius: 8,
+              border: "none",
+              background: "#E86A17",
+              color: "#FFF",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Noto Sans SC', sans-serif",
+            }}
+          >
+            确认裁剪
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -24,6 +375,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
+
+  // 裁剪弹窗状态
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   // 切换爱好选中
   const toggleHobby = (hobby: string) => {
@@ -45,6 +399,7 @@ export default function SettingsPage() {
 
     setLoading(true);
     fetch("/api/auth/session", {
+      credentials: "same-origin",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -66,13 +421,34 @@ export default function SettingsPage() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  // 头像上传
-  const handleAvatarUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  // 选择文件 → 预览进入裁剪
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 文件校验
+    if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)) {
+      setMessage({ type: "error", text: "请选择 JPG/PNG/GIF/WebP 格式的图片" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: "error", text: "图片不能超过 2MB" });
+      return;
+    }
+
+    // 读为 dataURL 给裁剪组件用
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropSrc(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    // 重置 input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // 裁剪确认 → 上传
+  const handleCropConfirm = async (blob: Blob) => {
+    setCropSrc(null);
     const token = localStorage.getItem("seekname_token");
     if (!token) return;
 
@@ -81,6 +457,8 @@ export default function SettingsPage() {
 
     try {
       const formData = new FormData();
+      // 用 File 构造器包装 blob，确保有正确扩展名
+      const file = new File([blob], "avatar.png", { type: "image/png" });
       formData.append("avatar", file);
 
       const res = await fetch("/api/user/avatar/upload", {
@@ -93,6 +471,15 @@ export default function SettingsPage() {
       if (res.ok && data.avatar) {
         setAvatar(data.avatar);
         setMessage({ type: "success", text: "头像更新成功！" });
+        // 同步 localStorage
+        const stored = localStorage.getItem("seekname_user");
+        if (stored) {
+          try {
+            const userObj = JSON.parse(stored);
+            userObj.avatar = data.avatar;
+            localStorage.setItem("seekname_user", JSON.stringify(userObj));
+          } catch {}
+        }
       } else {
         setMessage({ type: "error", text: data.error || "上传失败" });
       }
@@ -100,8 +487,6 @@ export default function SettingsPage() {
       setMessage({ type: "error", text: "网络错误，请重试" });
     } finally {
       setUploading(false);
-      // 重置 input 以便重复选择同一文件
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -133,7 +518,6 @@ export default function SettingsPage() {
       const data = await res.json();
       if (res.ok) {
         setMessage({ type: "success", text: "账号信息已保存！" });
-        // 更新 localStorage 中的用户名（供 Header 显示）
         const stored = localStorage.getItem("seekname_user");
         if (stored) {
           try {
@@ -163,84 +547,10 @@ export default function SettingsPage() {
           "linear-gradient(135deg, #FDF8F3 0%, #F5EDE0 50%, #EDE5D8 100%)",
       }}
     >
-      {/* 顶部导航条 */}
-      <header
-        style={{
-          background: "rgba(255,255,255,0.7)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(232,106,23,0.1)",
-          padding: "14px 0",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "0 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Link
-            href="/"
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "#4A3428",
-              textDecoration: "none",
-              fontFamily: "'Noto Serif SC', serif",
-              letterSpacing: 2,
-            }}
-          >
-            寻名
-          </Link>
-          <nav style={{ display: "flex", gap: 28, alignItems: "center" }}>
-            <Link
-              href="/"
-              style={{
-                fontSize: 15,
-                color: "#6B5A4E",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-              }}
-            >
-              首页
-            </Link>
-            <Link
-              href="/personal"
-              style={{
-                fontSize: 15,
-                color: "#6B5A4E",
-                textDecoration: "none",
-                fontFamily: "'Noto Sans SC', sans-serif",
-              }}
-            >
-              我的起名
-            </Link>
-            <span
-              style={{
-                fontSize: 15,
-                color: "#E86A17",
-                fontWeight: 600,
-                fontFamily: "'Noto Sans SC', sans-serif",
-                cursor: "default",
-              }}
-            >
-              账号设置
-            </span>
-          </nav>
-        </div>
-      </header>
-
       {/* 主内容区 */}
       <main
         style={{
-          maxWidth: 680,
+          maxWidth: 640,
           margin: "36px auto",
           padding: "0 20px",
         }}
@@ -268,7 +578,7 @@ export default function SettingsPage() {
             style={{
               background: "rgba(255,255,255,0.85)",
               borderRadius: 16,
-              padding: "36px 40px",
+              padding: "36px 32px",
               boxShadow: "0 4px 24px rgba(74,52,40,0.06)",
             }}
           >
@@ -297,13 +607,13 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* ── 头像区域 ── */}
+            {/* ── 头像区域（带裁剪） ── */}
             <section style={{ textAlign: "center", marginBottom: 32 }}>
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !uploading && fileInputRef.current?.click()}
                 style={{
-                  width: 96,
-                  height: 96,
+                  width: 100,
+                  height: 100,
                   borderRadius: "50%",
                   margin: "0 auto 12px",
                   overflow: "hidden",
@@ -331,7 +641,7 @@ export default function SettingsPage() {
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <span style={{ fontSize: 36, color: "#B0AAA0" }}>👤</span>
+                  <span style={{ fontSize: 38, color: "#B0AAA0" }}>👤</span>
                 )}
                 {!uploading && (
                   <div
@@ -343,12 +653,12 @@ export default function SettingsPage() {
                       background: "rgba(0,0,0,0.5)",
                       color: "#FFF",
                       fontSize: 11,
-                      padding: "3px 0",
+                      padding: "4px 0",
                       textAlign: "center",
                       fontFamily: "'Noto Sans SC', sans-serif",
                     }}
                   >
-                    点击更换
+                    点击更换（支持裁剪）
                   </div>
                 )}
               </div>
@@ -356,7 +666,7 @@ export default function SettingsPage() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
-                onChange={handleAvatarUpload}
+                onChange={handleFileSelect}
                 style={{ display: "none" }}
               />
               {uploading && (
@@ -378,7 +688,7 @@ export default function SettingsPage() {
                   fontFamily: "'Noto Sans SC', sans-serif",
                 }}
               >
-                支持 JPG、PNG、GIF、WebP，最大 2MB
+                支持 JPG、PNG、GIF、WebP，最大 2MB · 可拖动裁剪圆形区域
               </p>
             </section>
 
@@ -717,55 +1027,16 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
-
-        {/* 快捷链接 */}
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: 20,
-            display: "flex",
-            justifyContent: "center",
-            gap: 20,
-          }}
-        >
-          <Link
-            href="/personal"
-            style={{
-              fontSize: 14,
-              color: "#E86A17",
-              textDecoration: "none",
-              fontFamily: "'Noto Sans SC', sans-serif",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration =
-                "underline")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration = "none")
-            }
-          >
-            ← 我的起名
-          </Link>
-          <Link
-            href="/orders"
-            style={{
-              fontSize: 14,
-              color: "#E86A17",
-              textDecoration: "none",
-              fontFamily: "'Noto Sans SC', sans-serif",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration =
-                "underline")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.textDecoration = "none")
-            }
-          >
-            历史订单 →
-          </Link>
-        </div>
       </main>
+
+      {/* 裁剪弹窗 */}
+      {cropSrc && (
+        <AvatarCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
     </div>
   );
 }
