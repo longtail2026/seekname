@@ -1,21 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Search, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Menu, X, Search, ChevronDown, User, LogOut, Settings, Crown } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
+  const router = useRouter();
+  const { user, logout, loading } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // 站内搜索逻辑
       window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
     }
+  };
+
+  // 获取显示名称
+  const displayName = user?.name || user?.email?.split("@")[0] || user?.phone || "用户";
+
+  // 处理登出
+  const handleLogout = async () => {
+    setUserMenuOpen(false);
+    await logout();
   };
 
   const navItems = [
@@ -187,27 +200,163 @@ const Header = () => {
               </button>
             </form>
 
-            {/* Login & Register Buttons */}
-            <Link
-              href="/login"
-              className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
-              style={{ 
-                color: '#2C1810',
-                fontFamily: "'Noto Serif SC', serif"
-              }}
-            >
-              登录
-            </Link>
-            <Link
-              href="/register"
-              className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
-              style={{ 
-                color: '#2C1810',
-                fontFamily: "'Noto Serif SC', serif"
-              }}
-            >
-              注册
-            </Link>
+            {/* 用户状态：已登录 → 头像+下拉菜单；未登录 → 登录/注册按钮 */}
+            {user ? (
+              <div
+                className="relative hidden md:block"
+                onMouseEnter={() => setUserMenuOpen(true)}
+                onMouseLeave={() => setUserMenuOpen(false)}
+              >
+                {/* 用户头像/名称 */}
+                <button
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-xl transition-all duration-200"
+                  style={{
+                    background: userMenuOpen ? "rgba(248,243,234,0.9)" : "transparent",
+                    border: `1px solid ${userMenuOpen ? "#DDD0C0" : "transparent"}`,
+                  }}
+                  aria-label="用户菜单"
+                >
+                  {/* 头像占位 - 姓名首字或印章风格 */}
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+                    style={{
+                      background: "linear-gradient(135deg, #C84A2A, #E86A17)",
+                      fontFamily: "'Noto Serif SC', serif",
+                    }}
+                  >
+                    {(displayName.charAt(0) || "用").toUpperCase()}
+                  </div>
+                  <span
+                    className="text-sm font-medium max-w-[80px] truncate"
+                    style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
+                  >
+                    {displayName}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} style={{ color: "#B0AAA0" }} />
+                </button>
+
+                {/* 用户下拉菜单 */}
+                <div
+                  className={`absolute right-0 mt-2 w-52 py-2 rounded-xl transition-all duration-200 ${
+                    userMenuOpen
+                      ? "opacity-100 visible translate-y-0"
+                      : "opacity-0 invisible -translate-y-2"
+                  }`}
+                  style={{
+                    background: "#FDFAF4",
+                    border: "1px solid #E5DDD3",
+                    boxShadow: "0 6px 20px rgba(44,24,16,0.10)",
+                  }}
+                >
+                  {/* 用户信息头部 */}
+                  <div
+                    className="px-4 py-3 mb-1 mx-[-0.5rem] rounded-lg"
+                    style={{ background: "rgba(232,106,23,0.04)" }}
+                  >
+                    <p
+                      className="text-sm font-medium truncate"
+                      style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2D1B0E" }}
+                    >
+                      {displayName}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "#999" }}>
+                      {user.email || user.phone}
+                    </p>
+                    {user.vipLevel > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-medium mt-1.5 px-2 py-0.5 rounded-full"
+                        style={{
+                          background: "linear-gradient(135deg, #D4941A, #E8B02E)",
+                          color: "#fff",
+                          fontFamily: "'Noto Serif SC', serif",
+                        }}
+                      >
+                        <Crown className="w-3 h-3" /> VIP {user.vipLevel}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 菜单项 */}
+                  <Link
+                    href="/personal"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200"
+                    style={{ color: "#2C1810", fontFamily: "'Noto Sans SC', sans-serif" }}
+                    onClick={() => setUserMenuOpen(false)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#F8F3EA";
+                      e.currentTarget.style.color = "#E86A17";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "#2C1810";
+                    }}
+                  >
+                    <User className="w-4 h-4" />
+                    个人中心
+                  </Link>
+
+                  <Link
+                    href="/personal/settings"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200"
+                    style={{ color: "#2C1810", fontFamily: "'Noto Sans SC', sans-serif" }}
+                    onClick={() => setUserMenuOpen(false)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#F8F3EA";
+                      e.currentTarget.style.color = "#E86A17";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "#2C1810";
+                    }}
+                  >
+                    <Settings className="w-4 h-4" />
+                    账号设置
+                  </Link>
+
+                  <div className="my-1 mx-4" style={{ borderTop: "1px solid #EEE5DA" }} />
+
+                  {/* 登出按钮 */}
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-all duration-200"
+                    style={{ color: "#E85A3A", fontFamily: "'Noto Sans SC', sans-serif" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,90,58,0.06)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    退出登录
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* 未登录：显示 登录 + 注册 按钮 */
+              <>
+                {!loading && (
+                  <>
+                    <Link
+                      href={`/login?callbackUrl=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
+                      className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
+                      style={{
+                        color: "#2C1810",
+                        fontFamily: "'Noto Serif SC', serif",
+                      }}
+                    >
+                      登录
+                    </Link>
+                    <Link
+                      href={`/register?callbackUrl=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
+                      className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
+                      style={{
+                        color: "#2C1810",
+                        fontFamily: "'Noto Serif SC', serif",
+                      }}
+                    >
+                      注册
+                    </Link>
+                  </>
+                )}
+              </>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -271,30 +420,82 @@ const Header = () => {
                 </div>
               ))}
               <div className="pt-4 border-t mt-4 space-y-2" style={{ borderColor: '#E5DDD3' }}>
-                <Link
-                  href="/login"
-                  className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
-                  style={{ 
-                    color: '#2C1810',
-                    fontFamily: "'Noto Serif SC', serif",
-                    border: '1px solid #C9A84C'
-                  }}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  登录
-                </Link>
-                <Link
-                  href="/register"
-                  className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
-                  style={{ 
-                    color: '#2C1810',
-                    fontFamily: "'Noto Serif SC', serif",
-                    border: '1px solid #C9A84C'
-                  }}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  注册
-                </Link>
+                {user ? (
+                  <>
+                    {/* 已登录：显示用户信息和退出按钮 */}
+                    <div
+                      className="px-5 py-3 rounded-lg mx-auto"
+                      style={{
+                        background: "rgba(232,106,23,0.04)",
+                        border: "1px solid rgba(232,106,23,0.12)",
+                        maxWidth: "240px",
+                      }}
+                    >
+                      <p
+                        className="text-base font-medium text-center truncate"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2D1B0E" }}
+                      >
+                        {displayName}
+                      </p>
+                      <p className="text-xs text-center mt-0.5" style={{ color: "#999" }}>
+                        {user.email || user.phone}
+                      </p>
+                    </div>
+                    <Link
+                      href="/personal"
+                      className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
+                      style={{
+                        color: "#2C1810",
+                        fontFamily: "'Noto Serif SC', serif",
+                        border: "1px solid #DDD0C0",
+                      }}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      个人中心
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full px-5 py-3 text-base font-medium text-center transition-all duration-200"
+                      style={{
+                        color: "#E85A3A",
+                        fontFamily: "'Noto Serif SC', serif",
+                        border: "1px solid rgba(232,90,58,0.25)",
+                        background: "transparent",
+                      }}
+                    >
+                      退出登录
+                    </button>
+                  </>
+                ) : (
+                  !loading && (
+                    <>
+                      <Link
+                        href={`/login?callbackUrl=${encodeURIComponent("/")}`}
+                        className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
+                        style={{
+                          color: "#2C1810",
+                          fontFamily: "'Noto Serif SC', serif",
+                          border: "1px solid #C9A84C",
+                        }}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        登录
+                      </Link>
+                      <Link
+                        href={`/register?callbackUrl=${encodeURIComponent("/")}`}
+                        className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
+                        style={{
+                          color: "#2C1810",
+                          fontFamily: "'Noto Serif SC', serif",
+                          border: "1px solid #C9A84C",
+                        }}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        注册
+                      </Link>
+                    </>
+                  )
+                )}
               </div>
             </nav>
           </div>

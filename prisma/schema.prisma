@@ -100,6 +100,7 @@ model User {
   id          String   @id @default(cuid())
   email       String?  @unique
   phone       String?  @unique
+  password    String?  // bcrypt 哈希密码
   name        String?  @db.VarChar(50)
   
   // 微信相关
