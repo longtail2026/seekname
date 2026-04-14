@@ -180,106 +180,118 @@ export default function Home() {
                 <span className="text-[#E86A17] font-semibold">30秒</span> 为您生成 <span className="text-[#E86A17] font-semibold">6个</span> 吉祥好名
               </p>
 
-              {/* 起名表单 - 完整字段 */}
-              <form onSubmit={handleSubmit} className="mb-4">
-                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-4 lg:p-5 shadow-lg border border-[#DDD0C0] max-w-lg mx-auto lg:mx-0">
-                  {/* 第一行：姓氏 + 性别 */}
-                  <div className="flex gap-3 mb-3">
-                    <div className="relative flex-1 min-w-0">
-                      <input
-                        type="text"
-                        inputMode="text"
-                        value={surname}
-                        onChange={(e) => {
-                          if (isComposing) {
-                            setSurname(e.target.value);
-                            return;
-                          }
-                          setSurname(handleInput(e.target.value));
-                        }}
-                        onCompositionStart={() => setIsComposing(true)}
-                        onCompositionEnd={(e) => {
-                          setIsComposing(false);
-                          const val = handleInput((e.target as HTMLInputElement).value);
-                          setSurname(val);
-                        }}
-                        placeholder="请输入您的姓氏"
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#DDD0C0]
-                                   rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
-                                   transition-all duration-300 placeholder:text-[#B0AAA0]"
-                        style={{ fontFamily: "'Noto Serif SC', serif" }}
-                        autoComplete="off"
-                      />
+              {/* 起名表单 - 古风卷轴样式 */}
+              <form onSubmit={handleSubmit} className="mb-4 max-w-lg mx-auto lg:mx-0">
+                {/* 卷轴容器 */}
+                <div className="scroll-painting relative max-w-lg">
+                  {/* 左侧轴杆 */}
+                  <div className="scroll-rod scroll-rod-left" />
+                  {/* 右侧轴杆 */}
+                  <div className="scroll-rod scroll-rod-right" />
+                  {/* 卷轴主体（宣纸） */}
+                  <div className="scroll-body">
+                    {/* 第一行：姓氏 + 性别 */}
+                    <div className="flex gap-3 mb-3">
+                      <div className="relative flex-1 min-w-0">
+                        <input
+                          type="text"
+                          inputMode="text"
+                          value={surname}
+                          onChange={(e) => {
+                            if (isComposing) {
+                              setSurname(e.target.value);
+                              return;
+                            }
+                            setSurname(handleInput(e.target.value));
+                          }}
+                          onCompositionStart={() => setIsComposing(true)}
+                          onCompositionEnd={(e) => {
+                            setIsComposing(false);
+                            const val = handleInput((e.target as HTMLInputElement).value);
+                            setSurname(val);
+                          }}
+                          placeholder="请输入您的姓氏"
+                          className="w-full px-4 py-2.5 text-base scroll-input-bg
+                                     rounded-lg focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
+                                     transition-all duration-300 placeholder:text-[#B0A090]"
+                          style={{ fontFamily: "'Noto Serif SC', serif", color: '#3D2B1F' }}
+                          autoComplete="off"
+                        />
+                      </div>
+                      {/* 性别选择 */}
+                      <div className="flex rounded-lg overflow-hidden border border-[#C4A882] shrink-0">
+                        {(["男", "女"] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setGender(g)}
+                            className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                              gender === g
+                                ? g === "男"
+                                  ? "bg-[#4A90D9] text-white"
+                                  : "bg-[#E870A0] text-white"
+                                : "scroll-input-bg text-[#5A4334] hover:bg-[#EDE4D3]"
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {/* 性别选择 */}
-                    <div className="flex rounded-xl overflow-hidden border border-[#DDD0C0] shrink-0">
-                      {(["男", "女"] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => setGender(g)}
-                          className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
-                            gender === g
-                              ? g === "男"
-                                ? "bg-[#4A90D9] text-white"
-                                : "bg-[#E870A0] text-white"
-                              : "bg-white text-[#5A4334] hover:bg-gray-50"
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* 第二行：出生日期 + 出生时间 */}
-                  <div className="flex gap-3 mb-4">
-                    <div className="flex-1 min-w-0 relative">
-                      <input
-                        type="date"
-                        value={birthDate}
-                        onChange={(e) => setBirthDate(e.target.value)}
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#DDD0C0]
-                                   rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
-                                   transition-all duration-300 text-[#2D1B0E]"
-                        style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
-                      />
+                    {/* 第二行：出生日期 + 出生时间 */}
+                    <div className="flex gap-3 mb-4">
+                      <div className="flex-1 min-w-0 relative">
+                        <input
+                          type="date"
+                          value={birthDate}
+                          onChange={(e) => setBirthDate(e.target.value)}
+                          className="w-full px-4 py-2.5 text-base scroll-input-bg
+                                     rounded-lg focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
+                                     transition-all duration-300 text-[#2D1B0E]"
+                          style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
+                        />
+                      </div>
+                      <div className="relative w-[140px] shrink-0">
+                        <input
+                          type="time"
+                          value={birthTime}
+                          onChange={(e) => setBirthTime(e.target.value)}
+                          placeholder="可选"
+                          className="w-full px-4 py-2.5 text-base scroll-input-bg
+                                     rounded-lg focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
+                                     transition-all duration-300 text-[#2D1B0E]"
+                          style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
+                        />
+                      </div>
                     </div>
-                    <div className="relative w-[140px] shrink-0">
-                      <input
-                        type="time"
-                        value={birthTime}
-                        onChange={(e) => setBirthTime(e.target.value)}
-                        placeholder="可选"
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#DDD0C0]
-                                   rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
-                                   transition-all duration-300 text-[#2D1B0E]"
-                        style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
-                      />
-                    </div>
-                  </div>
 
-                  {/* 立即起名按钮 */}
-                  <button
-                    type="submit"
-                    disabled={!surname.trim() || !birthDate || isLoading}
-                    className="btn-primary w-full py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-base"
-                  >
-                    {isLoading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
-                        分析中...
-                      </span>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5 mr-1.5" />
-                        立即起名
-                      </>
-                    )}
-                  </button>
+                    {/* 立即起名按钮 */}
+                    <button
+                      type="submit"
+                      disabled={!surname.trim() || !birthDate || isLoading}
+                      className="w-full py-3.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium text-white transition-all duration-300 hover:shadow-lg"
+                      style={{
+                        background: 'linear-gradient(135deg, #E86A17 0%, #C8540A 100%)',
+                        boxShadow: '0 2px 12px rgba(232,106,23,0.3)',
+                      }}
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                          </svg>
+                          分析中...
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-1.5">
+                          <Sparkles className="w-5 h-5" />
+                          立即起名
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-[#B0AAA0] mt-2 ml-1 text-center lg:text-left">
                   已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名
