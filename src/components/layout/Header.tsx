@@ -161,9 +161,9 @@ export default function Header() {
   return (
     <header
       style={{
-        background: "#FFFCF7",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
+        background: "rgba(255,252,247,0.92)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
         borderBottom: "1px solid rgba(212,148,26,0.18)",
         position: "fixed",
         top: 0,

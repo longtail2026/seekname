@@ -132,7 +132,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen relative" style={{ backgroundColor: '#FFFCF7' }}>
+    <div className="relative" style={{ paddingTop: 60 }}>
       {/* ════════════ 第一屏：Hero 入口 ════════════ */}
       <section id="screen-1" className="fullscreen-section relative" style={{ minHeight: 'calc(100dvh - 60px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         {/* 水墨背景装饰 */}
@@ -150,8 +150,8 @@ export default function Home() {
         </div>
 
         {/* 主内容区 */}
-        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center w-full max-w-7xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
             {/* ── 左侧：标题 + 起名入口 ── */}
             <div className="text-center lg:text-left z-10">
@@ -367,7 +367,7 @@ export default function Home() {
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-          <div className="w-full max-w-6xl flex flex-col justify-center">
+          <div className="max-w-6xl mx-auto flex flex-col justify-center">
             {/* 标题 */}
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-4">
@@ -441,7 +441,7 @@ export default function Home() {
       {/* ════════════ 第三屏：服务矩阵（What We Offer） ════════════ */}
       <section id="screen-3" className="fullscreen-section relative overflow-hidden">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-          <div className="w-full max-w-6xl flex flex-col justify-center">
+          <div className="max-w-6xl mx-auto flex flex-col justify-center">
             {/* 标题 */}
             <div className="text-center mb-11">
               <div className="inline-flex items-center gap-2 mb-4">
