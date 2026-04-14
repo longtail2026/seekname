@@ -184,9 +184,9 @@ export default function Home() {
               <form onSubmit={handleSubmit} className="mb-4 max-w-lg mx-auto lg:mx-0">
                 {/* 卷轴容器 */}
                 <div className="scroll-painting relative max-w-lg">
-                  {/* 上方轴杆（展开的画卷上半部分边缘） */}
-                  <div className="scroll-rod scroll-rod-top" />
-                  {/* 卷轴主体（宣纸）- 悬挂在轴杆下方 */}
+                  {/* 左侧轴杆 */}
+                  <div className="scroll-rod" />
+                  {/* 宣纸区域 */}
                   <div className="scroll-body">
                     {/* 第一行：姓氏 + 性别 */}
                     <div className="flex gap-3 mb-3">
@@ -290,8 +290,8 @@ export default function Home() {
                       )}
                     </button>
                   </div>
-                  {/* 下方轴杆（展开的画卷下半部分边缘） */}
-                  <div className="scroll-rod scroll-rod-bottom" />
+                  {/* 右侧轴杆 */}
+                  <div className="scroll-rod" />
                 </div>
                 <p className="text-xs text-[#B0AAA0] mt-2 ml-1 text-center lg:text-left">
                   已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名

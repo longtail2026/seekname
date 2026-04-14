@@ -550,24 +550,22 @@ html {
 
 /* ═══════════════════════════════════════════
    古风卷轴画卷 - 起名表单专用
-   布局：轴杆在上，宣纸悬挂在下
+   布局：左右轴杆夹宣纸，卷轴在上（前后），宣纸在下方
    ═══════════════════════════════════════════ */
 
 .scroll-painting {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  filter: drop-shadow(0 6px 20px rgba(44, 24, 16, 0.15));
+  align-items: stretch;
+  filter: drop-shadow(0 4px 16px rgba(44, 24, 16, 0.12));
 }
 
-/* ─── 轴杆（水平方向，宽卷轴） ─── */
+/* ─── 左右轴杆（卷轴在宣纸上层） ─── */
 .scroll-rod {
-  width: 100%;
-  height: 18px;
+  width: 18px;
   flex-shrink: 0;
   position: relative;
-  border-radius: 3px;
+  border-radius: 4px;
   /* 木纹渐变 - 圆柱立体感 */
   background:
     repeating-linear-gradient(180deg,
@@ -576,7 +574,7 @@ html {
       transparent 2px,
       transparent 5px
     ),
-    linear-gradient(180deg,
+    linear-gradient(90deg,
       #5D3A1F 0%,
       #7A4F2E 18%,
       #8B5E3C 35%,
@@ -585,24 +583,21 @@ html {
       #7A4F2E 82%,
       #5D3A1F 100%
     );
-  box-shadow:
-    0 2px 6px rgba(44, 24, 16, 0.3),
-    inset 0 -1px 2px rgba(0,0,0,0.3),
-    inset 0 1px 2px rgba(255,255,255,0.15);
+  z-index: 2;
 }
 
-/* 轴杆两端装饰头（金属帽） - 左右两侧 */
+/* 轴杆两端金属帽 */
 .scroll-rod::before,
 .scroll-rod::after {
   content: '';
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 10px;
   border-radius: 2px;
   background:
-    linear-gradient(90deg,
+    linear-gradient(180deg,
       #C9A84C 0%,
       #E8D48B 25%,
       #F0E4A8 50%,
@@ -610,34 +605,22 @@ html {
       #B08D30 100%
     );
   box-shadow:
-    1px 0 3px rgba(0,0,0,0.2),
-    inset 1px 0 0 rgba(255,255,255,0.4);
+    0 1px 3px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.3);
 }
 
 .scroll-rod::before {
-  left: -5px;
+  top: -4px;
 }
 
 .scroll-rod::after {
-  right: -5px;
+  bottom: -4px;
 }
 
-/* 上方轴杆 */
-.scroll-rod-top {
-  z-index: 2;
-  border-radius: 3px 3px 1px 1px;
-}
-
-/* 下方轴杆 */
-.scroll-rod-bottom {
-  z-index: 2;
-  border-radius: 1px 1px 3px 3px;
-}
-
-/* ─── 宣纸区域 - 悬挂在轴杆下方 ─── */
+/* ─── 宣纸区域（在轴杆下层，宽度不超过轴杆净高） ─── */
 .scroll-body {
-  width: calc(100% - 6px);
-  padding: 16px 20px;
+  flex: 1;
+  padding: 20px 24px;
   background:
     /* 极淡的宣纸纤维纹理 */
     linear-gradient(180deg,
@@ -649,44 +632,42 @@ html {
       rgba(255,248,235,0) 100%
     ),
     linear-gradient(135deg, #F8F0E0 0%, #EDE4D0 50%, #F8F0E0 100%);
-  border-left: 1px solid #C8B898;
-  border-right: 1px solid #C8B898;
+  border-top: 1px solid #C8B898;
+  border-bottom: 1px solid #C8B898;
   position: relative;
+  z-index: 1;
   box-shadow:
-    inset 0 0 30px rgba(160, 130, 80, 0.06),
-    inset 0 0 6px rgba(160, 130, 80, 0.04);
+    inset 0 0 30px rgba(160, 130, 80, 0.05);
 }
 
-/* 宣纸上方 - 紧贴上轴杆的卷曲阴影 */
-.scroll-body::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 10px;
-  background: linear-gradient(180deg,
-    rgba(80, 55, 25, 0.12) 0%,
-    rgba(80, 55, 25, 0.03) 60%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
-
-/* 宣纸下方 - 紧贴下轴杆的卷曲阴影 */
+/* 宣纸上下边缘与轴杆衔接的阴影 */
+.scroll-body::before,
 .scroll-body::after {
   content: '';
   position: absolute;
-  bottom: 0;
   left: 0;
   right: 0;
-  height: 10px;
-  background: linear-gradient(0deg,
-    rgba(80, 55, 25, 0.12) 0%,
-    rgba(80, 55, 25, 0.03) 60%,
+  height: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.scroll-body::before {
+  top: 0;
+  background: linear-gradient(180deg,
+    rgba(80, 55, 25, 0.10) 0%,
+    rgba(80, 55, 25, 0.02) 60%,
     transparent 100%
   );
-  pointer-events: none;
+}
+
+.scroll-body::after {
+  bottom: 0;
+  background: linear-gradient(0deg,
+    rgba(80, 55, 25, 0.10) 0%,
+    rgba(80, 55, 25, 0.02) 60%,
+    transparent 100%
+  );
 }
 
 /* 卷轴内输入框背景 */
