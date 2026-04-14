@@ -606,9 +606,9 @@ export default function Home() {
         {/* 页脚 - 黑底通栏，固定在第四屏底部 */}
         <footer className="py-5 bg-[#1a1a18] text-gray-300 w-full">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
+            <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 mb-4 text-center md:text-left">
+              <div className="md:text-center">
+                <div className="flex items-center gap-2 mb-2 justify-center">
                   <div className="w-7 h-7 bg-gradient-to-br from-[#E86A17] to-[#C8540A] rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>名</span>
                   </div>
@@ -622,7 +622,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div>
+              <div className="text-center">
                 <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">服务项目</h4>
                 <ul className="space-y-1 text-[11px] text-gray-500">
                   {services.map((s, i) => (
@@ -631,7 +631,7 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div>
+              <div className="text-center">
                 <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">关于我们</h4>
                 <ul className="space-y-1 text-[11px] text-gray-500">
                   {['平台介绍', '专家团队', '联系我们', '加入我们'].map((item, i) => (
@@ -640,7 +640,7 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div>
+              <div className="text-center">
                 <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">帮助支持</h4>
                 <ul className="space-y-1 text-[11px] text-gray-500">
                   {['使用帮助', '常见问题', '隐私政策', '服务条款'].map((item, i) => (

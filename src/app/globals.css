@@ -48,16 +48,8 @@
     color: var(--foreground);
     font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     scroll-behavior: smooth;
-    /* ═══ 宣纸肌理背景 ═══ */
-    /* 使用密集点阵模拟宣纸纤维感，确保跨浏览器可见 */
+    /* 纯底色，古风纹理由 body::before 统一控制 */
     background-color: #FFFCF7;
-    background-image:
-      /* 主点阵 - 模拟纤维 */
-      radial-gradient(circle at 25% 25%, rgba(139, 119, 101, 0.15) 1px, transparent 1px),
-      radial-gradient(circle at 75% 75%, rgba(139, 119, 101, 0.12) 1px, transparent 1px),
-      radial-gradient(circle at 50% 50%, rgba(180, 160, 140, 0.08) 0.5px, transparent 0.5px);
-    background-size: 8px 8px, 12px 12px, 6px 6px;
-    background-repeat: repeat;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -122,8 +114,14 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 60c0-11.046 8.954-20 20-20s20 8.954 20 20-8.954 20-20 20-20-8.954-20-20zm40 0c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10-10-4.477-10-10zm30-20c0-8.284 6.716-15 15-15s15 6.716 15 15-6.716 15-15 15-15-6.716-15-15zM10 30c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10-10-4.477-10-10z' fill='%23C9A84C' fill-opacity='0.04'/%3E%3C/svg%3E");
-    opacity: 0.6;
+    /* 淡淡古画宣纸纹理 - 土黄色古旧感 */
+    background-image:
+      /* 宣纸纤维 - 极细密，不规则感 */
+      url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    /* 使用 multiply 混合模式让纹理自然融入底色 */
+    mix-blend-mode: multiply;
+    opacity: 0.08;
     pointer-events: none;
     z-index: 0;
   }
