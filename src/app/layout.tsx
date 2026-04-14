@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="zh-CN" className={inter.variable}>
       <body className="min-h-screen bg-white text-gray-900 antialiased">
         <AuthProvider>
-          {/* Header 是 sticky 定位，不需要额外 pt 补偿 */}
+          <Header />
           {children}
         </AuthProvider>
       </body>
