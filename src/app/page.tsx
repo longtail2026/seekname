@@ -182,7 +182,7 @@ export default function Home() {
 
               {/* 起名表单 - 完整字段 */}
               <form onSubmit={handleSubmit} className="mb-6">
-                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-5 lg:p-6 shadow-lg border border-[#C8B8A8] max-w-lg mx-auto lg:mx-0">
+                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-5 lg:p-6 shadow-lg border border-[#DDD0C0] max-w-lg mx-auto lg:mx-0">
                   {/* 第一行：姓氏 + 性别 */}
                   <div className="flex gap-3 mb-3">
                     <div className="relative flex-1 min-w-0">
@@ -204,7 +204,7 @@ export default function Home() {
                           setSurname(val);
                         }}
                         placeholder="请输入您的姓氏"
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#C8B8A8]
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#DDD0C0]
                                    rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
                                    transition-all duration-300 placeholder:text-[#B0AAA0]"
                         style={{ fontFamily: "'Noto Serif SC', serif" }}
@@ -212,7 +212,7 @@ export default function Home() {
                       />
                     </div>
                     {/* 性别选择 */}
-                    <div className="flex rounded-xl overflow-hidden border border-[#C8B8A8] shrink-0">
+                    <div className="flex rounded-xl overflow-hidden border border-[#DDD0C0] shrink-0">
                       {(["男", "女"] as const).map((g) => (
                         <button
                           key={g}
@@ -239,7 +239,7 @@ export default function Home() {
                         type="date"
                         value={birthDate}
                         onChange={(e) => setBirthDate(e.target.value)}
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#C8B8A8]
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#DDD0C0]
                                    rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
                                    transition-all duration-300 text-[#2D1B0E]"
                         style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
@@ -251,7 +251,7 @@ export default function Home() {
                         value={birthTime}
                         onChange={(e) => setBirthTime(e.target.value)}
                         placeholder="可选"
-                        className="w-full px-4 py-2.5 text-base bg-white border border-[#C8B8A8]
+                        className="w-full px-4 py-2.5 text-base bg-white border border-[#DDD0C0]
                                    rounded-xl focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
                                    transition-all duration-300 text-[#2D1B0E]"
                         style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
@@ -311,16 +311,16 @@ export default function Home() {
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,248,240,0.85))',
                       borderTop: `3px solid ${card.color}`,
-                      border: '1px solid #D4C4B0',
-                      boxShadow: '0 2px 16px rgba(44,24,16,0.06)',
+                      border: '1px solid #DDD0C0',
+                      boxShadow: '0 2px 16px rgba(44,24,16,0.05)',
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLDivElement).style.borderColor = '#E86A17';
                       (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 24px rgba(232,106,23,0.18)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = '#D4C4B0';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(44,24,16,0.06)';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = '#DDD0C0';
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(44,24,16,0.05)';
                     }}
                   >
                     {/* 图标 */}
@@ -396,14 +396,14 @@ export default function Home() {
                 <div
                   key={idx}
                   className="group text-center p-6 lg:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-1"
-                  style={{ background: 'rgba(255,255,255,0.80)', border: '1px solid #D4C4B0', boxShadow: '0 2px 20px rgba(44,24,16,0.06)' }}
+                  style={{ background: 'rgba(255,255,255,0.80)', border: '1px solid #DDD0C0', boxShadow: '0 2px 20px rgba(44,24,16,0.05)' }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLDivElement).style.borderColor = '#E86A17';
                     (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 24px rgba(232,106,23,0.18)';
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = '#D4C4B0';
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 20px rgba(44,24,16,0.06)';
+                    (e.currentTarget as HTMLDivElement).style.borderColor = '#DDD0C0';
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 20px rgba(44,24,16,0.05)';
                   }}
                 >
                   <div
@@ -468,7 +468,7 @@ export default function Home() {
                   key={idx}
                   href={svc.href}
                   className="group block relative overflow-hidden rounded-2xl p-7 lg:p-8 transition-all duration-400 hover:-translate-y-1 hover:shadow-2xl"
-                  style={{ background: 'linear-gradient(145deg, #FFFFFF, #FFFCF7)', border: '1px solid #D4C4B0', boxShadow: '0 2px 20px rgba(44,24,16,0.06)' }}
+                  style={{ background: 'linear-gradient(145deg, #FFFFFF, #FFFCF7)', border: '1px solid #DDD0C0', boxShadow: '0 2px 20px rgba(44,24,16,0.05)' }}
                   onMouseEnter={(e) => {
                     const el = e.currentTarget;
                     el.style.borderColor = '#E86A17';
@@ -476,8 +476,8 @@ export default function Home() {
                   }}
                   onMouseLeave={(e) => {
                     const el = e.currentTarget;
-                    el.style.borderColor = '#D4C4B0';
-                    el.style.boxShadow = '0 2px 20px rgba(44,24,16,0.06)';
+                    el.style.borderColor = '#DDD0C0';
+                    el.style.boxShadow = '0 2px 20px rgba(44,24,16,0.05)';
                   }}
                 >
                   {/* 左侧色条 */}
