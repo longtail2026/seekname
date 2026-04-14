@@ -27,7 +27,7 @@ const businessSubmenu = [
   { label: "品牌起名", href: "/company?type=brand", desc: "品牌命名" },
   { label: "项目起名", href: "/company?type=project", desc: "项目代号" },
   { label: "店铺起名", href: "/company?type=shop", desc: "店面招牌" },
-  { label: "电商英文起名", href: "/company?type=ecommerce", desc: "跨境英文" },
+  { label: "跨境电商英文起名", href: "/company?type=ecommerce", desc: "跨境英文" },
 ];
 
 const mainNavItems = [
@@ -154,13 +154,14 @@ export default function Header() {
     cursor: "pointer",
     /* 外层边框 - 金色细线 */
     border: "0.5px solid transparent",
+    borderRadius: 6,
     outline: "none",
   };
 
   return (
     <header
       style={{
-        background: "rgba(255,255,255,0.92)",
+        background: "#FFFCF7",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
         borderBottom: "1px solid rgba(212,148,26,0.18)",
@@ -176,88 +177,236 @@ export default function Header() {
         alignItems: "stretch",
       }}
     >
-      {/* Single row: Banner(left) | Nav+Search+User(right) */}
+      {/* Single row: Banner(left) | Nav(center) | Search+User(right) */}
       <div
         style={{
           maxWidth: 1280,
           margin: "0 auto",
           padding: "0 24px",
           height: "100%",
+          width: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 16,
         }}
       >
-        {/* Left: Banner image 234x50 */}
+        {/* Left: Banner image (圆角) */}
         <Link
           href="/"
-          style={{ textDecoration: "none", display: "flex", alignItems: "center" }}
+          style={{ textDecoration: "none", display: "flex", alignItems: "center", flexShrink: 0 }}
         >
           <img
             src="/images/banner.png"
             alt="寻名网"
-            style={{ width: 234, height: 50, objectFit: "contain", display: "block" }}
+            style={{
+              width: 234,
+              height: 50,
+              objectFit: "contain",
+              display: "block",
+              borderRadius: 10,
+            }}
           />
         </Link>
 
-        {/* 中：站内搜索框 */}
-        <form onSubmit={handleSearchSubmit} className="desktop-nav" style={{ flex: "0 0 auto" }}>
-          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索名字、典籍..."
-              style={{
-                width: 200,
-                height: 32,
-                padding: "0 36px 0 14px",
-                fontSize: 13,
-                borderRadius: 20,
-                border: "1px solid #DDD0C0",
-                background: "rgba(255,255,255,0.9)",
-                color: "#4A3428",
-                fontFamily: "'Noto Sans SC', sans-serif",
-                outline: "none",
-                transition: "border-color 0.25s, box-shadow 0.25s",
-              }}
-              onFocus={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = "#D4941A";
-                (e.target as HTMLInputElement).style.boxShadow = "0 0 0 3px rgba(212,148,26,0.1)";
-              }}
-              onBlur={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = "#DDD0C0";
-                (e.target as HTMLInputElement).style.boxShadow = "none";
-              }}
-            />
-            <button
-              type="submit"
-              onClick={handleSearchSubmit}
-              style={{
-                position: "absolute",
-                right: 2,
-                top: 2,
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                border: "none",
-                background: "#E86A17",
-                color: "#FFF",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 14,
-                padding: 0,
-              }}
-              title="搜索"
-            >
-              🔍
-            </button>
-          </div>
-        </form>
+        {/* Center: 主导航 */}
+        <nav
+          className="desktop-nav"
+          style={{
+            flex: "1 1 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            padding: "0 12px",
+          }}
+        >
+          {/* 首页 */}
+          <Link
+            href="/"
+            className="nav-item"
+            style={{
+              ...navItemStyle,
+              color: openSubmenuKey === null ? "#E86A17" : "#4A3428",
+            }}
+            onMouseEnter={(e) => {
+              setOpenSubmenuKey(null);
+              (e.currentTarget as HTMLElement).style.color = "#E86A17";
+            }}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = "#4A3428"}
+          >
+            首页
+          </Link>
 
-        {/* 右：注册 / 登录 或 用户头像下拉 */}
+          {/* 带下拉的导航项 */}
+          {mainNavItems.map((item) => (
+            <div
+              key={item.label}
+              className="nav-submenu-trigger"
+              style={{ position: "relative" }}
+              onMouseEnter={() => setOpenSubmenuKey(item.label)}
+            >
+              <Link
+                href={item.href}
+                style={{
+                  ...navItemStyle,
+                  color:
+                    openSubmenuKey === item.label ? "#E86A17" : "#4A3428",
+                  gap: 4,
+                }}
+              >
+                {item.label}
+                {item.submenu && (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      marginLeft: 2,
+                      transition: "transform 0.2s",
+                      display: "inline-block",
+                      transform:
+                        openSubmenuKey === item.label
+                          ? "rotate(180deg)"
+                          : "rotate(0)",
+                    }}
+                  >
+                    ▼
+                  </span>
+                )}
+              </Link>
+
+              {/* 下拉子菜单 */}
+              {item.submenu && openSubmenuKey === item.label && (
+                <div
+                  className="nav-submenu-panel"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    /* 与主菜单按钮完全等宽 */
+                    width: "100%",
+                    background: "rgba(255,255,255,0.98)",
+                    backdropFilter: "blur(16px)",
+                    WebkitBackdropFilter: "blur(16px)",
+                    borderRadius: 10,
+                    boxShadow:
+                      "0 6px 24px rgba(74,52,40,0.12), 0 2px 6px rgba(74,52,40,0.06)",
+                    border: "1px solid rgba(212,148,26,0.18)",
+                    padding: "6px 0",
+                    zIndex: 2000,
+                    textAlign: "center",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onMouseLeave={() => setOpenSubmenuKey(null)}
+                >
+                  {item.submenu.map((sub) => (
+                    <Link
+                      key={sub.label}
+                      href={sub.href}
+                      onClick={() => setOpenSubmenuKey(null)}
+                      style={{
+                        display: "block",
+                        padding: "9px 16px",
+                        textDecoration: "none",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) =>
+                        ((e.currentTarget as HTMLElement).style.background =
+                          "rgba(232,106,23,0.05)")
+                      }
+                      onMouseLeave={(e) =>
+                        ((e.currentTarget as HTMLElement).style.background =
+                          "transparent")
+                      }
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: "#4A3428",
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                        }}
+                      >
+                        {sub.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#BBB",
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                          marginTop: 1,
+                        }}
+                      >
+                        {sub.desc}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        {/* Right: 搜索 + 注册/登录 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {/* 站内搜索框 */}
+          <form onSubmit={handleSearchSubmit} className="desktop-nav">
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索名字、典籍..."
+                style={{
+                  width: 200,
+                  height: 32,
+                  padding: "0 36px 0 14px",
+                  fontSize: 13,
+                  borderRadius: 20,
+                  border: "1px solid #DDD0C0",
+                  background: "rgba(255,255,255,0.9)",
+                  color: "#4A3428",
+                  fontFamily: "'Noto Sans SC', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.25s, box-shadow 0.25s",
+                }}
+                onFocus={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = "#D4941A";
+                  (e.target as HTMLInputElement).style.boxShadow = "0 0 0 3px rgba(212,148,26,0.1)";
+                }}
+                onBlur={(e) => {
+                  (e.target as HTMLInputElement).style.borderColor = "#DDD0C0";
+                  (e.target as HTMLInputElement).style.boxShadow = "none";
+                }}
+              />
+              <button
+                type="submit"
+                onClick={handleSearchSubmit}
+                style={{
+                  position: "absolute",
+                  right: 2,
+                  top: 2,
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "#E86A17",
+                  color: "#FFF",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  padding: 0,
+                }}
+                title="搜索"
+              >
+                🔍
+              </button>
+            </div>
+          </form>
+
+          {/* 注册 / 登录 或 用户头像下拉 */}
         {!user ? (
           <div
             style={{ display: "flex", gap: 8, alignItems: "center" }}
@@ -265,6 +414,7 @@ export default function Header() {
           >
             <Link href="/register">
               <button
+                className="nav-item"
                 style={{
                   ...navItemStyle,
                   borderColor: "transparent",
@@ -285,6 +435,7 @@ export default function Header() {
             </Link>
             <Link href="/login">
               <button
+                className="nav-item"
                 style={{
                   ...navItemStyle,
                   background: "linear-gradient(135deg, #E86A17 0%, #D55A0B 100%)",
@@ -526,6 +677,7 @@ export default function Header() {
             )}
           </div>
         )}
+        </div>{/* End Right: search + auth */}
 
         {/* 移动端汉堡按钮 */}
         <button
@@ -563,140 +715,6 @@ export default function Header() {
         </button>
       </div>
 
-      {/* ===== 主导航（内嵌到顶栏右侧） ===== */}
-      <nav
-        className="desktop-nav"
-        style={{
-          flex: "1 1 auto",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "0 16px",
-        }}
-      >
-        {/* 首页 */}
-        <Link
-          href="/"
-          style={{
-            ...navItemStyle,
-            color: openSubmenuKey === null ? "#E86A17" : "#4A3428",
-          }}
-          onMouseEnter={(e) => {
-            setOpenSubmenuKey(null);
-            (e.currentTarget as HTMLElement).style.color = "#E86A17";
-          }}
-          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = "#4A3428"}
-        >
-          首页
-        </Link>
-
-        {/* 带下拉的导航项 */}
-        {mainNavItems.map((item) => (
-          <div
-            key={item.label}
-            className="nav-submenu-trigger"
-            style={{ position: "relative" }}
-            onMouseEnter={() => setOpenSubmenuKey(item.label)}
-          >
-            <Link
-              href={item.href}
-              style={{
-                ...navItemStyle,
-                color:
-                  openSubmenuKey === item.label ? "#E86A17" : "#4A3428",
-                gap: 4,
-              }}
-            >
-              {item.label}
-              {item.submenu && (
-                <span
-                  style={{
-                    fontSize: 9,
-                    marginLeft: 2,
-                    transition: "transform 0.2s",
-                    display: "inline-block",
-                    transform:
-                      openSubmenuKey === item.label
-                        ? "rotate(180deg)"
-                        : "rotate(0)",
-                  }}
-                >
-                  ▼
-                </span>
-              )}
-            </Link>
-
-            {/* 下拉子菜单 */}
-            {item.submenu && openSubmenuKey === item.label && (
-              <div
-                className="nav-submenu-panel"
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 2px)",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  minWidth: 150,
-                  background: "rgba(255,255,255,0.98)",
-                  backdropFilter: "blur(16px)",
-                  WebkitBackdropFilter: "blur(16px)",
-                  borderRadius: 10,
-                  boxShadow:
-                    "0 6px 24px rgba(74,52,40,0.12), 0 2px 6px rgba(74,52,40,0.06)",
-                  border: "1px solid rgba(212,148,26,0.18)",
-                  padding: "6px 0",
-                  zIndex: 2000,
-                  textAlign: "center",
-                }}
-                onMouseEnter={(e) => {
-                  e.stopPropagation();
-                }}
-                onMouseLeave={() => setOpenSubmenuKey(null)}
-              >
-                {item.submenu.map((sub) => (
-                  <Link
-                    key={sub.label}
-                    href={sub.href}
-                    onClick={() => setOpenSubmenuKey(null)}
-                    style={{
-                      display: "block",
-                      padding: "9px 16px",
-                      textDecoration: "none",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background =
-                        "rgba(232,106,23,0.05)")
-                    }
-                    onMouseLeave={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background = "transparent")
-                    }
-                  >
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "#4A3428",
-                        fontFamily: "'Noto Sans SC', sans-serif",
-                      }}
-                    >
-                      {sub.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#BBB",
-                        fontFamily: "'Noto Sans SC', sans-serif",
-                        marginTop: 1,
-                      }}
-                    >
-                      {sub.desc}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </nav>
 
       {/* ═══ 移动端菜单 ═══ */}
       {mobileMenuOpen && (
@@ -920,12 +938,13 @@ export default function Header() {
           .mobile-menu-btn { display: none !important; }
         }
 
-        /* ═══ 双细线回纹线框效果（导航项 hover） ═══ */
+        /* ═══ 双细线回纹线框效果（所有导航项 hover） ═══ */
         .nav-submenu-trigger > a {
           position: relative;
           border-image: none !important;
         }
-        .nav-submenu-trigger > a::before {
+        .nav-submenu-trigger > a::before,
+        .nav-item::before {
           content: '';
           position: absolute;
           inset: -3px;
@@ -936,7 +955,8 @@ export default function Header() {
           pointer-events: none;
           z-index: -1;
         }
-        .nav-submenu-trigger > a::after {
+        .nav-submenu-trigger > a::after,
+        .nav-item::after {
           content: '';
           position: absolute;
           inset: -1px;
@@ -947,8 +967,10 @@ export default function Header() {
           pointer-events: none;
           z-index: -1;
         }
-        .nav-submenu-trigger:hover a::before { opacity: 0.6; }
-        .nav-submenu-trigger:hover a::after { opacity: 0.3; }
+        .nav-submenu-trigger:hover a::before,
+        .nav-item:hover::before { opacity: 0.6; }
+        .nav-submenu-trigger:hover a::after,
+        .nav-item:hover::after { opacity: 0.3; }
       `}} />
     </header>
   );

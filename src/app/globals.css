@@ -109,14 +109,15 @@
   }
 
   /* 古韵暗纹背景 - 祥云纹样 */
-  .ancient-pattern-bg {
+  /* 页面全局古风纹理背景 */
+  body {
     position: relative;
-    background-color: var(--background);
+    background-color: #FFFCF7;
   }
 
-  .ancient-pattern-bg::before {
+  body::before {
     content: '';
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -124,6 +125,17 @@
     background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 60c0-11.046 8.954-20 20-20s20 8.954 20 20-8.954 20-20 20-20-8.954-20-20zm40 0c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10-10-4.477-10-10zm30-20c0-8.284 6.716-15 15-15s15 6.716 15 15-6.716 15-15 15-15-6.716-15-15zM10 30c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10-10-4.477-10-10z' fill='%23C9A84C' fill-opacity='0.04'/%3E%3C/svg%3E");
     opacity: 0.6;
     pointer-events: none;
+    z-index: 0;
+  }
+
+  .ancient-pattern-bg {
+    position: relative;
+    /* 不再单独设背景色，由 body 统一控制 */
+  }
+
+  .ancient-pattern-bg::before {
+    /* 已移到 body::before 全局应用，此伪元素保留但置空 */
+    display: none;
   }
 
   /* 云纹背景 */
@@ -380,15 +392,13 @@
     border-color: rgba(255, 255, 255, 0.3);
   }
 
-  /* 单屏滚动容器 - 补偿 fixed header */
+  /* 页面段落容器 */
   .fullscreen-section {
     @apply w-full relative;
-    /* fixed header 高度约 56px，用 padding-top 补偿让内容可见 */
-    height: calc(100dvh);
-    min-height: 500px;
-    overflow: hidden;
-    margin-top: 56px;
+    /* 高度由内容决定，不强制全屏 */
+    padding-top: 0;
     border-radius: 0;
+    box-sizing: border-box;
   }
 
   /* 卡片样式 - 合并为一个定义（避免重复） */
@@ -535,19 +545,7 @@
   background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
 }
 
-/* 单屏滚动效果 - PC端（≥768px）启用，移动端（<768px）关闭 */
+/* 自由滚动 - 无分屏吸附 */
 html {
   scroll-behavior: smooth;
-}
-
-@media (min-width: 768px) {
-  html {
-    scroll-snap-type: y mandatory;
-  }
-  
-  .fullscreen-section {
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
-    scroll-margin-top: 4rem; /* 补偿固定菜单栏高度 */
-  }
 }

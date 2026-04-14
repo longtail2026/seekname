@@ -132,9 +132,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative" style={{ backgroundColor: '#FFFCF7' }}>
       {/* ════════════ 第一屏：Hero 入口 ════════════ */}
-      <section id="screen-1" className="fullscreen-section ancient-pattern-bg relative overflow-hidden" style={{ backgroundColor: 'rgba(255,252,247,0.65)' }}>
+      <section id="screen-1" className="fullscreen-section relative" style={{ minHeight: 'calc(100dvh - 60px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         {/* 水墨背景装饰 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-[#2D1B0E]/6 to-transparent blur-3xl" />
@@ -150,13 +150,13 @@ export default function Home() {
         </div>
 
         {/* 主内容区 */}
-        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
+        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center w-full max-w-7xl">
 
             {/* ── 左侧：标题 + 起名入口 ── */}
             <div className="text-center lg:text-left z-10">
               {/* 顶部标签 */}
-              <div className="inline-flex items-center gap-3 mb-5 animate-ink-spread">
+              <div className="inline-flex items-center gap-3 mb-3 animate-ink-spread">
                 <span className="w-10 h-[1px] bg-gradient-to-r from-transparent to-[#D4941A]" />
                 <span className="text-sm tracking-[0.25em] text-[#D4941A] font-medium uppercase">千年智慧 · 一秒传承</span>
                 <span className="w-10 h-[1px] bg-gradient-to-l from-transparent to-[#D4941A]" />
@@ -164,7 +164,7 @@ export default function Home() {
 
               {/* 震撼标题 */}
               <h1
-                className="text-[2.5rem] sm:text-[3rem] lg:text-[3.75rem] xl:text-6xl font-bold leading-[1.15] tracking-wide mb-4"
+                className="text-[2.5rem] sm:text-[3rem] lg:text-[3.75rem] xl:text-6xl font-bold leading-[1.15] tracking-wide mb-3"
                 style={{ fontFamily: "'Noto Serif SC', 'Songti SC', serif" }}
               >
                 <span className="block text-[#2D1B0E] animate-char-reveal">AI读懂</span>
@@ -173,7 +173,7 @@ export default function Home() {
 
               {/* 副标题 */}
               <p
-                className="text-base lg:text-lg text-[#5A4334] mb-7 max-w-md mx-auto lg:mx-0 leading-relaxed"
+                className="text-base lg:text-lg text-[#5A4334] mb-5 max-w-md mx-auto lg:mx-0 leading-relaxed"
                 style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
               >
                 12万部典籍 × 深度学习 × 八字五行<br/>
@@ -181,8 +181,8 @@ export default function Home() {
               </p>
 
               {/* 起名表单 - 完整字段 */}
-              <form onSubmit={handleSubmit} className="mb-6">
-                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-5 lg:p-6 shadow-lg border border-[#DDD0C0] max-w-lg mx-auto lg:mx-0">
+              <form onSubmit={handleSubmit} className="mb-4">
+                <div className="bg-white/85 backdrop-blur-sm rounded-2xl p-4 lg:p-5 shadow-lg border border-[#DDD0C0] max-w-lg mx-auto lg:mx-0">
                   {/* 第一行：姓氏 + 性别 */}
                   <div className="flex gap-3 mb-3">
                     <div className="relative flex-1 min-w-0">
@@ -281,7 +281,7 @@ export default function Home() {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-[#B0AAA0] mt-3 ml-1 text-center lg:text-left">
+                <p className="text-xs text-[#B0AAA0] mt-2 ml-1 text-center lg:text-left">
                   已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名
                 </p>
               </form>
@@ -351,17 +351,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 滚动提示 */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-          <div className="w-6 h-10 border-2 border-[#E86A17]/25 rounded-full flex justify-center pt-2">
-            <div className="w-1 h-2.5 bg-[#E86A17]/40 rounded-full" />
-          </div>
-        </div>
+
       </section>
 
 
       {/* ════════════ 第二屏：能力展示（Why Us） ════════════ */}
-      <section id="screen-2" className="fullscreen-section relative overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,251,245,0.68) 0%, rgba(255,248,240,0.68) 100%)' }}>
+      <section id="screen-2" className="fullscreen-section relative overflow-hidden">
         {/* 背景 */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E86A17]/20 to-transparent" />
@@ -371,8 +366,8 @@ export default function Home() {
           </svg>
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
-          <div className="w-full max-w-6xl flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="w-full max-w-6xl flex flex-col justify-center">
             {/* 标题 */}
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-4">
@@ -444,9 +439,9 @@ export default function Home() {
 
 
       {/* ════════════ 第三屏：服务矩阵（What We Offer） ════════════ */}
-      <section id="screen-3" className="fullscreen-section ancient-pattern-bg relative overflow-hidden" style={{ backgroundColor: 'rgba(255,252,247,0.65)' }}>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-center">
-          <div className="w-full max-w-6xl flex flex-col justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
+      <section id="screen-3" className="fullscreen-section relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="w-full max-w-6xl flex flex-col justify-center">
             {/* 标题 */}
             <div className="text-center mb-11">
               <div className="inline-flex items-center gap-2 mb-4">
@@ -539,100 +534,97 @@ export default function Home() {
 
 
       {/* ════════════ 第四屏：信任背书 + 页脚 ════════════ */}
-      <section id="screen-4" className="fullscreen-section relative overflow-hidden flex flex-col">
-        {/* 上半部分（约80%）：评价区域 - 浅色背景 */}
-        <div className="flex-[4] flex flex-col items-center justify-center relative"
-          style={{ background: 'linear-gradient(180deg, rgba(255,252,247,0.68) 0%, rgba(255,248,240,0.68) 100%)', minHeight: 0 }}
-        >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            {/* 背景分割线 */}
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E8DDD0] to-transparent" />
-
-            <div className="w-full max-w-6xl mx-auto">
-              {/* 标题 */}
-              <div className="text-center mb-8 lg:mb-10">
-                <div className="inline-flex items-center gap-2 mb-4">
-                  <Quote className="w-5 h-5 text-[#D4941A]" />
-                  <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">用户心声</span>
-                </div>
-                <h2
-                  className="text-[1.75rem] sm:text-2xl lg:text-[2.25rem] font-bold text-[#2D1B0E]"
-                  style={{ fontFamily: "'Noto Serif SC', serif" }}
-                >
-                  听听他们怎么说
-                </h2>
-                <p className="mt-2 text-sm lg:text-base text-[#5A4334]">
-                  已服务超过 <span className="text-[#E86A17] font-bold">128,000+</span> 家庭
-                </p>
+      <section id="screen-4" className="fullscreen-section relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="w-full max-w-6xl mx-auto flex-shrink">
+            {/* 标题 */}
+            <div className="text-center mb-8 lg:mb-10">
+              <div className="inline-flex items-center gap-2 mb-4">
+                <Quote className="w-5 h-5 text-[#D4941A]" />
+                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">用户心声</span>
               </div>
+              <h2
+                className="text-[1.75rem] sm:text-2xl lg:text-[2.25rem] font-bold text-[#2D1B0E]"
+                style={{ fontFamily: "'Noto Serif SC', serif" }}
+              >
+                听听他们怎么说
+              </h2>
+              <p className="mt-2 text-sm lg:text-base text-[#5A4334]">
+                已服务超过 <span className="text-[#E86A17] font-bold">128,000+</span> 家庭
+              </p>
+            </div>
 
-              {/* 评价卡片 - 居中，等宽三列 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-items-center max-w-5xl mx-auto">
-                {testimonials.map((t, idx) => (
-                  <div
-                    key={idx}
-                    className="p-7 lg:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-1 w-full"
-                    style={{
-                      background: 'rgba(255,255,255,0.9)',
-                      border: '1px solid transparent',
-                      boxShadow: '0 4px 20px rgba(44,24,16,0.06)'
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = '#E86A17';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 28px rgba(232,106,23,0.12)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(44,24,16,0.06)';
-                    }}
-                  >
-                    <div className="flex gap-0.5 mb-4">
-                      {[...Array(t.rating)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 fill-[#E86A17] text-[#E86A17]" />
-                      ))}
-                    </div>
-                    <p className="text-sm lg:text-base text-[#5A4334] leading-relaxed mb-5 italic" style={{ lineHeight: '1.8' }}>
-                      &ldquo;{t.content}&rdquo;
-                    </p>
-                    <div className="flex items-center gap-3 pt-3 border-t border-[#C8B8A8]/60">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-                        style={{ background: idx === 0 ? '#E86A17' : idx === 1 ? '#D4941A' : '#F09A3A' }}
-                      >{t.name[0]}</div>
-                      <div>
-                        <div className="font-semibold text-sm text-[#2D1B0E]">{t.name}</div>
-                        <div className="text-xs text-[#A09080]">{t.role}</div>
-                      </div>
+            {/* 评价卡片 - 居中，等宽三列 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-items-center max-w-5xl mx-auto">
+              {testimonials.map((t, idx) => (
+                <div
+                  key={idx}
+                  className="p-7 lg:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-1 w-full"
+                  style={{
+                    background: 'rgba(255,255,255,0.9)',
+                    border: '1px solid transparent',
+                    boxShadow: '0 4px 20px rgba(44,24,16,0.06)'
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = '#E86A17';
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 28px rgba(232,106,23,0.12)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent';
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(44,24,16,0.06)';
+                  }}
+                >
+                  <div className="flex gap-0.5 mb-4">
+                    {[...Array(t.rating)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 fill-[#E86A17] text-[#E86A17]" />
+                    ))}
+                  </div>
+                  <p className="text-sm lg:text-base text-[#5A4334] leading-relaxed mb-5 italic" style={{ lineHeight: '1.8' }}>
+                    &ldquo;{t.content}&rdquo;
+                  </p>
+                  <div className="flex items-center gap-3 pt-3 border-t border-[#C8B8A8]/60">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                      style={{ background: idx === 0 ? '#E86A17' : idx === 1 ? '#D4941A' : '#F09A3A' }}
+                    >{t.name[0]}</div>
+                    <div>
+                      <div className="font-semibold text-sm text-[#2D1B0E]">{t.name}</div>
+                      <div className="text-xs text-[#A09080]">{t.role}</div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 底部引导 */}
+            <div className="mt-10 text-center">
+              <p className="text-sm text-[#A09080]">感谢每一位用户的信任与支持</p>
             </div>
           </div>
         </div>
 
-        {/* 下半部分（约20%）：页脚 - 黑底通栏，突破容器顶到屏幕边缘 */}
-        <footer className="shrink-0 py-6 lg:py-8 bg-[#1a1a18] text-gray-300 w-full -mx-[calc(100vw/2*-1+50%)] px-[calc(100vw/2-50%)]">
+        {/* 页脚 - 黑底通栏，固定在第四屏底部 */}
+        <footer className="py-5 bg-[#1a1a18] text-gray-300 w-full">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-[#E86A17] to-[#C8540A] rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-base" style={{ fontFamily: "'Noto Serif SC', serif" }}>名</span>
+                  <div className="w-7 h-7 bg-gradient-to-br from-[#E86A17] to-[#C8540A] rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>名</span>
                   </div>
                   <div>
-                    <div className="font-bold text-white text-sm" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
-                    <div className="text-[10px] text-gray-500">www.seekname.cn</div>
+                    <div className="font-bold text-white text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
+                    <div className="text-[9px] text-gray-500">www.seekname.cn</div>
                   </div>
                 </div>
-                <p className="text-gray-500 text-xs leading-relaxed hidden lg:block">
+                <p className="text-gray-500 text-[11px] leading-relaxed hidden lg:block">
                   传承千年起名智慧，融合现代 AI 技术。
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold mb-2 text-[#D4941A] text-xs tracking-wide">服务项目</h4>
-                <ul className="space-y-1.5 text-xs text-gray-500">
+                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">服务项目</h4>
+                <ul className="space-y-1 text-[11px] text-gray-500">
                   {services.map((s, i) => (
                     <li key={i}><Link href={s.href} className="hover:text-white transition-colors duration-200">{s.title}</Link></li>
                   ))}
@@ -640,8 +632,8 @@ export default function Home() {
               </div>
 
               <div>
-                <h4 className="font-bold mb-2 text-[#D4941A] text-xs tracking-wide">关于我们</h4>
-                <ul className="space-y-1.5 text-xs text-gray-500">
+                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">关于我们</h4>
+                <ul className="space-y-1 text-[11px] text-gray-500">
                   {['平台介绍', '专家团队', '联系我们', '加入我们'].map((item, i) => (
                     <li key={i}><Link href="#" className="hover:text-white transition-colors duration-200">{item}</Link></li>
                   ))}
@@ -649,8 +641,8 @@ export default function Home() {
               </div>
 
               <div>
-                <h4 className="font-bold mb-2 text-[#D4941A] text-xs tracking-wide">帮助支持</h4>
-                <ul className="space-y-1.5 text-xs text-gray-500">
+                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">帮助支持</h4>
+                <ul className="space-y-1 text-[11px] text-gray-500">
                   {['使用帮助', '常见问题', '隐私政策', '服务条款'].map((item, i) => (
                     <li key={i}><Link href="#" className="hover:text-white transition-colors duration-200">{item}</Link></li>
                   ))}
@@ -658,7 +650,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="border-t border-gray-800 pt-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[11px] text-gray-600">
+            <div className="border-t border-gray-800 pt-3 flex flex-col md:flex-row justify-between items-center gap-2 text-[10px] text-gray-600">
               <span>&copy; 2026 寻名网 seekname.cn 版权所有</span>
               <span>ICP备案号：京ICP备XXXXXXXX号-1</span>
             </div>

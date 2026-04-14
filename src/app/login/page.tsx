@@ -12,16 +12,42 @@ function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("");   // 验证码输入
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
+  // 验证码状态
+  const [captchaId, setCaptchaId] = useState<string | null>(null);
+  const [captchaImage, setCaptchaImage] = useState<string>("");
+  const [captchaLoading, setCaptchaLoading] = useState(true);
+
+  // 获取验证码
+  async function fetchCaptcha() {
+    try {
+      setCaptchaLoading(true);
+      const res = await fetch("/api/auth/captcha");
+      if (res.ok) {
+        const data = await res.json();
+        setCaptchaId(data.captchaId);
+        setCaptchaImage(data.image);
+      }
+    } catch {
+      console.error("[Captcha Fetch Error]");
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }
+
   useEffect(() => {
+    fetchCaptcha(); // 初始加载验证码
+
     // 如果已经登录，直接回跳
     if (searchParams.get("redirected") === "true") {
       setError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -36,9 +62,35 @@ function LoginForm() {
       setError("请输入密码");
       return;
     }
+    if (!captchaInput.trim()) {
+      setError("请输入验证码");
+      return;
+    }
 
     setLoading(true);
 
+    // 先验证验证码
+    try {
+      const captchaRes = await fetch("/api/auth/captcha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ captchaId, userInput: captchaInput }),
+      });
+      const captchaData = await captchaRes.json();
+      if (!captchaData.valid) {
+        setLoading(false);
+        setError(captchaData.error || "验证码错误，请重新输入");
+        fetchCaptcha(); // 刷新验证码
+        setCaptchaInput("");
+        return;
+      }
+    } catch {
+      setLoading(false);
+      setError("验证码验证失败，请重试");
+      return;
+    }
+
+    // 验证码通过 → 执行登录
     const result = await login(account.trim(), password);
     
     setLoading(false);
@@ -216,6 +268,83 @@ function LoginForm() {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* 验证码 */}
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
+              >
+                验证码
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input
+                  type="text"
+                  value={captchaInput}
+                  onChange={(e) => setCaptchaInput(e.target.value)}
+                  placeholder="输入4位数字验证码"
+                  autoComplete="off"
+                  maxLength={4}
+                  className="flex-1 px-4 py-3 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
+                  style={{
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    border: "1px solid #DDD0C0",
+                    color: "#2D1B0E",
+                    letterSpacing: "8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                  }}
+                  onFocus={(e) => { (e.target as HTMLElement).style.borderColor = "#E86A17"; }}
+                  onBlur={(e) => { (e.target as HTMLElement).style.borderColor = "#DDD0C0"; }}
+                />
+                {/* 验证码图片（可点击刷新） */}
+                <button
+                  type="button"
+                  onClick={fetchCaptcha}
+                  title="点击刷新验证码"
+                  style={{
+                    height: 48,
+                    width: 110,
+                    padding: 0,
+                    border: "1px solid #DDD0C0",
+                    borderRadius: 10,
+                    background: "#FFFCF7",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "border-color 0.2s",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#E86A17"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#DDD0C0"; }}
+                >
+                  {captchaLoading ? (
+                    <div
+                      style={{
+                        width: 20,
+                        height: 20,
+                        border: "2px solid #DDD0C0",
+                        borderTopColor: "#E86A17",
+                        borderRadius: "50%",
+                        animation: "spin 0.6s linear infinite",
+                      }}
+                    />
+                  ) : captchaImage ? (
+                    <img
+                      src={captchaImage}
+                      alt="验证码"
+                      style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8, pointerEvents: "none" }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#BBB" }}>加载中</span>
+                  )}
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: "#AAA", marginTop: 4, fontFamily: "'Noto Sans SC', sans-serif" }}>
+                看不清？点击图片可刷新
+              </p>
             </div>
 
             {/* 忘记密码（预留） */}
