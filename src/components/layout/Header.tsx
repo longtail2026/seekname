@@ -170,54 +170,35 @@ export default function Header() {
         right: 0,
         zIndex: 1000,
         boxShadow: "0 1px 8px rgba(45,27,14,0.06)",
+        height: 60,
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "stretch",
       }}
     >
-      {/* ═══ 顶部栏：Logo + Slogan + 搜索 + 用户 ═══ */}
+      {/* Single row: Banner(left) | Nav+Search+User(right) */}
       <div
         style={{
           maxWidth: 1280,
           margin: "0 auto",
-          padding: "10px 28px",
+          padding: "0 24px",
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        {/* 左：Logo + Slogan */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link
-            href="/"
-            style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}
-          >
-            <span
-              style={{
-                fontSize: 26,
-                fontWeight: 900,
-                color: "#E86A17",
-                fontFamily: "'Noto Serif SC', serif",
-                letterSpacing: 4,
-                lineHeight: 1,
-              }}
-            >
-              寻名
-            </span>
-          </Link>
-          {/* Slogan 分隔 + 文字 */}
-          <span
-            style={{
-              fontSize: 11,
-              color: "#D4941A",
-              fontFamily: "'Noto Serif SC', serif",
-              letterSpacing: "0.15em",
-              opacity: 0.85,
-              paddingLeft: 8,
-              borderLeft: "1px solid #D4941A40",
-              whiteSpace: "nowrap",
-            }}
-          >
-            千年智慧 · AI 起名
-          </span>
-        </div>
+        {/* Left: Banner image 234x50 */}
+        <Link
+          href="/"
+          style={{ textDecoration: "none", display: "flex", alignItems: "center" }}
+        >
+          <img
+            src="/images/banner.png"
+            alt="寻名网"
+            style={{ width: 234, height: 50, objectFit: "contain", display: "block" }}
+          />
+        </Link>
 
         {/* 中：站内搜索框 */}
         <form onSubmit={handleSearchSubmit} className="desktop-nav" style={{ flex: "0 0 auto" }}>
@@ -582,16 +563,15 @@ export default function Header() {
         </button>
       </div>
 
-      {/* ═══ 主导航栏：首页 / 人名起名 / 商业起名 / 宠物起名 / 测评 ═══ */}
+      {/* ===== 主导航（内嵌到顶栏右侧） ===== */}
       <nav
         className="desktop-nav"
         style={{
-          maxWidth: 1280,
-          margin: "0 auto",
-          padding: "0 28px",
+          flex: "1 1 auto",
           display: "flex",
           alignItems: "center",
           gap: 4,
+          padding: "0 16px",
         }}
       >
         {/* 首页 */}
@@ -652,8 +632,9 @@ export default function Header() {
                 className="nav-submenu-panel"
                 style={{
                   position: "absolute",
-                  top: "calc(100% + 4px)",
-                  left: 0,
+                  top: "calc(100% + 2px)",
+                  left: "50%",
+                  transform: "translateX(-50%)",
                   minWidth: 150,
                   background: "rgba(255,255,255,0.98)",
                   backdropFilter: "blur(16px)",
@@ -664,6 +645,7 @@ export default function Header() {
                   border: "1px solid rgba(212,148,26,0.18)",
                   padding: "6px 0",
                   zIndex: 2000,
+                  textAlign: "center",
                 }}
                 onMouseEnter={(e) => {
                   e.stopPropagation();
