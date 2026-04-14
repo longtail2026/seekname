@@ -3,16 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-interface User {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  avatar?: string | null;
-  vipLevel: number;
-  points: number;
-}
+import { useAuth, User } from "@/contexts/AuthContext";
 
 /* ═══════════ 导航数据结构 ═══════════ */
 const personalSubmenu = [
@@ -52,49 +43,13 @@ const mainNavItems = [
 ];
 
 export default function Header() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, logout } = useAuth();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [openSubmenuKey, setOpenSubmenuKey] = useState<string | null>(null);
   const router = useRouter();
   const userDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let token: string | null = null;
-    try {
-      token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("seekname_token")
-          : null;
-    } catch {}
-
-    if (token) {
-      try {
-        const cached = localStorage.getItem("seekname_user");
-        if (cached) {
-          setUser(JSON.parse(cached));
-        }
-      } catch {}
-
-      fetch("/api/auth/session", {
-        credentials: "same-origin",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.user) {
-            setUser(data.user);
-            localStorage.setItem("seekname_user", JSON.stringify(data.user));
-          } else {
-            localStorage.removeItem("seekname_token");
-            localStorage.removeItem("seekname_user");
-            setUser(null);
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   // 点击外部关闭用户下拉菜单
   useEffect(() => {
@@ -117,19 +72,8 @@ export default function Header() {
   }, [userDropdownOpen]);
 
   const handleLogout = async () => {
-    if (typeof window === "undefined") return;
-    try {
-      await fetch("/api/auth/session", {
-        method: "POST",
-        credentials: "same-origin",
-      });
-    } catch {}
-    localStorage.removeItem("seekname_token");
-    localStorage.removeItem("seekname_user");
-    setUser(null);
     setUserDropdownOpen(false);
-    router.push("/");
-    router.refresh();
+    await logout();
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
