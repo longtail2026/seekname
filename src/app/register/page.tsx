@@ -4,15 +4,14 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Eye, EyeOff, UserPlus, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, UserPlus, CheckCircle2, Mail, Phone } from "lucide-react";
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [form, setForm] = useState({
-    email: "",
-    phone: "",
+    account: "",       // 手机号或邮箱，合并为一个输入框
     password: "",
     confirmPassword: "",
     name: "",
@@ -31,15 +30,34 @@ function RegisterForm() {
     setError(null);
   }
 
+  // 判断输入内容是邮箱还是手机号
+  function detectAccountType(value: string): 'email' | 'phone' | '' {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'email';
+    if (/^1[3-9]\d{9}$/.test(trimmed)) return 'phone';
+    return '';
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     // 校验
-    if (!form.email.trim() && !form.phone.trim()) {
+    if (!form.account.trim()) {
       setError("请输入手机号或邮箱");
       return;
     }
+    
+    const trimmed = form.account.trim();
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    const isPhone = /^1[3-9]\d{9}$/.test(trimmed);
+
+    if (!isEmail && !isPhone) {
+      setError("请输入有效的手机号或邮箱地址");
+      return;
+    }
+
     if (form.password.length < 6) {
       setError("密码至少需要 6 个字符");
       return;
@@ -48,28 +66,12 @@ function RegisterForm() {
       setError("两次输入的密码不一致");
       return;
     }
-    // 邮箱格式校验
-    if (form.email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(form.email.trim())) {
-        setError("邮箱格式不正确");
-        return;
-      }
-    }
-    // 手机号格式校验
-    if (form.phone.trim()) {
-      const phoneRegex = /^1[3-9]\d{9}$/;
-      if (!phoneRegex.test(form.phone.trim())) {
-        setError("手机号格式不正确");
-        return;
-      }
-    }
 
     setLoading(true);
 
     const result = await register({
-      email: form.email.trim() || undefined,
-      phone: form.phone.trim() || undefined,
+      email: isEmail ? trimmed : undefined,
+      phone: isPhone ? trimmed : undefined,
       password: form.password,
       name: form.name.trim() || undefined,
     });
@@ -78,7 +80,6 @@ function RegisterForm() {
 
     if (result.success) {
       setSuccess(true);
-      // 注册成功后，3 秒自动跳转到登录页（带上 callbackUrl）
       setTimeout(() => {
         router.push(
           `/login?callbackUrl=${encodeURIComponent(callbackUrl)}&redirected=true`
@@ -134,6 +135,8 @@ function RegisterForm() {
     );
   }
 
+  const accountType = detectAccountType(form.account);
+
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-8"
@@ -153,12 +156,13 @@ function RegisterForm() {
         }}
       />
 
-      <div className="relative w-full max-w-md">
+      {/* PC端更宽：max-w-[480px]，移动端自适应 */}
+      <div className="relative w-full max-w-[480px]" style={{ maxWidth: 'min(480px, 92vw)' }}>
         {/* Logo / 品牌区 */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center space-x-3 group">
             <div
-              className="w-14 h-14 flex items-center justify-center transition-all duration-300 group-hover:scale-105"
+              className="w-12 h-12 flex items-center justify-center transition-all duration-300 group-hover:scale-105"
               style={{
                 background: "#C84A2A",
                 border: "2px solid #A63A1E",
@@ -166,7 +170,7 @@ function RegisterForm() {
               }}
             >
               <span
-                className="text-white text-xl font-bold"
+                className="text-white text-lg font-bold"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
                 名
@@ -174,7 +178,7 @@ function RegisterForm() {
             </div>
             <div className="flex flex-col items-start">
               <span
-                className="text-2xl font-bold text-[#2C1810]"
+                className="text-xl font-bold text-[#2C1810]"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
                 寻名网
@@ -186,7 +190,7 @@ function RegisterForm() {
 
         {/* 注册卡片 */}
         <div
-          className="rounded-2xl p-8 relative"
+          className="rounded-2xl p-6 sm:p-8 relative"
           style={{
             background: "rgba(255,255,255,0.85)",
             backdropFilter: "blur(12px)",
@@ -205,19 +209,19 @@ function RegisterForm() {
           />
 
           <h2
-            className="text-2xl font-bold text-center mb-2 mt-2"
+            className="text-xl sm:text-2xl font-bold text-center mb-1 mt-2"
             style={{ fontFamily: "'Noto Serif SC', serif", color: "#2C1810" }}
           >
             创建账号
           </h2>
           <p
-            className="text-sm text-center mb-8"
+            className="text-xs sm:text-sm text-center mb-6"
             style={{ color: "#5C4A42", fontFamily: "'Noto Sans SC', sans-serif" }}
           >
             注册即可使用 AI 智能起名服务
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             {/* 错误提示 */}
             {error && (
               <div
@@ -235,7 +239,7 @@ function RegisterForm() {
             {/* 昵称（选填） */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-sm font-medium mb-1.5"
                 style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
               >
                 昵称{" "}
@@ -250,7 +254,7 @@ function RegisterForm() {
                 placeholder="您的称呼"
                 autoComplete="name"
                 maxLength={20}
-                className="w-full px-4 py-3 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
+                className="w-full px-4 py-2.5 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
                 style={{
                   fontFamily: "'Noto Sans SC', sans-serif",
                   border: "1px solid #DDD0C0",
@@ -261,86 +265,56 @@ function RegisterForm() {
               />
             </div>
 
-            {/* 手机号 */}
+            {/* 手机号/邮箱 合并为一个输入框 */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-sm font-medium mb-1.5"
                 style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
               >
-                手机号{" "}
+                手机号 / 邮箱{" "}
                 <span style={{ color: "#B0AAA0", fontWeight: "normal" }}>
-                  （手机号/邮箱二选一）
+                  （二选一）
                 </span>
               </label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="请输入手机号"
-                autoComplete="tel"
-                className="w-full px-4 py-3 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
-                style={{
-                  fontFamily: "'Noto Sans SC', sans-serif",
-                  border: "1px solid #DDD0C0",
-                  color: "#2D1B0E",
-                }}
-                onFocus={(e) => { (e.target as HTMLElement).style.borderColor = "#E86A17"; }}
-                onBlur={(e) => { (e.target as HTMLElement).style.borderColor = "#DDD0C0"; }}
-              />
-            </div>
-
-            {/* 或分隔 */}
-            <div className="relative flex items-center justify-center py-1">
-              <div
-                className="absolute inset-0 flex items-center"
-                aria-hidden="true"
-              >
-                <div
-                  className="w-full border-t"
-                  style={{ borderColor: "rgba(221,208,192,0.6)" }}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={form.account}
+                  onChange={(e) => updateField("account", e.target.value)}
+                  placeholder="请输入手机号或邮箱地址"
+                  autoComplete="username"
+                  className="w-full pl-11 pr-4 py-2.5 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
+                  style={{
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    border: "1px solid #DDD0C0",
+                    color: "#2D1B0E",
+                  }}
+                  onFocus={(e) => { (e.target as HTMLElement).style.borderColor = "#E86A17"; }}
+                  onBlur={(e) => { (e.target as HTMLElement).style.borderColor = "#DDD0C0"; }}
                 />
+                {/* 左侧图标：根据输入类型动态变化 */}
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {accountType === 'email' ? (
+                    <Mail className="w-4.5 h-4.5" style={{ color: "#999" }} strokeWidth={2} />
+                  ) : accountType === 'phone' ? (
+                    <Phone className="w-4.5 h-4.5" style={{ color: "#999" }} strokeWidth={2} />
+                  ) : (
+                    <span className="text-xs" style={{ color: "#B0AAA0" }}>📱</span>
+                  )}
+                </div>
               </div>
-              <span
-                className="relative px-4 text-xs rounded-full"
-                style={{
-                  fontFamily: "'Noto Sans SC', sans-serif",
-                  color: "#B0AAA0",
-                  background: "rgba(255,252,247,0.9)",
-                }}
-              >
-                或者
-              </span>
-            </div>
-
-            {/* 邮箱 */}
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
-              >
-                邮箱
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => updateField("email", e.target.value)}
-                placeholder="请输入邮箱地址"
-                autoComplete="email"
-                className="w-full px-4 py-3 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
-                style={{
-                  fontFamily: "'Noto Sans SC', sans-serif",
-                  border: "1px solid #DDD0C0",
-                  color: "#2D1B0E",
-                }}
-                onFocus={(e) => { (e.target as HTMLElement).style.borderColor = "#E86A17"; }}
-                onBlur={(e) => { (e.target as HTMLElement).style.borderColor = "#DDD0C0"; }}
-              />
+              {/* 自动识别提示 */}
+              {accountType && (
+                <p className="mt-1 text-xs ml-1" style={{ color: "#2EAD5A" }}>
+                  ✓ 已识别为{accountType === 'email' ? '邮箱' : '手机号'}
+                </p>
+              )}
             </div>
 
             {/* 密码 */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-sm font-medium mb-1.5"
                 style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
               >
                 密码
@@ -352,7 +326,7 @@ function RegisterForm() {
                   onChange={(e) => updateField("password", e.target.value)}
                   placeholder="至少 6 个字符"
                   autoComplete="new-password"
-                  className="w-full px-4 py-3 pr-11 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
+                  className="w-full px-4 py-2.5 pr-11 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
                   style={{
                     fontFamily: "'Noto Sans SC', sans-serif",
                     border: "1px solid #DDD0C0",
@@ -381,7 +355,7 @@ function RegisterForm() {
             {/* 确认密码 */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-sm font-medium mb-1.5"
                 style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
               >
                 确认密码
@@ -392,7 +366,7 @@ function RegisterForm() {
                 onChange={(e) => updateField("confirmPassword", e.target.value)}
                 placeholder="再次输入密码"
                 autoComplete="new-password"
-                className="w-full px-4 py-3 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
+                className="w-full px-4 py-2.5 text-base bg-white rounded-xl transition-all duration-300 placeholder:text-[#B0AAA0] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]"
                 style={{
                   fontFamily: "'Noto Sans SC', sans-serif",
                   border: "1px solid #DDD0C0",
@@ -407,7 +381,7 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full !py-3.5 text-base mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="btn-primary w-full !py-3 text-base mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -443,7 +417,7 @@ function RegisterForm() {
 
           {/* 底部：去登录 */}
           <div
-            className="mt-6 pt-6 text-center text-sm"
+            className="mt-5 pt-4 text-center text-sm"
             style={{ borderTop: "1px solid rgba(221,208,192,0.6)" }}
           >
             <span style={{ color: "#5C4A42" }}>已有账号？</span>{" "}
@@ -469,7 +443,7 @@ function RegisterForm() {
         </div>
 
         {/* 返回首页 */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-4">
           <Link
             href="/"
             className="text-sm transition-colors duration-200 inline-flex items-center gap-1"

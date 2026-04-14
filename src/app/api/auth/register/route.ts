@@ -12,7 +12,8 @@ import { hashPassword } from "@/lib/auth";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, phone, password, name } = body;
+    // 支持两种格式：account（合并输入框）或 email/phone 分开
+    const { account, email, phone, password, name } = body;
 
     // ── 基础校验 ──
     if (!password || typeof password !== "string" || password.length < 6) {
@@ -30,37 +31,52 @@ export async function POST(request: NextRequest) {
     }
 
     // 必须提供手机号或邮箱（二选一）
-    const hasEmail = email && typeof email === "string" && email.trim() !== "";
-    const hasPhone = phone && typeof phone === "string" && phone.trim() !== "";
+    // 如果传了 account（合并输入框），自动判断是手机号还是邮箱
+    let normalizedEmail: string | null = null;
+    let normalizedPhone: string | null = null;
 
-    if (!hasEmail && !hasPhone) {
+    if (account && typeof account === "string" && account.trim() !== "") {
+      const trimmedAccount = account.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const phoneRegex = /^1[3-9]\d{9}$/;
+
+      if (emailRegex.test(trimmedAccount)) {
+        normalizedEmail = trimmedAccount.toLowerCase();
+      } else if (phoneRegex.test(trimmedAccount)) {
+        normalizedPhone = trimmedAccount;
+      } else if (trimmedAccount.includes("@")) {
+        return NextResponse.json({ error: "邮箱格式不正确" }, { status: 400 });
+      } else {
+        return NextResponse.json({ error: "手机号格式不正确" }, { status: 400 });
+      }
+    }
+
+    // 兼容旧的 email/phone 分开传的方式
+    const hasEmailFallback = email && typeof email === "string" && email.trim() !== "";
+    const hasPhoneFallback = phone && typeof phone === "string" && phone.trim() !== "";
+
+    if (!normalizedEmail && !normalizedPhone && !hasEmailFallback && !hasPhoneFallback) {
       return NextResponse.json(
         { error: "请输入手机号或邮箱" },
         { status: 400 }
       );
     }
 
-    // 邮箱格式校验
-    if (hasEmail) {
+    // 使用 fallback 值
+    if (!normalizedEmail && hasEmailFallback) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
         return NextResponse.json({ error: "邮箱格式不正确" }, { status: 400 });
       }
+      normalizedEmail = email.trim().toLowerCase();
     }
-
-    // 手机号格式校验（简单校验，支持国内号码）
-    if (hasPhone) {
+    if (!normalizedPhone && hasPhoneFallback) {
       const phoneRegex = /^1[3-9]\d{9}$/;
       if (!phoneRegex.test(phone.trim())) {
-        return NextResponse.json(
-          { error: "手机号格式不正确" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "手机号格式不正确" }, { status: 400 });
       }
+      normalizedPhone = phone.trim();
     }
-
-    const normalizedEmail = hasEmail ? email.trim().toLowerCase() : null;
-    const normalizedPhone = hasPhone ? phone.trim() : null;
 
     // ── 查重：手机号或邮箱已存在 ──
     const existingUser = await prisma.user.findFirst({

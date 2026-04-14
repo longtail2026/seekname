@@ -22,6 +22,10 @@ export interface User {
   email?: string | null;
   phone?: string | null;
   name?: string | null;
+  avatar?: string | null;      // 头像 URL
+  gender?: string | null;
+  occupation?: string | null;
+  hobbies?: string[] | null;
   vipLevel: number;
   points: number;
 }

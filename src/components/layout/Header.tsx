@@ -1,508 +1,683 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Menu, X, Search, ChevronDown, User, LogOut, Settings, Crown } from "lucide-react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
 
-const Header = () => {
+interface User {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  avatar?: string | null;
+  vipLevel: number;
+  points: number;
+}
+
+export default function Header() {
+  const [user, setUser] = useState<User | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
-  const { user, logout, loading } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+  useEffect(() => {
+    // 检查登录状态
+    let token: string | null = null;
+    try {
+      token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("seekname_token")
+          : null;
+    } catch {}
+
+    if (token) {
+      // 尝试从缓存读取用户信息
+      try {
+        const cached = localStorage.getItem("seekname_user");
+        if (cached) {
+          setUser(JSON.parse(cached));
+        }
+      } catch {}
+
+      // 验证 session
+      fetch("/api/auth/session", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.user) {
+            setUser(data.user);
+            localStorage.setItem("seekname_user", JSON.stringify(data.user));
+          } else {
+            localStorage.removeItem("seekname_token");
+            localStorage.removeItem("seekname_user");
+            setUser(null);
+          }
+        })
+        .catch(() => {});
     }
-  };
 
-  // 获取显示名称
-  const displayName = user?.name || user?.email?.split("@")[0] || user?.phone || "用户";
+    // 点击外部关闭下拉菜单
+    const handleClickOutside = () => setDropdownOpen(false);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
-  // 处理登出
   const handleLogout = async () => {
-    setUserMenuOpen(false);
-    await logout();
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("seekname_token");
+    localStorage.removeItem("seekname_user");
+    setUser(null);
+    setDropdownOpen(false);
+    router.push("/");
+    router.refresh();
   };
-
-  const navItems = [
-    { name: "首页", href: "/" },
-    {
-      name: "个人起名",
-      href: "#",
-      dropdown: [
-        { name: "宝宝起名", href: "/baby" },
-        { name: "成人改名", href: "/rename" },
-      ],
-    },
-    {
-      name: "公司起名",
-      href: "#",
-      dropdown: [
-        { name: "公司起名", href: "/company" },
-        { name: "品牌起名", href: "/brand" },
-        { name: "项目起名", href: "/project" },
-      ],
-    },
-    { name: "宠物起名", href: "/pet" },
-    { name: "名字测评", href: "/evaluate" },
-    { name: "博客", href: "/blog" },
-  ];
 
   return (
-    <header 
-      className="fixed top-0 left-0 right-0 z-50 border-b shadow-sm"
-      style={{ 
-        background: 'rgba(253, 250, 244, 0.95)', 
-        backdropFilter: 'blur(8px)',
-        borderColor: '#E5DDD3'
+    <header
+      style={{
+        background: "rgba(255,255,255,0.75)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderBottom: "1px solid rgba(232,106,23,0.12)",
+        padding: "14px 0",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
       }}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 py-2">
-          {/* Logo - 印章风格 */}
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="flex items-center">
-              {/* 印章Logo */}
-              <div 
-                className="w-12 h-12 flex items-center justify-center mr-3 transition-all duration-300 group-hover:scale-105"
-                style={{ 
-                  background: '#C84A2A',
-                  border: '2px solid #A63A1E',
-                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.1)'
-                }}
-              >
-                <span 
-                  className="text-white text-xl font-bold tracking-wider"
-                  style={{ fontFamily: "'Noto Serif SC', serif" }}
-                >
-                  名
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span 
-                  className="text-2xl font-bold text-[#2C1810]"
-                  style={{ fontFamily: "'Noto Serif SC', serif" }}
-                >
-                  寻名网
-                </span>
-                <span className="text-xs text-[#5C4A42]">www.seekname.cn</span>
-              </div>
-            </div>
-            <div className="hidden md:block ml-4 pl-4 border-l border-[#C9A84C]/30">
-              <span 
-                className="text-sm text-[#5C4A42]"
-                style={{ fontFamily: "'Noto Serif SC', serif" }}
-              >
-                寻一个好名，许一个未来
-              </span>
-            </div>
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "0 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        {/* Logo */}
+        <Link
+          href="/"
+          style={{
+            fontSize: 24,
+            fontWeight: 800,
+            color: "#4A3428",
+            textDecoration: "none",
+            fontFamily: "'Noto Serif SC', serif",
+            letterSpacing: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          寻名
+        </Link>
+
+        {/* 桌面导航 */}
+        <nav
+          style={{ display: "flex", gap: 32, alignItems: "center" }}
+          className="desktop-nav"
+        >
+          <Link
+            href="/"
+            style={{
+              fontSize: 15,
+              color: "#6B5A4E",
+              textDecoration: "none",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLElement).style.color = "#E86A17")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLElement).style.color = "#6B5A4E")
+            }
+          >
+            首页
+          </Link>
+          <Link
+            href="/personal"
+            style={{
+              fontSize: 15,
+              color: "#6B5A4E",
+              textDecoration: "none",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLElement).style.color = "#E86A17")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLElement).style.color = "#6B5A4E")
+            }
+          >
+            我的起名
+          </Link>
+          <Link
+            href="/settings"
+            style={{
+              fontSize: 15,
+              color: "#6B5A4E",
+              textDecoration: "none",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLElement).style.color = "#E86A17")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLElement).style.color = "#6B5A4E")
+            }
+          >
+            账号设置
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item) => (
-              <div
-                key={item.name}
-                className="relative"
-                onMouseEnter={() => item.dropdown && setActiveDropdown(item.name)}
-                onMouseLeave={() => setActiveDropdown(null)}
-              >
-                <Link
-                  href={item.href}
-                  className="flex items-center px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
-                  style={{ 
-                    color: '#2C1810',
-                    fontFamily: "'Noto Serif SC', serif"
-                  }}
-                >
-                  {item.name}
-                  {item.dropdown && (
-                    <ChevronDown className="ml-1 w-4 h-4" />
-                  )}
-                </Link>
-                
-                {/* Dropdown Menu - 悬停显示 */}
-                {item.dropdown && (
-                  <div 
-                    className={`absolute top-full mt-[12px] py-1.5 transition-all duration-200 ${
-                      activeDropdown === item.name 
-                        ? 'opacity-100 visible translate-y-0' 
-                        : 'opacity-0 invisible -translate-y-2'
-                    }`}
-                    style={{ 
-                      background: '#FDFAF4',
-                      border: '1px solid #E5DDD3',
-                      boxShadow: '0 4px 12px rgba(44, 24, 16, 0.08)',
-                      left: '-6px',
-                      right: '-6px'
-                    }}
-                  >
-                    {item.dropdown.map((subItem) => (
-                      <Link
-                        key={subItem.name}
-                        href={subItem.href}
-                        className="block px-4 py-1.5 text-sm text-center transition-all duration-200"
-                        style={{ 
-                          color: '#2C1810',
-                          fontFamily: "'Noto Serif SC', serif"
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#F8F3EA';
-                          e.currentTarget.style.color = '#C84A2A';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = '#2C1810';
-                        }}
-                      >
-                        {subItem.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-3">
-            {/* Search Input */}
-            <form onSubmit={handleSearch} className="relative">
-              <input
-                type="text"
-                placeholder="搜索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className="w-40 lg:w-48 pl-4 pr-10 py-2 text-sm transition-all duration-200 outline-none"
-                style={{
-                  fontFamily: "'Noto Serif SC', serif",
-                  color: '#2C1810',
-                  background: isSearchFocused ? '#F8F3EA' : 'transparent',
-                  border: isSearchFocused ? '1px solid #C9A84C' : '1px solid #E5DDD3',
-                }}
-              />
-              <button
-                type="submit"
-                className="absolute right-0 top-0 h-full px-3 flex items-center justify-center transition-colors duration-200"
-                style={{ color: isSearchFocused ? '#C84A2A' : '#5C4A42' }}
-                aria-label="搜索"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </form>
-
-            {/* 用户状态：已登录 → 头像+下拉菜单；未登录 → 登录/注册按钮 */}
-            {user ? (
-              <div
-                className="relative hidden md:block"
-                onMouseEnter={() => setUserMenuOpen(true)}
-                onMouseLeave={() => setUserMenuOpen(false)}
-              >
-                {/* 用户头像/名称 */}
+          {/* 用户区域 */}
+          {!user ? (
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <Link href="/login">
                 <button
-                  className="flex items-center space-x-2 px-3 py-1.5 rounded-xl transition-all duration-200"
-                  style={{
-                    background: userMenuOpen ? "rgba(248,243,234,0.9)" : "transparent",
-                    border: `1px solid ${userMenuOpen ? "#DDD0C0" : "transparent"}`,
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "#E86A17";
+                    (e.currentTarget as HTMLElement).style.color = "#E86A17";
                   }}
-                  aria-label="用户菜单"
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "#DDD0C0";
+                    (e.currentTarget as HTMLElement).style.color = "#6B5A4E";
+                  }}
+                  style={{
+                    padding: "7px 18px",
+                    borderRadius: 8,
+                    border: "1px solid #DDD0C0",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    fontSize: 14,
+                    transition: "all 0.2s",
+                  }}
                 >
-                  {/* 头像占位 - 姓名首字或印章风格 */}
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+                  登录
+                </button>
+              </Link>
+              <Link href="/register">
+                <button
+                  onMouseEnter={(e) =>
+                    (e.currentTarget as HTMLElement).style.background = "#D55A0B"
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget as HTMLElement).style.background = "#E86A17"
+                  }
+                  style={{
+                    padding: "7px 18px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "#E86A17",
+                    color: "#FFF",
+                    cursor: "pointer",
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    transition: "background 0.2s",
+                  }}
+                >
+                  注册
+                </button>
+              </Link>
+            </div>
+          ) : (
+            /* 已登录 - 头像 + 下拉菜单 */
+            <div
+              style={{ position: "relative" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDropdownOpen(!dropdownOpen);
+              }}
+            >
+              {/* 头像/昵称触发区 */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                  borderRadius: 20,
+                  transition: "background 0.2s",
+                  border: dropdownOpen ? "1px solid #E86A17" : "1px solid transparent",
+                }}
+                onMouseEnter={(e) => {
+                  if (!dropdownOpen)
+                    (e.currentTarget as HTMLElement).style.background =
+                      "rgba(232,106,23,0.06)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!dropdownOpen)
+                    (e.currentTarget as HTMLElement).style.background =
+                      "transparent";
+                }}
+              >
+                {/* 头像 */}
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt=""
                     style={{
-                      background: "linear-gradient(135deg, #C84A2A, #E86A17)",
-                      fontFamily: "'Noto Serif SC', serif",
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: "2px solid #E86A17",
+                    }}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      background: "#E86A17",
+                      color: "#FFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: "'Noto Sans SC', sans-serif",
                     }}
                   >
-                    {(displayName.charAt(0) || "用").toUpperCase()}
-                  </div>
-                  <span
-                    className="text-sm font-medium max-w-[80px] truncate"
-                    style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2C1810" }}
-                  >
-                    {displayName}
+                    {(user.name || user.email || user.phone || "?").charAt(
+                      0
+                    ).toUpperCase()}
                   </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} style={{ color: "#B0AAA0" }} />
-                </button>
-
-                {/* 用户下拉菜单 */}
-                <div
-                  className={`absolute right-0 mt-2 w-52 py-2 rounded-xl transition-all duration-200 ${
-                    userMenuOpen
-                      ? "opacity-100 visible translate-y-0"
-                      : "opacity-0 invisible -translate-y-2"
-                  }`}
+                )}
+                <span
                   style={{
-                    background: "#FDFAF4",
-                    border: "1px solid #E5DDD3",
-                    boxShadow: "0 6px 20px rgba(44,24,16,0.10)",
+                    fontSize: 14,
+                    color: "#4A3428",
+                    maxWidth: 80,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    fontFamily: "'Noto Sans SC', sans-serif",
                   }}
                 >
-                  {/* 用户信息头部 */}
+                  {user.name || user.email || user.phone || "用户"}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "#999",
+                    transform: dropdownOpen ? "rotate(180deg)" : "rotate(0)",
+                    transition: "transform 0.2s",
+                    display: "inline-block",
+                  }}
+                >
+                  ▼
+                </span>
+              </div>
+
+              {/* 下拉菜单 */}
+              {dropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    right: 0,
+                    width: 180,
+                    background: "rgba(255,255,255,0.95)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    borderRadius: 12,
+                    boxShadow: "0 8px 32px rgba(74,52,40,0.15)",
+                    border: "1px solid rgba(232,106,23,0.1)",
+                    padding: "8px 0",
+                    zIndex: 200,
+                  }}
+                >
+                  {/* 用户信息 */}
                   <div
-                    className="px-4 py-3 mb-1 mx-[-0.5rem] rounded-lg"
-                    style={{ background: "rgba(232,106,23,0.04)" }}
+                    style={{
+                      padding: "12px 16px",
+                      borderBottom: "1px solid #EEE8DD",
+                      marginBottom: 4,
+                    }}
                   >
                     <p
-                      className="text-sm font-medium truncate"
-                      style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2D1B0E" }}
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#4A3428",
+                        margin: 0,
+                        fontFamily: "'Noto Sans SC', sans-serif",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
                     >
-                      {displayName}
-                    </p>
-                    <p className="text-xs mt-0.5" style={{ color: "#999" }}>
-                      {user.email || user.phone}
+                      {user.name || "未设置昵称"}
                     </p>
                     {user.vipLevel > 0 && (
                       <span
-                        className="inline-flex items-center gap-1 text-xs font-medium mt-1.5 px-2 py-0.5 rounded-full"
                         style={{
-                          background: "linear-gradient(135deg, #D4941A, #E8B02E)",
-                          color: "#fff",
-                          fontFamily: "'Noto Serif SC', serif",
+                          fontSize: 11,
+                          color: "#E86A17",
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                          marginTop: 2,
+                          display: "block",
                         }}
                       >
-                        <Crown className="w-3 h-3" /> VIP {user.vipLevel}
+                        VIP {user.vipLevel}
+                      </span>
+                    )}
+                    {user.points > 0 && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#888",
+                          fontFamily: "'Noto Sans SC', sans-serif",
+                          marginTop: 2,
+                          display: "block",
+                        }}
+                      >
+                        积分：{user.points}
                       </span>
                     )}
                   </div>
 
                   {/* 菜单项 */}
-                  <Link
-                    href="/personal"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200"
-                    style={{ color: "#2C1810", fontFamily: "'Noto Sans SC', sans-serif" }}
-                    onClick={() => setUserMenuOpen(false)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#F8F3EA";
-                      e.currentTarget.style.color = "#E86A17";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "#2C1810";
-                    }}
-                  >
-                    <User className="w-4 h-4" />
-                    个人中心
-                  </Link>
+                  {[
+                    { label: "🏠 我的起名", href: "/personal" },
+                    { label: "⚙️ 账号设置", href: "/settings" },
+                    { label: "📋 历史订单", href: "/orders" },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setDropdownOpen(false)}
+                      style={{
+                        display: "block",
+                        padding: "10px 16px",
+                        fontSize: 14,
+                        color: "#4A3428",
+                        textDecoration: "none",
+                        fontFamily: "'Noto Sans SC', sans-serif",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) =>
+                        ((e.currentTarget as HTMLElement).style.background =
+                          "rgba(232,106,23,0.06)")
+                      }
+                      onMouseLeave={(e) =>
+                        ((e.currentTarget as HTMLElement).style.background =
+                          "transparent")
+                      }
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
 
-                  <Link
-                    href="/personal/settings"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200"
-                    style={{ color: "#2C1810", fontFamily: "'Noto Sans SC', sans-serif" }}
-                    onClick={() => setUserMenuOpen(false)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#F8F3EA";
-                      e.currentTarget.style.color = "#E86A17";
+                  {/* 分割线 */}
+                  <hr
+                    style={{
+                      border: "none",
+                      borderTop: "1px solid #EEE8DD",
+                      margin: "6px 0",
                     }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "#2C1810";
-                    }}
-                  >
-                    <Settings className="w-4 h-4" />
-                    账号设置
-                  </Link>
+                  />
 
-                  <div className="my-1 mx-4" style={{ borderTop: "1px solid #EEE5DA" }} />
-
-                  {/* 登出按钮 */}
+                  {/* 退出登录 */}
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-all duration-200"
-                    style={{ color: "#E85A3A", fontFamily: "'Noto Sans SC', sans-serif" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,90,58,0.06)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: "10px 16px",
+                      border: "none",
+                      background: "none",
+                      textAlign: "left",
+                      fontSize: 14,
+                      color: "#C0392B",
+                      cursor: "pointer",
+                      fontFamily: "'Noto Sans SC', sans-serif",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) =>
+                      ((e.currentTarget as HTMLElement).style.background =
+                        "rgba(192,57,43,0.05)")
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.currentTarget as HTMLElement).style.background =
+                        "transparent")
+                    }
                   >
-                    <LogOut className="w-4 h-4" />
                     退出登录
                   </button>
                 </div>
-              </div>
-            ) : (
-              /* 未登录：显示 登录 + 注册 按钮 */
-              <>
-                {!loading && (
-                  <>
-                    <Link
-                      href={`/login?callbackUrl=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
-                      className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
-                      style={{
-                        color: "#2C1810",
-                        fontFamily: "'Noto Serif SC', serif",
-                      }}
-                    >
-                      登录
-                    </Link>
-                    <Link
-                      href={`/register?callbackUrl=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`}
-                      className="hidden md:inline-flex px-4 py-2 text-sm font-medium transition-all duration-200 nav-menu-item"
-                      style={{
-                        color: "#2C1810",
-                        fontFamily: "'Noto Serif SC', serif",
-                      }}
-                    >
-                      注册
-                    </Link>
-                  </>
-                )}
-              </>
-            )}
+              )}
+            </div>
+          )}
+        </nav>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2.5 transition-all duration-200 nav-menu-item"
-              style={{ color: '#5C4A42' }}
-              aria-label="菜单"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
+        {/* 移动端菜单按钮 */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="mobile-menu-btn"
+          style={{
+            display: "none",
+            flexDirection: "column",
+            gap: 5,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          <span
+            style={{
+              width: 22,
+              height: 2,
+              background: "#4A3428",
+              borderRadius: 1,
+              transition: "transform 0.2s",
+              transform: mobileMenuOpen ? "rotate(45deg) translate(5px,5px)" : "none",
+            }}
+          />
+          <span
+            style={{
+              width: 22,
+              height: 2,
+              background: "#4A3428",
+              borderRadius: 1,
+              opacity: mobileMenuOpen ? 0 : 1,
+            }}
+          />
+          <span
+            style={{
+              width: 22,
+              height: 2,
+              background: "#4A3428",
+              borderRadius: 1,
+              transition: "transform 0.2s",
+              transform: mobileMenuOpen ? "rotate(-45deg) translate(5px,-5px)" : "none",
+            }}
+          />
+        </button>
+      </div>
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div 
-            className="lg:hidden py-6 border-t animate-fadeIn"
-            style={{ 
-              background: 'rgba(253, 250, 244, 0.98)',
-              borderColor: '#E5DDD3'
+      {/* 移动端下拉菜单 */}
+      {mobileMenuOpen && (
+        <div
+          className="mobile-menu"
+          style={{
+            display: "none",
+            borderTop: "1px solid rgba(232,106,23,0.1)",
+            padding: "16px 24px",
+            background: "rgba(255,255,255,0.9)",
+          }}
+        >
+          <nav
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
             }}
           >
-            <nav className="flex flex-col space-y-2">
-              {navItems.map((item) => (
-                <div key={item.name}>
-                  <Link
-                    href={item.href}
-                    className="block px-5 py-3 text-base font-medium transition-all duration-200 nav-menu-item"
-                    style={{ 
-                      color: '#2C1810',
-                      fontFamily: "'Noto Serif SC', serif"
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                fontSize: 15,
+                color: "#4A3428",
+                textDecoration: "none",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                padding: "6px 0",
+              }}
+            >
+              首页
+            </Link>
+            <Link
+              href="/personal"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                fontSize: 15,
+                color: "#4A3428",
+                textDecoration: "none",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                padding: "6px 0",
+              }}
+            >
+              我的起名
+            </Link>
+            <Link
+              href="/settings"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                fontSize: 15,
+                color: "#4A3428",
+                textDecoration: "none",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                padding: "6px 0",
+              }}
+            >
+              账号设置
+            </Link>
+            <Link
+              href="/orders"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                fontSize: 15,
+                color: "#4A3428",
+                textDecoration: "none",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                padding: "6px 0",
+              }}
+            >
+              历史订单
+            </Link>
+
+            {!user ? (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{
+                    display: "block",
+                    marginTop: 8,
+                    textAlign: "center",
+                    padding: "10px",
+                    border: "1px solid #E86A17",
+                    borderRadius: 8,
+                    color: "#E86A17",
+                    textDecoration: "none",
+                    fontSize: 15,
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                  }}
+                >
+                  登录
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    padding: "10px",
+                    background: "#E86A17",
+                    borderRadius: 8,
+                    color: "#FFF",
+                    textDecoration: "none",
+                    fontSize: 15,
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                  }}
+                >
+                  注册
+                </Link>
+              </>
+            ) : (
+              <>
+                <div style={{ borderTop: "1px solid #EEE8DD", paddingTop: 10 }}>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "#888",
+                      margin: "0 0 4px 0",
+                      fontFamily: "'Noto Sans SC', sans-serif",
                     }}
-                    onClick={() => !item.dropdown && setIsMenuOpen(false)}
                   >
-                    {item.name}
-                  </Link>
-                  {item.dropdown && (
-                    <div className="ml-6 mt-1 space-y-1">
-                      {item.dropdown.map((subItem) => (
-                        <Link
-                          key={subItem.name}
-                          href={subItem.href}
-                          className="block px-5 py-2 text-sm transition-all duration-200"
-                          style={{ 
-                            color: '#5C4A42',
-                            fontFamily: "'Noto Serif SC', serif"
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = '#C84A2A';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = '#5C4A42';
-                          }}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          {subItem.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+                    当前用户：
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: "#4A3428",
+                      margin: "0",
+                      fontFamily: "'Noto Sans SC', sans-serif",
+                    }}
+                  >
+                    {user.name || user.email || user.phone || "用户"}
+                  </p>
                 </div>
-              ))}
-              <div className="pt-4 border-t mt-4 space-y-2" style={{ borderColor: '#E5DDD3' }}>
-                {user ? (
-                  <>
-                    {/* 已登录：显示用户信息和退出按钮 */}
-                    <div
-                      className="px-5 py-3 rounded-lg mx-auto"
-                      style={{
-                        background: "rgba(232,106,23,0.04)",
-                        border: "1px solid rgba(232,106,23,0.12)",
-                        maxWidth: "240px",
-                      }}
-                    >
-                      <p
-                        className="text-base font-medium text-center truncate"
-                        style={{ fontFamily: "'Noto Sans SC', sans-serif", color: "#2D1B0E" }}
-                      >
-                        {displayName}
-                      </p>
-                      <p className="text-xs text-center mt-0.5" style={{ color: "#999" }}>
-                        {user.email || user.phone}
-                      </p>
-                    </div>
-                    <Link
-                      href="/personal"
-                      className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
-                      style={{
-                        color: "#2C1810",
-                        fontFamily: "'Noto Serif SC', serif",
-                        border: "1px solid #DDD0C0",
-                      }}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      个人中心
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full px-5 py-3 text-base font-medium text-center transition-all duration-200"
-                      style={{
-                        color: "#E85A3A",
-                        fontFamily: "'Noto Serif SC', serif",
-                        border: "1px solid rgba(232,90,58,0.25)",
-                        background: "transparent",
-                      }}
-                    >
-                      退出登录
-                    </button>
-                  </>
-                ) : (
-                  !loading && (
-                    <>
-                      <Link
-                        href={`/login?callbackUrl=${encodeURIComponent("/")}`}
-                        className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
-                        style={{
-                          color: "#2C1810",
-                          fontFamily: "'Noto Serif SC', serif",
-                          border: "1px solid #C9A84C",
-                        }}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        登录
-                      </Link>
-                      <Link
-                        href={`/register?callbackUrl=${encodeURIComponent("/")}`}
-                        className="block px-5 py-3 text-base font-medium text-center transition-all duration-200"
-                        style={{
-                          color: "#2C1810",
-                          fontFamily: "'Noto Serif SC', serif",
-                          border: "1px solid #C9A84C",
-                        }}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        注册
-                      </Link>
-                    </>
-                  )
-                )}
-              </div>
-            </nav>
-          </div>
-        )}
-      </div>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #CCC",
+                    background: "none",
+                    borderRadius: 8,
+                    color: "#666",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                  }}
+                >
+                  退出登录
+                </button>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .desktop-nav {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: flex !important;
+          }
+          .mobile-menu {
+            display: block !important;
+          }
+        }
+      `}</style>
     </header>
   );
-};
-
-export default Header;
+}

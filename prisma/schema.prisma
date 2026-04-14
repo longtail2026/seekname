@@ -102,6 +102,12 @@ model User {
   phone       String?  @unique
   password    String?  // bcrypt 哈希密码
   name        String?  @db.VarChar(50)
+  avatar      String?  // 头像 URL（动漫风格）
+  
+  // 个人信息
+  gender      String?  @db.VarChar(10)   // 男/女
+  occupation  String?  @db.VarChar(50)   // 职业
+  hobbies     String[]                  // 爱好列表
   
   // 微信相关
   wxOpenId    String?  @unique @map("wx_openid")
