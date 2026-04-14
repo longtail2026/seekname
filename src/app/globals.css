@@ -557,33 +557,44 @@ html {
   position: relative;
   display: flex;
   align-items: stretch;
-  filter: drop-shadow(0 4px 16px rgba(44, 24, 16, 0.12));
+  /* 四周阴影增强立体感 */
+  filter:
+    drop-shadow(0 6px 20px rgba(44, 24, 16, 0.18))
+    drop-shadow(0 2px 8px rgba(44, 24, 16, 0.12))
+    drop-shadow(-2px 0 6px rgba(44, 24, 16, 0.08))
+    drop-shadow(2px 0 6px rgba(44, 24, 16, 0.08));
 }
 
 /* ─── 左右轴杆（卷轴在宣纸上层） ─── */
 .scroll-rod {
-  width: 18px;
+  width: 24px;
   flex-shrink: 0;
   position: relative;
-  border-radius: 4px;
+  border-radius: 6px;
   /* 木纹渐变 - 圆柱立体感 */
   background:
     repeating-linear-gradient(180deg,
       transparent 0px,
-      rgba(0,0,0,0.015) 1px,
+      rgba(0,0,0,0.02) 1px,
       transparent 2px,
-      transparent 5px
+      transparent 6px
     ),
     linear-gradient(90deg,
-      #5D3A1F 0%,
-      #7A4F2E 18%,
-      #8B5E3C 35%,
+      #4A2E18 0%,
+      #6B4226 15%,
+      #8B5E3C 30%,
       #A0724A 50%,
-      #8B5E3C 65%,
-      #7A4F2E 82%,
-      #5D3A1F 100%
+      #8B5E3C 70%,
+      #6B4226 85%,
+      #4A2E18 100%
     );
   z-index: 2;
+  /* 轴杆自身阴影 */
+  box-shadow:
+    inset 2px 0 4px rgba(0,0,0,0.3),
+    inset -2px 0 4px rgba(255,255,255,0.08),
+    2px 0 6px rgba(44, 24, 16, 0.25),
+    -2px 0 6px rgba(44, 24, 16, 0.15);
 }
 
 /* 轴杆两端金属帽 */
@@ -593,60 +604,66 @@ html {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 10px;
-  border-radius: 2px;
+  width: 36px;
+  height: 14px;
+  border-radius: 3px;
   background:
     linear-gradient(180deg,
-      #C9A84C 0%,
-      #E8D48B 25%,
+      #B8963C 0%,
+      #D4B860 20%,
+      #E8D48B 40%,
       #F0E4A8 50%,
-      #D4B860 75%,
-      #B08D30 100%
+      #E8D48B 60%,
+      #D4B860 80%,
+      #B8963C 100%
     );
   box-shadow:
-    0 1px 3px rgba(0,0,0,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.3);
+    0 2px 5px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    inset 0 -1px 0 rgba(0,0,0,0.1);
 }
 
 .scroll-rod::before {
-  top: -4px;
+  top: -6px;
 }
 
 .scroll-rod::after {
-  bottom: -4px;
+  bottom: -6px;
 }
 
-/* ─── 宣纸区域 - 紧缩在两个金属帽之间 ─── */
+/* ─── 宣纸区域 - 正好在两个金属帽之间 ─── */
 .scroll-body {
   flex: 1;
-  padding: 12px 20px;
-  margin-top: -12px;
-  margin-bottom: -12px;
+  padding: 18px 24px;
+  /* 正好在两个金属帽之间（金属帽各凸出6px） */
+  margin-top: -6px;
+  margin-bottom: -6px;
   background:
-    /* 淡白丹青水洗布纹路 */
+    /* 明显的布纹经纬线 */
     repeating-linear-gradient(90deg,
       transparent 0px,
-      rgba(140, 115, 70, 0.015) 1px,
+      rgba(120, 100, 60, 0.03) 1px,
       transparent 2px,
-      transparent 4px
+      transparent 3px
     ),
     repeating-linear-gradient(0deg,
       transparent 0px,
-      rgba(140, 115, 70, 0.01) 1px,
+      rgba(120, 100, 60, 0.025) 1px,
       transparent 2px,
-      transparent 5px
+      transparent 4px
     ),
-    /* 水洗布做旧底色 */
-    linear-gradient(135deg, #F2EBE0 0%, #EAE2D4 30%, #E8DFD0 50%, #EAE2D4 70%, #F2EBE0 100%);
+    /* 水洗布做旧底色 - 更明显的纹理 */
+    linear-gradient(135deg, #EDE6DA 0%, #E5DED0 25%, #E0D8C8 50%, #E5DED0 75%, #EDE6DA 100%);
   border-left: none;
   border-right: none;
   position: relative;
   z-index: 1;
-  /* 做旧质感 */
+  /* 做旧质感 + 宣纸边缘阴影 */
   box-shadow:
-    inset 0 0 40px rgba(160, 130, 80, 0.08),
-    inset 0 0 8px rgba(140, 120, 80, 0.05);
+    inset 0 0 50px rgba(140, 120, 80, 0.1),
+    inset 0 0 12px rgba(140, 120, 80, 0.06),
+    inset 4px 0 8px rgba(100, 80, 50, 0.05),
+    inset -4px 0 8px rgba(100, 80, 50, 0.05);
 }
 
 /* 宣纸上下边缘与轴杆衔接的阴影 */
@@ -656,7 +673,7 @@ html {
   position: absolute;
   left: 0;
   right: 0;
-  height: 12px;
+  height: 16px;
   pointer-events: none;
   z-index: 1;
 }
@@ -664,8 +681,8 @@ html {
 .scroll-body::before {
   top: 0;
   background: linear-gradient(180deg,
-    rgba(80, 55, 25, 0.10) 0%,
-    rgba(80, 55, 25, 0.02) 60%,
+    rgba(60, 45, 25, 0.12) 0%,
+    rgba(60, 45, 25, 0.04) 40%,
     transparent 100%
   );
 }
@@ -673,8 +690,8 @@ html {
 .scroll-body::after {
   bottom: 0;
   background: linear-gradient(0deg,
-    rgba(80, 55, 25, 0.10) 0%,
-    rgba(80, 55, 25, 0.02) 60%,
+    rgba(60, 45, 25, 0.12) 0%,
+    rgba(60, 45, 25, 0.04) 40%,
     transparent 100%
   );
 }
