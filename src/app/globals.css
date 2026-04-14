@@ -617,27 +617,36 @@ html {
   bottom: -4px;
 }
 
-/* ─── 宣纸区域（在轴杆下层，宽度不超过轴杆净高） ─── */
+/* ─── 宣纸区域 - 紧缩在两个金属帽之间 ─── */
 .scroll-body {
   flex: 1;
-  padding: 20px 24px;
+  padding: 12px 20px;
+  margin-top: -12px;
+  margin-bottom: -12px;
   background:
-    /* 极淡的宣纸纤维纹理 */
-    linear-gradient(180deg,
-      rgba(255,248,235,0) 0%,
-      rgba(255,248,235,0.3) 4%,
-      rgba(255,248,235,0) 8%,
-      rgba(255,248,235,0) 92%,
-      rgba(255,248,235,0.3) 96%,
-      rgba(255,248,235,0) 100%
+    /* 淡白丹青水洗布纹路 */
+    repeating-linear-gradient(90deg,
+      transparent 0px,
+      rgba(140, 115, 70, 0.015) 1px,
+      transparent 2px,
+      transparent 4px
     ),
-    linear-gradient(135deg, #F8F0E0 0%, #EDE4D0 50%, #F8F0E0 100%);
-  border-top: 1px solid #C8B898;
-  border-bottom: 1px solid #C8B898;
+    repeating-linear-gradient(0deg,
+      transparent 0px,
+      rgba(140, 115, 70, 0.01) 1px,
+      transparent 2px,
+      transparent 5px
+    ),
+    /* 水洗布做旧底色 */
+    linear-gradient(135deg, #F2EBE0 0%, #EAE2D4 30%, #E8DFD0 50%, #EAE2D4 70%, #F2EBE0 100%);
+  border-left: none;
+  border-right: none;
   position: relative;
   z-index: 1;
+  /* 做旧质感 */
   box-shadow:
-    inset 0 0 30px rgba(160, 130, 80, 0.05);
+    inset 0 0 40px rgba(160, 130, 80, 0.08),
+    inset 0 0 8px rgba(140, 120, 80, 0.05);
 }
 
 /* 宣纸上下边缘与轴杆衔接的阴影 */
