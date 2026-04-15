@@ -40,6 +40,10 @@ const mainNavItems = [
     label: "好名测评",
     href: "/evaluate",
   },
+  {
+    label: "起名杂谈",
+    href: "/blog",
+  },
 ];
 
 export default function Header() {
@@ -121,21 +125,21 @@ export default function Header() {
         alignItems: "stretch",
       }}
     >
-      {/* Single row: Banner(left) | Nav(center) | Search+User(right) */}
+      {/* Single row: Banner(left) | Nav+Search+User(right) */}
       <div
         style={{
-          maxWidth: 1280,
+          maxWidth: 1440,
           margin: "0 auto",
-          padding: "0 24px",
+          padding: "0 32px",
           height: "100%",
           width: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 16,
+          gap: 0,
         }}
       >
-        {/* Left: Banner image (圆角) */}
+        {/* Left: Banner image (圆角) - 与首屏内容左侧对齐 */}
         <Link
           href="/"
           style={{ textDecoration: "none", display: "flex", alignItems: "center", flexShrink: 0 }}
@@ -144,8 +148,8 @@ export default function Header() {
             src="/images/banner.png"
             alt="寻名网"
             style={{
-              width: 234,
-              height: 50,
+              width: 220,
+              height: 48,
               objectFit: "contain",
               display: "block",
               borderRadius: 10,
@@ -153,16 +157,26 @@ export default function Header() {
           />
         </Link>
 
-        {/* Center: 主导航 */}
+        {/* Right: 主导航 + 搜索 + 用户，整体靠右 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0,
+            flex: "1 1 auto",
+            justifyContent: "flex-end",
+          }}
+        >
+
+        {/* 主导航菜单 */}
         <nav
           className="desktop-nav"
           style={{
-            flex: "1 1 auto",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-            padding: "0 12px",
+            justifyContent: "flex-end",
+            gap: 2,
+            padding: "0 8px",
           }}
         >
           {/* 首页 */}
@@ -291,71 +305,66 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Right: 搜索 + 注册/登录 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {/* 站内搜索框 */}
-          <form onSubmit={handleSearchSubmit} className="desktop-nav">
-            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索名字、典籍..."
-                style={{
-                  width: 200,
-                  height: 32,
-                  padding: "0 36px 0 14px",
-                  fontSize: 13,
-                  borderRadius: 20,
-                  border: "1px solid #DDD0C0",
-                  background: "rgba(255,255,255,0.9)",
-                  color: "#4A3428",
-                  fontFamily: "'Noto Sans SC', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.25s, box-shadow 0.25s",
-                }}
-                onFocus={(e) => {
-                  (e.target as HTMLInputElement).style.borderColor = "#D4941A";
-                  (e.target as HTMLInputElement).style.boxShadow = "0 0 0 3px rgba(212,148,26,0.1)";
-                }}
-                onBlur={(e) => {
-                  (e.target as HTMLInputElement).style.borderColor = "#DDD0C0";
-                  (e.target as HTMLInputElement).style.boxShadow = "none";
-                }}
-              />
-              <button
-                type="submit"
-                onClick={handleSearchSubmit}
-                style={{
-                  position: "absolute",
-                  right: 2,
-                  top: 2,
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "#E86A17",
-                  color: "#FFF",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 14,
-                  padding: 0,
-                }}
-                title="搜索"
-              >
-                🔍
-              </button>
-            </div>
-          </form>
+        {/* 搜索框 */}
+        <form onSubmit={handleSearchSubmit} className="desktop-nav" style={{ marginLeft: 8 }}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜索名字、典籍..."
+              style={{
+                width: 180,
+                height: 32,
+                padding: "0 36px 0 14px",
+                fontSize: 13,
+                borderRadius: 20,
+                border: "1px solid #DDD0C0",
+                background: "rgba(255,255,255,0.9)",
+                color: "#4A3428",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                outline: "none",
+                transition: "border-color 0.25s, box-shadow 0.25s",
+              }}
+              onFocus={(e) => {
+                (e.target as HTMLInputElement).style.borderColor = "#D4941A";
+                (e.target as HTMLInputElement).style.boxShadow = "0 0 0 3px rgba(212,148,26,0.1)";
+              }}
+              onBlur={(e) => {
+                (e.target as HTMLInputElement).style.borderColor = "#DDD0C0";
+                (e.target as HTMLInputElement).style.boxShadow = "none";
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                position: "absolute",
+                right: 2,
+                top: 2,
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                border: "none",
+                background: "#E86A17",
+                color: "#FFF",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                padding: 0,
+              }}
+              title="搜索"
+            >
+              🔍
+            </button>
+          </div>
+        </form>
 
-          {/* 注册 / 登录 或 用户头像下拉 */}
+        {/* 注册 / 登录 或 用户头像下拉 */}
+        <div style={{ marginLeft: 8 }} className="desktop-nav">
         {!user ? (
-          <div
-            style={{ display: "flex", gap: 8, alignItems: "center" }}
-            className="desktop-nav"
-          >
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <Link href="/register">
               <button
                 className="nav-item"
@@ -400,7 +409,7 @@ export default function Header() {
             </Link>
           </div>
         ) : (
-          <div ref={userDropdownRef} style={{ position: "relative" }} className="desktop-nav">
+          <div ref={userDropdownRef} style={{ position: "relative" }}>
             {/* 头像/昵称触发区 */}
             <div
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
@@ -537,18 +546,8 @@ export default function Header() {
 
                 {/* 菜单项 */}
                 {[
-                  {
-                    icon: "📋",
-                    label: "我的订单",
-                    href: "/orders",
-                    desc: "查看起名历史记录",
-                  },
-                  {
-                    icon: "⚙️",
-                    label: "账号设置",
-                    href: "/settings",
-                    desc: "头像与个人信息管理",
-                  },
+                  { icon: "📋", label: "我的订单", href: "/orders", desc: "查看起名历史记录" },
+                  { icon: "⚙️", label: "账号设置", href: "/settings", desc: "头像与个人信息管理" },
                 ].map((item) => (
                   <Link
                     key={item.href}
@@ -561,30 +560,16 @@ export default function Header() {
                       transition: "background 0.15s",
                     }}
                     onMouseEnter={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background =
-                        "rgba(232,106,23,0.05)")
+                      ((e.currentTarget as HTMLElement).style.background = "rgba(232,106,23,0.05)")
                     }
                     onMouseLeave={(e) =>
                       ((e.currentTarget as HTMLElement).style.background = "transparent")
                     }
                   >
-                    <div
-                      style={{
-                        fontSize: 14,
-                        color: "#4A3428",
-                        fontFamily: "'Noto Sans SC', sans-serif",
-                      }}
-                    >
+                    <div style={{ fontSize: 14, color: "#4A3428", fontFamily: "'Noto Sans SC', sans-serif" }}>
                       {item.icon} {item.label}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#AAA",
-                        fontFamily: "'Noto Sans SC', sans-serif",
-                        marginTop: 1,
-                      }}
-                    >
+                    <div style={{ fontSize: 11, color: "#AAA", fontFamily: "'Noto Sans SC', sans-serif", marginTop: 1 }}>
                       {item.desc}
                     </div>
                   </Link>
@@ -608,8 +593,7 @@ export default function Header() {
                     transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLElement).style.background =
-                      "rgba(192,57,43,0.05)")
+                    ((e.currentTarget as HTMLElement).style.background = "rgba(192,57,43,0.05)")
                   }
                   onMouseLeave={(e) =>
                     ((e.currentTarget as HTMLElement).style.background = "transparent")
@@ -621,7 +605,9 @@ export default function Header() {
             )}
           </div>
         )}
-        </div>{/* End Right: search + auth */}
+        </div>
+
+        </div>{/* End Right wrapper */}
 
         {/* 移动端汉堡按钮 */}
         <button
@@ -774,6 +760,21 @@ export default function Header() {
               }}
             >
               ✨ 好名测评
+            </Link>
+
+            <Link
+              href="/blog"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                fontSize: 15,
+                color: "#4A3428",
+                textDecoration: "none",
+                fontFamily: "'Noto Sans SC', sans-serif",
+                padding: "10px 0",
+                borderBottom: "1px solid #F5EDE0",
+              }}
+            >
+              📝 起名杂谈
             </Link>
 
             {user ? (
