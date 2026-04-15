@@ -142,7 +142,6 @@ export default function Home() {
         {/* 水墨背景装饰 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-[#2D1B0E]/6 to-transparent blur-3xl" />
-          <div className="absolute -bottom-32 -right-20 w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-[#E86A17]/5 to-transparent blur-3xl" />
           <svg className="absolute top-24 right-[15%] opacity-[0.04]" width="200" height="200" viewBox="0 0 200 200">
             <circle cx="100" cy="100" r="90" stroke="#D4941A" strokeWidth="0.5" fill="none"/>
             <circle cx="100" cy="100" r="75" stroke="#D4941A" strokeWidth="0.5" fill="none"/>
@@ -350,7 +349,6 @@ export default function Home() {
       <section id="screen-2" className="fullscreen-section relative overflow-hidden">
         {/* 背景 */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E86A17]/20 to-transparent" />
           <svg className="absolute bottom-[-80px] left-[-100px] opacity-[0.03] rotate-12" width="350" height="350" viewBox="0 0 350 350">
             <rect x="25" y="25" width="300" height="300" rx="150" stroke="#D4941A" strokeWidth="0.5" fill="none"/>
             <rect x="55" y="55" width="240" height="240" rx="120" stroke="#D4941A" strokeWidth="0.5" fill="none"/>

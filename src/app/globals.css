@@ -51,12 +51,31 @@
     background-color: #FFFCF7;
   }
 
-  /* 全局平铺背景图 */
-  .tiled-bg {
-    background-image: url('/images/60-60-1.png');
-    background-repeat: repeat;
-    background-size: auto;
-  }
+body {
+  background: #f7f3e8;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* 让伪层不影响点击 */
+  background-image: 
+    repeating-linear-gradient(45deg, 
+      rgba(160, 140, 110, 0.02) 0px,
+      rgba(160, 140, 110, 0.02) 2px,
+      transparent 2px,
+      transparent 6px
+    ),
+    radial-gradient(ellipse at 50% 50%, 
+      rgba(200, 185, 160, 0.08) 0%, 
+      transparent 70%);
+  backdrop-filter: blur(0.5px); /* 极轻微整体模糊，增强朦胧感 */
+}
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Noto Serif SC', 'Noto Sans SC', serif;
@@ -106,7 +125,7 @@
     background-blend-mode: multiply;
   }
 
-  /* 古韵暗纹背景 - 已由 .tiled-bg 平铺图片替代 */
+  /* 古韵暗纹背景 */
   body {
     position: relative;
     background-color: #FFFCF7;
