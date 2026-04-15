@@ -109,9 +109,9 @@ export default function Header() {
   return (
     <header
       style={{
-        background: "rgba(255,252,247,0.92)",
-        backdropFilter: "blur(4px)",
-        WebkitBackdropFilter: "blur(4px)",
+        background: "rgba(255,252,247,0.85)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
         borderBottom: "1px solid rgba(212,148,26,0.18)",
         position: "fixed",
         top: 0,
@@ -653,7 +653,7 @@ export default function Header() {
           style={{
             borderTop: "1px solid rgba(212,148,26,0.15)",
             padding: "16px 24px",
-            background: "rgba(255,255,255,0.97)",
+            background: "rgba(255,255,255,0.93)",
           }}
         >
           {/* 移动端搜索 */}

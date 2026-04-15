@@ -106,6 +106,8 @@ export default function Home() {
   const [gender, setGender] = useState<"男"|"女">("男");
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
+  const [expectations, setExpectations] = useState("");
+  const [style, setStyle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   // 标记是否正在使用 IME 输入法（如拼音）
   const [isComposing, setIsComposing] = useState(false);
@@ -122,6 +124,8 @@ export default function Home() {
       birthDate,
     });
     if (birthTime) params.set("birthTime", birthTime);
+    if (expectations.trim()) params.set("expectations", expectations.trim());
+    if (style.trim()) params.set("style", style.trim());
     window.location.href = `/naming?${params.toString()}`;
   };
 
@@ -133,13 +137,12 @@ export default function Home() {
 
   return (
     <div className="relative" style={{ paddingTop: 60 }}>
-      {/* ════════════ 第一屏：Hero 入口 ════════════ */}
+      {/* ════════════ 第一屏：Hero 入口（左右布局） ════════════ */}
       <section id="screen-1" className="fullscreen-section relative" style={{ minHeight: 'calc(100dvh - 60px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         {/* 水墨背景装饰 */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-[#2D1B0E]/6 to-transparent blur-3xl" />
           <div className="absolute -bottom-32 -right-20 w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-[#E86A17]/5 to-transparent blur-3xl" />
-          {/* 古风装饰线条 */}
           <svg className="absolute top-24 right-[15%] opacity-[0.04]" width="200" height="200" viewBox="0 0 200 200">
             <circle cx="100" cy="100" r="90" stroke="#D4941A" strokeWidth="0.5" fill="none"/>
             <circle cx="100" cy="100" r="75" stroke="#D4941A" strokeWidth="0.5" fill="none"/>
@@ -149,134 +152,127 @@ export default function Home() {
           </svg>
         </div>
 
-        {/* 主内容区 */}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        {/* ── 左右两栏主体 ── */}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex items-center" style={{ paddingTop: 30 }}>
+          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14 items-end z-10">
 
-            {/* ── 左侧：标题 + 起名入口 ── */}
-            <div className="text-center lg:text-left z-10">
-              {/* 顶部标签 */}
-              <div className="inline-flex items-center gap-3 mb-3 animate-ink-spread">
-                <span className="w-10 h-[1px] bg-gradient-to-r from-transparent to-[#D4941A]" />
-                <span className="text-sm tracking-[0.25em] text-[#D4941A] font-medium uppercase">千年智慧 · 一秒传承</span>
-                <span className="w-10 h-[1px] bg-gradient-to-l from-transparent to-[#D4941A]" />
+            {/* ══ 左栏：标题 + 画轴表单（立即起名） ══ */}
+            <div className="flex flex-col items-center lg:items-start">
+              {/* 标题（画轴上方） */}
+              <div className="w-full mb-5 text-center lg:text-left" style={{ maxWidth: 620 }}>
+                <div className="inline-flex items-center gap-3 mb-3 animate-ink-spread">
+                  <span className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#D4941A]" />
+                  <span className="text-[15px] tracking-[0.25em] text-[#D4941A] font-medium uppercase">千年智慧 · 一秒传承</span>
+                  <span className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#D4941A]" />
+                </div>
+                <h1
+                  className="text-[2.25rem] sm:text-[2.75rem] lg:text-[3.25rem] font-bold leading-[1.1] tracking-wide mb-2"
+                  style={{ fontFamily: "'Noto Serif SC', 'Songti SC', serif" }}
+                >
+                  <span className="block text-[#2D1B0E] animate-char-reveal">AI读懂</span>
+                  <span className="block text-[#E86A17] animate-char-reveal delay-200">千年起名之道</span>
+                </h1>
+                <p className="text-[15px] lg:text-[17px] text-[#5A4334] leading-relaxed whitespace-nowrap" style={{ fontFamily: "'Noto Sans SC', sans-serif" }}>
+                  12万部典籍 × 深度学习 × 八字五行 · <span className="text-[#E86A17] font-semibold whitespace-nowrap">30秒生成6个吉祥好名</span>
+                </p>
               </div>
 
-              {/* 震撼标题 */}
-              <h1
-                className="text-[2.5rem] sm:text-[3rem] lg:text-[3.75rem] xl:text-6xl font-bold leading-[1.15] tracking-wide mb-3"
-                style={{ fontFamily: "'Noto Serif SC', 'Songti SC', serif" }}
-              >
-                <span className="block text-[#2D1B0E] animate-char-reveal">AI读懂</span>
-                <span className="block text-[#E86A17] mt-1 animate-char-reveal delay-200">千年起名之道</span>
-              </h1>
+              {/* 统计数据行 */}
+              <div className="flex gap-7 mb-4" style={{ maxWidth: 620 }}>
+                {[
+                  { n: "12万+", l: "典籍收录" },
+                  { n: "99.6%", l: "好评率" },
+                  { n: "<30s", l: "响应速度" },
+                ].map((s, i) => (
+                  <div key={i} className="text-center">
+                    <div className="text-[15px] font-bold text-[#E86A17]" style={{ fontFamily: "'Noto Serif SC', serif" }}>{s.n}</div>
+                    <div className="text-[11px] text-[#A09080] tracking-wide">{s.l}</div>
+                  </div>
+                ))}
+              </div>
 
-              {/* 副标题 */}
-              <p
-                className="text-base lg:text-lg text-[#5A4334] mb-5 max-w-md mx-auto lg:mx-0 leading-relaxed"
-                style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
-              >
-                12万部典籍 × 深度学习 × 八字五行<br/>
-                <span className="text-[#E86A17] font-semibold">30秒</span> 为您生成 <span className="text-[#E86A17] font-semibold">6个</span> 吉祥好名
-              </p>
-
-              {/* 起名表单 - 古风卷轴样式 */}
-              <form onSubmit={handleSubmit} className="mb-4 max-w-lg mx-auto lg:mx-0">
-                {/* 卷轴容器 */}
-                <div className="scroll-painting relative max-w-lg">
-                  {/* 左侧轴杆 */}
-                  <div className="scroll-rod" />
-                  {/* 宣纸区域 */}
-                  <div className="scroll-body">
+              <form onSubmit={handleSubmit} className="w-full flex flex-col items-center lg:items-start">
+                <div className="relative w-full" style={{ maxWidth: 620 }}>
+                  <img
+                    src="/images/画轴.png"
+                    alt="起名画轴"
+                    className="w-full h-auto"
+                    style={{ display: 'block', borderRadius: 4 }}
+                    draggable={false}
+                  />
+                  <div className="absolute inset-0 flex flex-col justify-center" style={{ padding: '28px 48px' }}>
                     {/* 第一行：姓氏 + 性别 */}
-                    <div className="flex gap-3 mb-3">
-                      <div className="relative flex-1 min-w-0">
-                        <input
-                          type="text"
-                          inputMode="text"
-                          value={surname}
-                          onChange={(e) => {
-                            if (isComposing) {
-                              setSurname(e.target.value);
-                              return;
-                            }
-                            setSurname(handleInput(e.target.value));
-                          }}
-                          onCompositionStart={() => setIsComposing(true)}
-                          onCompositionEnd={(e) => {
-                            setIsComposing(false);
-                            const val = handleInput((e.target as HTMLInputElement).value);
-                            setSurname(val);
-                          }}
-                          placeholder="请输入您的姓氏"
-                          className="w-full px-4 py-2.5 text-base scroll-input-bg
-                                     rounded-lg focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
-                                     transition-all duration-300 placeholder:text-[#B0A090]"
-                          style={{ fontFamily: "'Noto Serif SC', serif", color: '#3D2B1F' }}
-                          autoComplete="off"
-                        />
-                      </div>
-                      {/* 性别选择 */}
-                      <div className="flex rounded-lg overflow-hidden border border-[#C4A882] shrink-0">
+                    <div className="flex gap-3 mb-2.5">
+                      <input
+                        type="text"
+                        inputMode="text"
+                        value={surname}
+                        onChange={(e) => {
+                          if (isComposing) { setSurname(e.target.value); return; }
+                          setSurname(handleInput(e.target.value));
+                        }}
+                        onCompositionStart={() => setIsComposing(true)}
+                        onCompositionEnd={(e) => {
+                          setIsComposing(false);
+                          setSurname(handleInput((e.target as HTMLInputElement).value));
+                        }}
+                        placeholder="请输入您的姓氏"
+                        className="flex-1 min-w-0 px-3 py-2 text-[15px] rounded"
+                        style={{ fontFamily: "'Noto Serif SC', serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.88)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
+                        autoComplete="off"
+                      />
+                      <div className="flex rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(180,160,130,0.4)' }}>
                         {(["男", "女"] as const).map((g) => (
-                          <button
-                            key={g}
-                            type="button"
-                            onClick={() => setGender(g)}
-                            className={`px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
-                              gender === g
-                                ? g === "男"
-                                  ? "bg-[#4A90D9] text-white"
-                                  : "bg-[#E870A0] text-white"
-                                : "scroll-input-bg text-[#5A4334] hover:bg-[#EDE4D3]"
-                            }`}
-                          >
-                            {g}
-                          </button>
+                          <button key={g} type="button" onClick={() => setGender(g)}
+                            className="px-5 py-2 text-[15px] font-medium transition-all duration-200"
+                            style={{
+                              background: gender === g ? (g === "男" ? "#4A90D9" : "#E870A0") : "rgba(255, 252, 245, 0.88)",
+                              color: gender === g ? "#fff" : "#5A4334",
+                              border: 'none', cursor: 'pointer', fontFamily: "'Noto Sans SC', sans-serif",
+                            }}
+                          >{g}</button>
                         ))}
                       </div>
                     </div>
-
-                    {/* 第二行：出生日期 + 出生时间 */}
-                    <div className="flex gap-3 mb-4">
-                      <div className="flex-1 min-w-0 relative">
-                        <input
-                          type="date"
-                          value={birthDate}
-                          onChange={(e) => setBirthDate(e.target.value)}
-                          className="w-full px-4 py-2.5 text-base scroll-input-bg
-                                     rounded-lg focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
-                                     transition-all duration-300 text-[#2D1B0E]"
-                          style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
-                        />
-                      </div>
-                      <div className="relative w-[140px] shrink-0">
-                        <input
-                          type="time"
-                          value={birthTime}
-                          onChange={(e) => setBirthTime(e.target.value)}
-                          placeholder="可选"
-                          className="w-full px-4 py-2.5 text-base scroll-input-bg
-                                     rounded-lg focus:border-[#E86A17] focus:outline-none focus:shadow-[0_0_0_3px_rgba(232,106,23,0.15)]
-                                     transition-all duration-300 text-[#2D1B0E]"
-                          style={{ fontFamily: "'Noto Sans SC', sans-serif" }}
-                        />
-                      </div>
+                    {/* 第二行：年月日 + 时间 */}
+                    <div className="flex gap-3 mb-2.5">
+                      <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
+                        className="flex-1 min-w-0 px-3 py-2 text-[15px] rounded"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.88)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
+                      />
+                      <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
+                        className="flex-1 min-w-0 px-3 py-2 text-[15px] rounded"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.88)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
+                      />
                     </div>
-
-                    {/* 立即起名按钮 */}
+                    {/* 第三行：期望寓意 + 风格偏好 */}
+                    <div className="flex gap-3 mb-2.5">
+                      <input type="text" value={expectations} onChange={(e) => setExpectations(e.target.value)}
+                        placeholder="期望寓意（如：才华横溢）" className="flex-1 min-w-0 px-3 py-2 text-[15px] rounded"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.88)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
+                        autoComplete="off"
+                      />
+                      <input type="text" value={style} onChange={(e) => setStyle(e.target.value)}
+                        placeholder="风格偏好（如：古典雅致）" className="flex-1 min-w-0 px-3 py-2 text-[15px] rounded"
+                        style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.88)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
+                        autoComplete="off"
+                      />
+                    </div>
+                    {/* 立即起名按钮 - 黑色底色 */}
                     <button
                       type="submit"
                       disabled={!surname.trim() || !birthDate || isLoading}
-                      className="w-full py-3.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium text-white transition-all duration-300 hover:shadow-lg"
+                      className="w-full py-2.5 rounded text-[15px] font-medium text-white transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
-                        background: 'linear-gradient(135deg, #E86A17 0%, #C8540A 100%)',
-                        boxShadow: '0 2px 12px rgba(232,106,23,0.3)',
+                        background: '#1a1a18',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                        border: 'none',
+                        cursor: surname.trim() && birthDate ? 'pointer' : 'not-allowed',
                       }}
                     >
                       {isLoading ? (
                         <span className="flex items-center justify-center gap-2">
-                          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                           </svg>
@@ -284,42 +280,28 @@ export default function Home() {
                         </span>
                       ) : (
                         <span className="flex items-center justify-center gap-1.5">
-                          <Sparkles className="w-5 h-5" />
+                          <Sparkles className="w-4 h-4" />
                           立即起名
                         </span>
                       )}
                     </button>
                   </div>
-                  {/* 右侧轴杆 */}
-                  <div className="scroll-rod" />
                 </div>
-                <p className="text-xs text-[#B0AAA0] mt-2 ml-1 text-center lg:text-left">
+                {/* 已有用户数提示 */}
+                <p className="text-xs text-[#B0AAA0] mt-2 text-center lg:text-left">
                   已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名
                 </p>
               </form>
-
-              {/* 底部统计 */}
-              <div className="flex justify-center lg:justify-start gap-8 mt-2">
-                {[
-                  { n: SITE_CONFIG.stats.classicsCount, l: "典籍收录" },
-                  { n: SITE_CONFIG.stats.satisfactionRate, l: "好评率" },
-                  { n: SITE_CONFIG.stats.generateTime, l: "响应速度" },
-                ].map((s, i) => (
-                  <div key={i} className="text-left">
-                    <div className="text-xl font-bold text-[#E86A17]" style={{ fontFamily: "'Noto Serif SC', serif" }}>{s.n}</div>
-                    <div className="text-[11px] text-[#A09080] tracking-wide">{s.l}</div>
-                  </div>
-                ))}
-              </div>
             </div>
 
-            {/* ── 右侧：四张价值卡片 ── */}
-            <div className="animate-ink-spread delay-300 z-10">
-              <div className="grid grid-cols-2 gap-4 lg:gap-5">
+            {/* ══ 右栏：四张价值卡片 ══ */}
+            <div className="flex flex-col items-center lg:items-center">
+              {/* 四张价值卡片 - 2×2 网格（放大） */}
+              <div className="grid grid-cols-2 gap-6 lg:gap-8 w-full animate-ink-spread delay-300">
                 {valueCards.map((card, idx) => (
                   <div
                     key={idx}
-                    className="group p-6 lg:p-8 text-center rounded-2xl transition-all duration-400 hover:-translate-y-1 hover:shadow-xl cursor-default"
+                    className="group p-7 lg:p-9 text-center rounded-2xl transition-all duration-400 hover:-translate-y-1 hover:shadow-xl cursor-default"
                     style={{
                       background: 'linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,248,240,0.85))',
                       borderTop: `3px solid ${card.color}`,
@@ -335,19 +317,17 @@ export default function Home() {
                       (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(44,24,16,0.05)';
                     }}
                   >
-                    {/* 图标 */}
                     <div
-                      className="w-16 h-16 lg:w-20 lg:h-20 mx-auto mb-4 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                      className="w-16 h-16 lg:w-[76px] lg:h-[76px] mx-auto mb-3 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
                       style={{ background: `${card.color}12` }}
                     >
-                      <card.icon className="w-8 h-8 lg:w-9 lg:h-9" style={{ color: card.color }} />
+                      <card.icon className="w-8 h-8 lg:w-10 lg:h-10" style={{ color: card.color }} />
                     </div>
-                    {/* 标题数字 */}
-                    <div className="text-[1.75rem] lg:text-2xl font-bold mb-1" style={{ color: card.color, fontFamily: "'Noto Serif SC', serif" }}>
+                    <div className="text-[1.5rem] lg:text-[1.8rem] font-bold mb-1" style={{ color: card.color, fontFamily: "'Noto Serif SC', serif" }}>
                       {card.title}
                     </div>
-                    <div className="text-sm lg:text-base font-medium text-[#2D1B0E]/80 mb-1.5">{card.subtitle}</div>
-                    <div className="text-xs lg:text-sm text-[#5A4334]/70 leading-relaxed">{card.desc}</div>
+                    <div className="text-[13px] lg:text-sm font-medium text-[#2D1B0E]/80 mb-0.5">{card.subtitle}</div>
+                    <div className="text-xs lg:text-[13px] text-[#5A4334]/70 leading-relaxed">{card.desc}</div>
                   </div>
                 ))}
               </div>
@@ -360,10 +340,9 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
-
-
       </section>
 
 
@@ -621,9 +600,7 @@ export default function Home() {
             <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 mb-4 text-center md:text-left">
               <div className="md:text-center">
                 <div className="flex items-center gap-2 mb-2 justify-center">
-                  <div className="w-7 h-7 bg-gradient-to-br from-[#E86A17] to-[#C8540A] rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>名</span>
-                  </div>
+                  <img src="/images/48-48-ICO-1.png" alt="寻名网" className="w-7 h-7 rounded" />
                   <div>
                     <div className="font-bold text-white text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
                     <div className="text-[9px] text-gray-500">www.seekname.cn</div>

@@ -48,8 +48,14 @@
     color: var(--foreground);
     font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     scroll-behavior: smooth;
-    /* 纯底色，古风纹理由 body::before 统一控制 */
     background-color: #FFFCF7;
+  }
+
+  /* 全局平铺背景图 */
+  .tiled-bg {
+    background-image: url('/images/60-60-1.png');
+    background-repeat: repeat;
+    background-size: auto;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -100,30 +106,10 @@
     background-blend-mode: multiply;
   }
 
-  /* 古韵暗纹背景 - 祥云纹样 */
-  /* 页面全局古风纹理背景 */
+  /* 古韵暗纹背景 - 已由 .tiled-bg 平铺图片替代 */
   body {
     position: relative;
     background-color: #FFFCF7;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    /* 淡淡古画宣纸纹理 - 土黄色古旧感 */
-    background-image:
-      /* 宣纸纤维 - 极细密，不规则感 */
-      url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
-    /* 使用 multiply 混合模式让纹理自然融入底色 */
-    mix-blend-mode: multiply;
-    opacity: 0.08;
-    pointer-events: none;
-    z-index: 0;
   }
 
   .ancient-pattern-bg {
@@ -548,167 +534,4 @@ html {
   scroll-behavior: smooth;
 }
 
-/* ═══════════════════════════════════════════
-   古风卷轴画卷 - 起名表单专用
-   布局：左右轴杆夹宣纸，卷轴在上（前后），宣纸在下方
-   ═══════════════════════════════════════════ */
 
-.scroll-painting {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  /* 四周阴影增强立体感 */
-  filter:
-    drop-shadow(0 6px 20px rgba(44, 24, 16, 0.18))
-    drop-shadow(0 2px 8px rgba(44, 24, 16, 0.12))
-    drop-shadow(-2px 0 6px rgba(44, 24, 16, 0.08))
-    drop-shadow(2px 0 6px rgba(44, 24, 16, 0.08));
-}
-
-/* ─── 左右轴杆（卷轴在宣纸上层） ─── */
-.scroll-rod {
-  width: 24px;
-  flex-shrink: 0;
-  position: relative;
-  border-radius: 6px;
-  /* 木纹渐变 - 圆柱立体感 */
-  background:
-    repeating-linear-gradient(180deg,
-      transparent 0px,
-      rgba(0,0,0,0.02) 1px,
-      transparent 2px,
-      transparent 6px
-    ),
-    linear-gradient(90deg,
-      #4A2E18 0%,
-      #6B4226 15%,
-      #8B5E3C 30%,
-      #A0724A 50%,
-      #8B5E3C 70%,
-      #6B4226 85%,
-      #4A2E18 100%
-    );
-  z-index: 2;
-  /* 轴杆自身阴影 */
-  box-shadow:
-    inset 2px 0 4px rgba(0,0,0,0.3),
-    inset -2px 0 4px rgba(255,255,255,0.08),
-    2px 0 6px rgba(44, 24, 16, 0.25),
-    -2px 0 6px rgba(44, 24, 16, 0.15);
-}
-
-/* 轴杆两端金属帽 */
-.scroll-rod::before,
-.scroll-rod::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 36px;
-  height: 14px;
-  border-radius: 3px;
-  background:
-    linear-gradient(180deg,
-      #B8963C 0%,
-      #D4B860 20%,
-      #E8D48B 40%,
-      #F0E4A8 50%,
-      #E8D48B 60%,
-      #D4B860 80%,
-      #B8963C 100%
-    );
-  box-shadow:
-    0 2px 5px rgba(0,0,0,0.2),
-    inset 0 1px 0 rgba(255,255,255,0.4),
-    inset 0 -1px 0 rgba(0,0,0,0.1);
-}
-
-.scroll-rod::before {
-  top: -6px;
-}
-
-.scroll-rod::after {
-  bottom: -6px;
-}
-
-/* ─── 宣纸区域 - 正好在两个金属帽之间 ─── */
-.scroll-body {
-  flex: 1;
-  padding: 18px 24px;
-  /* 正好在两个金属帽之间（金属帽各凸出6px） */
-  margin-top: -6px;
-  margin-bottom: -6px;
-  background:
-    /* 明显的布纹经纬线 */
-    repeating-linear-gradient(90deg,
-      transparent 0px,
-      rgba(120, 100, 60, 0.03) 1px,
-      transparent 2px,
-      transparent 3px
-    ),
-    repeating-linear-gradient(0deg,
-      transparent 0px,
-      rgba(120, 100, 60, 0.025) 1px,
-      transparent 2px,
-      transparent 4px
-    ),
-    /* 水洗布做旧底色 - 更明显的纹理 */
-    linear-gradient(135deg, #EDE6DA 0%, #E5DED0 25%, #E0D8C8 50%, #E5DED0 75%, #EDE6DA 100%);
-  border-left: none;
-  border-right: none;
-  position: relative;
-  z-index: 1;
-  /* 做旧质感 + 宣纸边缘阴影 */
-  box-shadow:
-    inset 0 0 50px rgba(140, 120, 80, 0.1),
-    inset 0 0 12px rgba(140, 120, 80, 0.06),
-    inset 4px 0 8px rgba(100, 80, 50, 0.05),
-    inset -4px 0 8px rgba(100, 80, 50, 0.05);
-}
-
-/* 宣纸上下边缘与轴杆衔接的阴影 */
-.scroll-body::before,
-.scroll-body::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 16px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.scroll-body::before {
-  top: 0;
-  background: linear-gradient(180deg,
-    rgba(60, 45, 25, 0.12) 0%,
-    rgba(60, 45, 25, 0.04) 40%,
-    transparent 100%
-  );
-}
-
-.scroll-body::after {
-  bottom: 0;
-  background: linear-gradient(0deg,
-    rgba(60, 45, 25, 0.12) 0%,
-    rgba(60, 45, 25, 0.04) 40%,
-    transparent 100%
-  );
-}
-
-/* 卷轴内输入框背景 */
-.scroll-input-bg {
-  background: rgba(255, 252, 245, 0.9);
-  border: 1px solid #C4A882;
-}
-
-/* 卷轴内性别按钮组 */
-.scroll-gender-btn {
-  border: 1px solid #C4A882;
-  border-radius: 0;
-}
-
-/* 卷轴内提交按钮 */
-.scroll-submit-btn {
-  border-radius: 0;
-}

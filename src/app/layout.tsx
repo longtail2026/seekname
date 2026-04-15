@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: "寻名网 | SeekName - 寻一个好名，许一个未来",
   description: "专业起名服务平台，为个人、公司、宠物提供文化典籍、唐诗宋词、四书五经等传统文化与现代命理相结合的起名服务",
   keywords: "起名, 姓名, 公司起名, 宠物起名, 文化典籍, 唐诗宋词, 四书五经, 命理, 易经, 五行",
+  icons: {
+    icon: "/images/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -22,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className={inter.variable}>
-      <body className="min-h-screen bg-white text-gray-900 antialiased">
+      <body className="min-h-screen tiled-bg text-gray-900 antialiased">
         <AuthProvider>
           <Header />
           {children}

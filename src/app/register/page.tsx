@@ -161,21 +161,11 @@ function RegisterForm() {
         {/* Logo / 品牌区 */}
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center space-x-3 group">
-            <div
-              className="w-12 h-12 flex items-center justify-center transition-all duration-300 group-hover:scale-105"
-              style={{
-                background: "#C84A2A",
-                border: "2px solid #A63A1E",
-                boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.1)",
-              }}
-            >
-              <span
-                className="text-white text-lg font-bold"
-                style={{ fontFamily: "'Noto Serif SC', serif" }}
-              >
-                名
-              </span>
-            </div>
+            <img
+              src="/images/48-48-ICO-1.png"
+              alt="寻名网"
+              className="w-12 h-12 transition-all duration-300 group-hover:scale-105"
+            />
             <div className="flex flex-col items-start">
               <span
                 className="text-xl font-bold text-[#2C1810]"
