@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /* ═══════════ 导航数据（模块级常量） ═══════════ */
 const PERSONAL_SUBMENU = [
@@ -24,6 +25,7 @@ const BUSINESS_SUBMENU = [
 export default function Header() {
   const { user, logout } = useAuth();
   const { locale, setLocale, t } = useLocale();
+  const { isDark, toggleTheme } = useTheme();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -197,8 +199,18 @@ export default function Header() {
             </div>
           </form>
 
+          {/* 主题切换 */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? (isEn ? "Switch to Light Mode" : "切换浅色模式") : (isEn ? "Switch to Dark Mode" : "切换深色模式")}
+            style={{ ...navItemStyle, fontSize: 12, padding: "5px 9px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, border: "1px solid #DDD0C0", background: "#FFF", marginLeft: 6, cursor: "pointer", transition: "all 0.2s" }}
+            className="desktop-nav"
+          >
+            <span style={{ fontSize: 14 }}>{isDark ? "☀️" : "🌙"}</span>
+          </button>
+
           {/* 语言切换器 */}
-          <div ref={langMenuRef} style={{ marginLeft: 8, position: "relative" }} className="desktop-nav">
+          <div ref={langMenuRef} style={{ marginLeft: 6, position: "relative" }} className="desktop-nav">
             <button
               onClick={() => setLangMenuOpen(!langMenuOpen)}
               style={{ ...navItemStyle, fontSize: 12, padding: "5px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, border: langMenuOpen ? "1px solid rgba(232,106,23,0.4)" : "1px solid #DDD0C0", background: langMenuOpen ? "rgba(232,106,23,0.06)" : "#FFF" }}
@@ -278,6 +290,7 @@ export default function Header() {
 
                   {/* 菜单项 */}
                   {[
+                    { icon: "📊", label: isEn ? "Dashboard" : "用户中心", href: "/dashboard", desc: isEn ? "Overview · history · favorites" : "概览 · 起名历史 · 收藏" },
                     { icon: "📋", label: isEn ? "My Orders" : "我的订单", href: "/orders", desc: isEn ? "View naming history" : "查看起名历史记录" },
                     { icon: "📖", label: isEn ? "Name Collection" : "名字典藏本", href: "/collection", desc: isEn ? "Saved names · PDF export" : "收藏的名字 · PDF 导出" },
                     { icon: "⚙️", label: isEn ? "Settings" : "账号设置", href: "/settings", desc: isEn ? "Profile management" : "头像与个人信息管理" },
@@ -342,6 +355,12 @@ export default function Header() {
               </Link>
             ))}
 
+            {/* 主题切换 */}
+            <button onClick={toggleTheme}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 0", borderBottom: "1px solid #F5EDE0", background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "#4A3428", fontFamily: "'Noto Sans SC', sans-serif" }}>
+              {isDark ? "☀️" : "🌙"} {isDark ? (isEn ? "Light Mode" : "浅色模式") : (isEn ? "Dark Mode" : "深色模式")}
+            </button>
+
             {/* 语言切换 */}
             <div style={{ padding: "8px 0", display: "flex", gap: 8 }}>
               <button onClick={() => { setLocale("zh"); setMobileMenuOpen(false); }}
@@ -353,6 +372,7 @@ export default function Header() {
             {user ? (
               <>
                 <hr style={{ border: "none", borderTop: "1px solid #EEE8DD", margin: "8px 0" }} />
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 14, color: "#4A3428", textDecoration: "none", fontFamily: "'Noto Sans SC', sans-serif", padding: "8px 0" }}>📊 {isEn ? "Dashboard" : "用户中心"}</Link>
                 <Link href="/orders" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 14, color: "#4A3428", textDecoration: "none", fontFamily: "'Noto Sans SC', sans-serif", padding: "8px 0" }}>📋 {isEn ? "My Orders" : "我的订单"}</Link>
                 <Link href="/settings" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: 14, color: "#4A3428", textDecoration: "none", fontFamily: "'Noto Sans SC', sans-serif", padding: "8px 0" }}>⚙️ {isEn ? "Settings" : "账号设置"}</Link>
                 <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} style={{ width: "100%", padding: "10px", marginTop: 8, border: "1px solid #DDD0C0", background: "none", borderRadius: 8, color: "#C0392B", fontSize: 14, cursor: "pointer", fontFamily: "'Noto Sans SC', sans-serif" }}>

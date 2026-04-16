@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -88,12 +89,14 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className={inter.variable}>
       <body className="min-h-screen tiled-bg text-gray-900 antialiased">
-        <AuthProvider>
-          <LocaleProvider>
-            <Header />
-            {children}
-          </LocaleProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <LocaleProvider>
+              <Header />
+              {children}
+            </LocaleProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

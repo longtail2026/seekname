@@ -14,7 +14,33 @@
     "personal": "Dashboard",
     "settings": "Settings",
     "logout": "Logout",
-    "collection": "Name Collection"
+    "collection": "Name Collection",
+    "dashboard": "Dashboard",
+    "orders": "My Orders"
+  },
+  "dashboard": {
+    "title": "User Dashboard",
+    "tabs": {
+      "orders": "Naming History",
+      "favorites": "Favorites",
+      "articles": "My Articles",
+      "vip": "VIP Member"
+    },
+    "empty": {
+      "orders": "No naming history yet",
+      "favorites": "No favorites yet",
+      "articles": "No articles yet"
+    }
+  },
+  "share": {
+    "title": "Name Share",
+    "cta": "Get My Name",
+    "notFound": "Share link expired",
+    "social": {
+      "wechat": "WeChat",
+      "weibo": "Weibo",
+      "copy": "Copy Link"
+    }
   },
   "home": {
     "heroTitle": "A Name, a Gift for Life",

@@ -14,7 +14,33 @@
     "personal": "个人中心",
     "settings": "设置",
     "logout": "退出登录",
-    "collection": "名字典藏本"
+    "collection": "名字典藏本",
+    "dashboard": "用户中心",
+    "orders": "我的订单"
+  },
+  "dashboard": {
+    "title": "用户中心",
+    "tabs": {
+      "orders": "起名历史",
+      "favorites": "名字典藏",
+      "articles": "我的文章",
+      "vip": "VIP会员"
+    },
+    "empty": {
+      "orders": "还没有起名记录",
+      "favorites": "还没有收藏的名字",
+      "articles": "还没有发表的文章"
+    }
+  },
+  "share": {
+    "title": "名字分享",
+    "cta": "我也想要一个好名字",
+    "notFound": "分享链接已失效",
+    "social": {
+      "wechat": "微信",
+      "weibo": "微博",
+      "copy": "复制链接"
+    }
   },
   "home": {
     "heroTitle": "名字，伴随一生的礼物",

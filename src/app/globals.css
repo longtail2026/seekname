@@ -39,6 +39,87 @@
   --info: #E86A17;      /* 橙=信息提示 */
 }
 
+/* ═══════════ 深色模式变量覆盖 ═══════════ */
+.dark {
+  /* 深色背景体系 - 墨色深褐 */
+  --background: #1a1410;
+  --background-warm: #241c16;
+  --foreground: #f5ede0;
+  --foreground-muted: #b8a890;
+
+  /* 主色调 - 深色下适度提亮 */
+  --primary: #ff8a33;
+  --primary-dark: #e86a17;
+  --primary-light: #ffb366;
+  --primary-glow: rgba(255, 138, 51, 0.15);
+
+  /* 辅助色 */
+  --gold: #d4a43a;
+  --gold-light: #e8c060;
+  --gold-dark: #b88820;
+
+  /* 墨色/边框 */
+  --ink: #f5ede0;
+  --ink-light: #c8b898;
+  --secondary: #2a2018;
+  --muted: #2a2018;
+  --border: #3d3028;
+
+  /* 功能色深色适配 */
+  --success: #3dd47a;
+  --warning: #e8b02e;
+  --error: #ff6b4a;
+  --info: #ff8a33;
+}
+
+.dark body {
+  background-color: #1a1410;
+}
+
+.dark body::before {
+  background-image:
+    repeating-linear-gradient(45deg,
+      rgba(160, 140, 110, 0.03) 0px,
+      rgba(160, 140, 110, 0.03) 2px,
+      transparent 2px,
+      transparent 6px
+    ),
+    radial-gradient(ellipse at 50% 50%,
+      rgba(200, 185, 160, 0.04) 0%,
+      transparent 70%);
+}
+
+.dark .ancient-card,
+.dark .ancient-card:hover {
+  background: #1e1810;
+  border-color: #3d3028;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.dark header {
+  background: rgba(26, 20, 16, 0.92) !important;
+  border-bottom-color: rgba(212, 148, 26, 0.15) !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background: #241c16 !important;
+  color: #f5ede0 !important;
+  border-color: #3d3028 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b5a4e;
+}
+
+/* 深色模式导航菜单 */
+.dark .mobile-menu {
+  background: rgba(26, 20, 16, 0.97) !important;
+  border-top-color: rgba(212, 148, 26, 0.15) !important;
+}
+
   /* ═══ 中国风窗棂格纹底纹 ═══ */
   /* 简洁的田字格/井字格窗棂图案，大气有序 */
 

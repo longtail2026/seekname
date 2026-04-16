@@ -1,0 +1,30 @@
+feat: Sprint 15 — 深色模式 + 名字分享落地页 + 用户中心 Dashboard
+
+🌙 深色模式
+- ThemeContext (src/contexts/ThemeContext.tsx) — 全局主题状态管理
+  支持 localStorage 持久化 + 系统偏好跟随
+- globals.css — 完整 CSS 变量深色覆盖 (--background, --ink, --primary 等)
+- layout.tsx — 接入 ThemeProvider
+- Header.tsx — 🌙/☀️ 主题切换按钮（桌面 + 移动端）
+- 移动端菜单、input 样式同步深色适配
+
+🔗 名字分享落地页
+- src/app/api/names/share/[token]/route.ts — 分享 token 验证 API
+- src/app/share/[token]/page.tsx — 落地页（无需登录）
+  展示：名字大字 + 评分卡片 + 五行/典籍/同名信息
+  社交分享：微信/微博/复制链接
+  CTA：引导注册起名
+- src/app/share/[token]/metadata.ts — 动态 OG + Twitter Card
+
+📊 用户中心 Dashboard
+- src/app/dashboard/page.tsx — 4 Tab 聚合页
+  Tab1: 起名历史 (调用 /api/user/orders)
+  Tab2: 名字典藏 (调用 /api/names/favorites)
+  Tab3: 我的文章 (调用 /api/blog/posts?userId=)
+  Tab4: VIP会员 (展示权益等级、积分、升级入口)
+- src/app/dashboard/metadata.ts
+- Header 用户下拉新增「用户中心」入口
+- zh.json / en.json — 新增 dashboard + share 翻译
+
+其他改动:
+- src/app/orders/page.tsx — 沿用现有 API，无破坏性改动
