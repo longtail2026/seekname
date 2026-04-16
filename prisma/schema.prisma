@@ -130,6 +130,7 @@ model User {
   // 关联
   orders      Order[]
   nameRecords NameRecord[]
+  blogPosts   BlogPost[]
 
   @@index([wxOpenId], map: "idx_user_wx")
   @@index([status], map: "idx_user_status")
@@ -226,4 +227,59 @@ model NameRecord {
   @@index([status], map: "idx_nr_status")
   @@index([createdAt], map: "idx_nr_created")
   @@map("name_records")
+}
+
+// ─── 10. 博客表 ────────────────────────────────────────────────────────────────
+model BlogPost {
+  id            Int          @id @default(autoincrement())
+  userId        String       @map("user_id")
+  user          User         @relation(fields: [userId], references: [id])
+
+  title         String       @db.VarChar(200)
+  slug          String       @unique @db.VarChar(250)
+  summary       String?      @db.VarChar(500)
+  content       String?
+  coverImage    String?      @map("cover_image") @db.VarChar(500)
+
+  viewCount     Int          @default(0) @map("view_count")
+  likeCount     Int          @default(0) @map("like_count")
+  commentCount  Int          @default(0) @map("comment_count")
+  favoriteCount Int          @default(0) @map("favorite_count")
+
+  status        String       @default("draft") @db.VarChar(20)  // draft | published | archived
+
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  tags          BlogPostTag[]
+
+  @@index([userId], map: "idx_bp_user")
+  @@index([status], map: "idx_bp_status")
+  @@index([createdAt], map: "idx_bp_created")
+  @@map("blog_posts")
+}
+
+model BlogTag {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique @db.VarChar(50)
+  slug      String       @unique @db.VarChar(60)
+  count     Int          @default(0)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  posts     BlogPostTag[]
+
+  @@map("blog_tags")
+}
+
+model BlogPostTag {
+  id     Int      @id @default(autoincrement())
+  postId Int      @map("post_id")
+  tagId  Int      @map("tag_id")
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId], map: "uk_bpt_post_tag")
+  @@index([postId], map: "idx_bpt_post")
+  @@index([tagId], map: "idx_bpt_tag")
+  @@map("blog_post_tags")
 }

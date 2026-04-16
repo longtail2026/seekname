@@ -1,0 +1,17 @@
+feat: Sprint 8 - Prisma 博客模型 + Vercel 部署配置 + .gitignore 修复
+
+## 数据库迁移（Prisma Schema）
+- 新增 `BlogPost` 模型：title/slug/summary/content/coverImage，view/like/comment/favorite 计数，status (draft|published|archived)
+- 新增 `BlogTag` 模型：name/slug/count，唯一约束
+- 新增 `BlogPostTag` 模型：post-tag 多对多关联，含复合唯一约束 uk_bpt_post_tag
+- User 模型添加 blogPosts 反向关联
+- 迁移 SQL：`prisma/migrations/202604160000_add_blog_tables/`
+  - 含 updated_at 自动触发器（update_updated_at_column）
+
+## 部署配置
+- `vercel.json`：buildCommand (prisma generate && next build)、安全响应头 (/api no-store、/blog CDN 缓存、全站安全头)
+- 支持 Vercel Postgres 环境变量注入（POSTGRES_URL 等 8 个 secret）
+
+## .gitignore 修复
+- 添加 `*.tsbuildinfo`（本地增量编译产物）
+- 从 git 索引移除已追踪的 tsconfig.tsbuildinfo

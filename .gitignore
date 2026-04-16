@@ -40,6 +40,9 @@ Thumbs.db
 logs/
 *.log
 
+# Build artifacts
+*.tsbuildinfo
+
 # Local database
 *.db
 *.sqlite
