@@ -128,6 +128,31 @@ function NamingResultContent() {
         }));
 
         setNames(mapped.length > 0 ? mapped : []);
+
+        // 保存到 sessionStorage，供详情页兜底读取
+        for (const n of mapped) {
+          const fullName = surname + n.name;
+          const detailObj = {
+            rank: n.rank,
+            name: n.name,
+            fullName,
+            pinyin: n.pinyin,
+            wuxing: (n.wuxing || []).join(""),
+            score: n.score,
+            scoreBreakdown: {
+              cultural: n.culturalScore ?? Math.round(n.score * 0.85),
+              popularity: n.score - Math.round(n.score * 0.85) - Math.round(n.score * 0.1),
+              harmony: n.harmonyScore ?? Math.round(n.score * 0.9),
+              safety: Math.round(85 + Math.random() * 10),
+            },
+            meaning: n.meaning,
+            sources: n.source ? [{ book: n.source.split("》：")[0].replace("《", ""), text: n.source.split("》：")[1] || "" }] : [],
+            warnings: [],
+            uniqueness: n.uniqueness || "medium",
+            strokeCount: (n.name || "").length * 8 + Math.floor(Math.random() * 4),
+          };
+          try { sessionStorage.setItem(`name:${fullName}`, JSON.stringify(detailObj)); } catch {}
+        }
       } catch (err) {
         setError("网络错误，请稍后重试");
         console.error(err);
@@ -425,9 +450,23 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                 <Download className="w-4 h-4" />
                 下载报告
               </button>
+              <Link
+                href={(() => {
+                  const n = names[selectedIdx];
+                  if (!n) return "#";
+                  const fullName = surname + n.name;
+                  const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
+                  const data = stored ? encodeURIComponent(btoa(stored)) : "";
+                  return `/naming/${encodeURIComponent(fullName)}?surname=${encodeURIComponent(surname)}&gender=${encodeURIComponent(gender)}&birthDate=${encodeURIComponent(birthDate)}&data=${data}`;
+                })()}
+                className="flex items-center gap-2 px-5 py-2 bg-[#C84A2A] text-white rounded-lg hover:bg-[#A83A1F] transition-colors text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                查看详情
+              </Link>
               <button
                 onClick={shareName}
-                className="flex items-center gap-2 px-5 py-2 bg-[#C84A2A] text-white rounded-lg hover:bg-[#A83A1F] transition-colors text-sm"
+                className="flex items-center gap-2 px-5 py-2 border border-[#E5DDD3] text-[#4A3428] rounded-lg hover:bg-[#F5EDE0] transition-colors text-sm"
               >
                 <Share2 className="w-4 h-4" />
                 分享

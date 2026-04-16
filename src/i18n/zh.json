@@ -7,6 +7,7 @@
     "pet": "宠物起名",
     "evaluate": "名字测评",
     "blog": "博客",
+    "write": "写文章",
     "vip": "开通会员",
     "login": "登录",
     "register": "注册",
@@ -130,7 +131,25 @@
     "noRelatedArticles": "暂无相关文章",
     "views": "阅读",
     "author": "作者",
-    "publishDate": "发布时间"
+    "publishDate": "发布时间",
+    "write": {
+      "title": "写文章",
+      "publish": "发布文章",
+      "publishing": "发布中...",
+      "titlePlaceholder": "输入文章标题...",
+      "summaryPlaceholder": "简短摘要（选填，将显示在文章列表）",
+      "contentPlaceholder": "在此输入内容，支持 Markdown 格式",
+      "coverImage": "封面图（可选）",
+      "uploadCover": "点击上传封面图",
+      "tags": "文章标签",
+      "tagPlaceholder": "输入标签后回车（最多5个）",
+      "loginRequired": "请先登录",
+      "loginRequiredDesc": "登录后即可开始撰写文章",
+      "success": "发布成功！正在跳转到文章页...",
+      "error": "发布失败，请重试",
+      "pleaseLogin": "登录",
+      "backToBlog": "返回博客"
+    }
   },
   "collection": {
     "title": "名字典藏本",
@@ -180,6 +199,28 @@
       "male": "男",
       "female": "女",
       "savedAt": "收藏于"
+    }
+  },
+  "name": {
+    "detail": {
+      "back": "返回结果",
+      "overallScore": "综合评分",
+      "culturalHeritage": "文化底蕴",
+      "popularity": "常用程度",
+      "phoneticHarmony": "音律和谐",
+      "safety": "安全评分",
+      "wuxingElements": "五行用字",
+      "strokes": "画",
+      "uniqueness": "独特性",
+      "meaning": "名字寓意",
+      "classicSource": "典籍出处",
+      "warnings": "注意事项",
+      "exportPdf": "导出 PDF",
+      "saveToCollection": "收藏到典藏本",
+      "regenerate": "重新起名",
+      "male": "男",
+      "female": "女",
+      "phoneticNote": "音律平仄协调，韵母搭配好听"
     }
   },
   "settings": {

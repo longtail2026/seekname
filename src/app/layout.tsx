@@ -70,6 +70,13 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "https://www.seekname.cn",
+    // hreflang: cookie-based i18n，URL 不变，cookie 控制语言
+    // x-default 表示用户代理根据 Accept-Language 自动选择
+    languages: {
+      "zh-CN": "https://www.seekname.cn",
+      "en-US": "https://www.seekname.cn",
+      "x-default": "https://www.seekname.cn",
+    },
   },
 };
 

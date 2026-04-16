@@ -107,6 +107,7 @@ export default function Header() {
     { label: isEn ? "Pet Naming" : "宠物起名", labelKey: "pet", href: "/pet" },
     { label: isEn ? "Name Evaluation" : "好名测评", labelKey: "evaluate", href: "/evaluate" },
     { label: isEn ? "Blog" : "起名杂谈", labelKey: "blog", href: "/blog" },
+    { label: isEn ? "Write" : "写文章", labelKey: "write", href: "/blog/write" },
     { label: isEn ? "Collection" : "典藏本", labelKey: "collection", href: "/collection" },
   ];
 

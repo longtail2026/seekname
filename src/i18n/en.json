@@ -7,6 +7,7 @@
     "pet": "Pet Naming",
     "evaluate": "Name Evaluation",
     "blog": "Blog",
+    "write": "Write",
     "vip": "Upgrade VIP",
     "login": "Login",
     "register": "Register",
@@ -130,7 +131,25 @@
     "noRelatedArticles": "No related articles found",
     "views": "views",
     "author": "Author",
-    "publishDate": "Published"
+    "publishDate": "Published",
+    "write": {
+      "title": "Write Article",
+      "publish": "Publish Article",
+      "publishing": "Publishing...",
+      "titlePlaceholder": "Enter article title...",
+      "summaryPlaceholder": "Brief summary (optional, shown in article list)",
+      "contentPlaceholder": "Write your content here, Markdown supported",
+      "coverImage": "Cover Image (optional)",
+      "uploadCover": "Upload Cover Image",
+      "tags": "Article Tags",
+      "tagPlaceholder": "Enter tag and press Enter (max 5)",
+      "loginRequired": "Please Login",
+      "loginRequiredDesc": "Login to start writing articles",
+      "success": "Published successfully! Redirecting...",
+      "error": "Failed to publish, please try again",
+      "pleaseLogin": "Login",
+      "backToBlog": "Back to Blog"
+    }
   },
   "collection": {
     "title": "Name Collection",
@@ -180,6 +199,28 @@
       "male": "Male",
       "female": "Female",
       "savedAt": "Saved at"
+    }
+  },
+  "name": {
+    "detail": {
+      "back": "Back to Results",
+      "overallScore": "Overall Score",
+      "culturalHeritage": "Cultural Heritage",
+      "popularity": "Popularity",
+      "phoneticHarmony": "Phonetic Harmony",
+      "safety": "Safety Score",
+      "wuxingElements": "Five Elements",
+      "strokes": " strokes",
+      "uniqueness": "Uniqueness",
+      "meaning": "Name Meaning",
+      "classicSource": "Classic Origin",
+      "warnings": "Notes",
+      "exportPdf": "Export PDF",
+      "saveToCollection": "Save to Collection",
+      "regenerate": "Regenerate Names",
+      "male": "Male",
+      "female": "Female",
+      "phoneticNote": "Balanced tonal patterns with pleasing rhyme combinations"
     }
   },
   "settings": {
