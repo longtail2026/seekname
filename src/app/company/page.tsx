@@ -1,12 +1,13 @@
 /**
- * 公司起名结果页
- * /company?surname=科技&industry=互联网&expectations=创新大气
+ * 公司起名页面（表单 + 结果）
+ * /company — 表单页
+ * /company?industry=互联网 — 结果页
  */
 
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Sparkles, ArrowLeft, Building2, Globe, Shield,
@@ -21,15 +22,132 @@ interface CompanyName {
   meaning: string;
   source?: string;
   score: number;
-  mathAnalysis?: string; // 数理分析
+  mathAnalysis?: string;
 }
 
+/* ─── 公司起名表单 ─── */
+function CompanyForm() {
+  const router = useRouter();
+  const [companyName, setCompanyName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [expectations, setExpectations] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyName.trim()) return;
+    setIsLoading(true);
+    const params = new URLSearchParams({ industry: companyName.trim() });
+    if (expectations.trim()) params.set("expectations", expectations.trim());
+    router.push(`/company?${params.toString()}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#FDFAF4] to-[#EDE5D0]">
+      <header className="sticky top-0 z-50 bg-[#FDFAF4]/95 backdrop-blur border-b border-[#E5DDD3]">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <Link href="/" className="text-[#5C4A42] hover:text-[#C84A2A] transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <Building2 className="w-5 h-5 text-[#D4941A]" />
+          <span className="font-bold text-[#2C1810]" style={{ fontFamily: "'Noto Serif SC', serif" }}>商业起名</span>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 max-w-lg">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[#2C1810] mb-3" style={{ fontFamily: "'Noto Serif SC', serif" }}>
+            公司 · 品牌 · 店铺起名
+          </h1>
+          <p className="text-[#5C4A42] text-sm">融合行业属性与易经数理，为您打造响亮商号</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* 行业/公司名关键词 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-1">
+              行业关键词 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="例如：科技、电商、餐饮、教育"
+              required
+              className="w-full px-4 py-3 rounded-xl text-[#2C1810]"
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid #DDD0C0', outline: 'none', fontFamily: "'Noto Sans SC', sans-serif" }}
+            />
+          </div>
+
+          {/* 期望风格 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-1">
+              期望风格 <span className="text-[#AAA] text-xs">(可选)</span>
+            </label>
+            <input
+              type="text"
+              value={expectations}
+              onChange={(e) => setExpectations(e.target.value)}
+              placeholder="例如：创新大气、简约时尚、传统稳重"
+              className="w-full px-4 py-3 rounded-xl text-[#2C1810]"
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid #DDD0C0', outline: 'none', fontFamily: "'Noto Sans SC', sans-serif" }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={!companyName.trim() || isLoading}
+            className="w-full py-4 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-2"
+            style={{
+              background: companyName.trim() ? '#D4941A' : '#CCC',
+              cursor: companyName.trim() && !isLoading ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {isLoading ? (
+              <><Loader2 className="w-5 h-5 animate-spin" /> 正在分析...</>
+            ) : "开始起名"}
+          </button>
+
+          <p className="text-center text-xs text-[#AAA]">
+            已帮助 <span className="text-[#D4941A]">50,000+</span> 家企业找到好名
+          </p>
+        </form>
+
+        {/* 子菜单快捷入口 */}
+        <div className="mt-8 pt-6 border-t border-[#E5DDD3]">
+          <p className="text-sm text-[#5C4A42] mb-3 text-center">更多起名类型：</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "品牌起名", href: "/company?type=brand" },
+              { label: "项目代号", href: "/company?type=project" },
+              { label: "店铺招牌", href: "/company?type=shop" },
+              { label: "跨境英文", href: "/company?type=ecommerce" },
+            ].map(item => (
+              <Link key={item.href} href={item.href}
+                className="text-center py-2 px-3 rounded-lg text-sm transition-colors"
+                style={{ background: 'rgba(212,148,26,0.08)', color: '#D4941A', border: '1px solid rgba(212,148,26,0.2)' }}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ─── 公司起名结果 ─── */
 function CompanyResultContent() {
   const searchParams = useSearchParams();
 
   const industry = searchParams.get("industry") || "";
   const expectations = searchParams.get("expectations") || "";
   const style = searchParams.get("style") || "";
+
+  // 如果没有行业参数，显示表单页
+  if (!industry) {
+    return <CompanyForm />;
+  }
 
   const [loading, setLoading] = useState(true);
   const [names, setNames] = useState<CompanyName[]>([]);

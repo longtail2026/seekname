@@ -1,11 +1,12 @@
 /**
- * 宠物起名结果页
- * /pet?petType=猫&gender=公的&style=可爱呆萌
+ * 宠物起名页面（表单 + 结果）
+ * /pet — 表单页
+ * /pet?petType=猫 — 结果页
  */
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Sparkles, ArrowLeft, PawPrint, Loader2,
@@ -22,6 +23,124 @@ interface PetName {
   tags: string[];
 }
 
+/* ─── 宠物起名表单 ─── */
+function PetForm() {
+  const router = useRouter();
+  const [petType, setPetType] = useState("猫");
+  const [gender, setGender] = useState("公的");
+  const [expectations, setExpectations] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const params = new URLSearchParams({ petType, gender });
+    if (expectations.trim()) params.set("expectations", expectations.trim());
+    router.push(`/pet?${params.toString()}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#FDF8F3] to-[#F0E8D8]">
+      <header className="sticky top-0 z-50 bg-[#FDF8F3]/95 backdrop-blur border-b border-[#E5DDD3]">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <Link href="/" className="text-[#5C4A42] hover:text-[#C84A2A] transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <PawPrint className="w-5 h-5 text-[#F09A3A]" />
+          <span className="font-bold text-[#2C1810]" style={{ fontFamily: "'Noto Serif SC', serif" }}>宠物起名</span>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 max-w-lg">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[#2C1810] mb-3" style={{ fontFamily: "'Noto Serif SC', serif" }}>
+            毛孩子起名 🐾
+          </h1>
+          <p className="text-[#5C4A42] text-sm">为您的宠物取一个可爱又有灵气的好名字</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* 宠物类型 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-2">
+              宠物类型 <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {["猫", "狗", "鸟", "鱼", "兔", "仓鼠", "龟", "其他"].map(type => (
+                <button key={type} type="button" onClick={() => setPetType(type)}
+                  className="py-2 rounded-lg text-sm font-medium transition-all"
+                  style={{
+                    background: petType === type ? "#F09A3A" : 'rgba(255,255,255,0.8)',
+                    color: petType === type ? "#FFF" : "#5C4A42",
+                    border: '1px solid #DDD0C0',
+                    cursor: 'pointer',
+                  }}>
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 性别 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-2">
+              性别
+            </label>
+            <div className="flex gap-3">
+              {["公的", "母的", "不限"].map(g => (
+                <button key={g} type="button" onClick={() => setGender(g)}
+                  className="flex-1 py-3 rounded-xl font-medium text-base transition-all"
+                  style={{
+                    background: gender === g ? "#F09A3A" : 'rgba(255,255,255,0.8)',
+                    color: gender === g ? "#FFF" : "#5C4A42",
+                    border: '1px solid #DDD0C0',
+                    cursor: 'pointer',
+                  }}>
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 期望风格 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-1">
+              期望风格 <span className="text-[#AAA] text-xs">(可选)</span>
+            </label>
+            <input
+              type="text"
+              value={expectations}
+              onChange={(e) => setExpectations(e.target.value)}
+              placeholder="例如：可爱呆萌、霸气外露、仙气飘飘"
+              className="w-full px-4 py-3 rounded-xl text-[#2C1810]"
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid #DDD0C0', outline: 'none', fontFamily: "'Noto Sans SC', sans-serif" }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-4 rounded-xl font-bold text-white text-lg transition-all flex items-center justify-center gap-2"
+            style={{
+              background: '#F09A3A',
+              cursor: !isLoading ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {isLoading ? (
+              <><Loader2 className="w-5 h-5 animate-spin" /> 正在取名...</>
+            ) : "开始取名"}
+          </button>
+
+          <p className="text-center text-xs text-[#AAA]">
+            已帮助 <span className="text-[#F09A3A]">30,000+</span> 位铲屎官找到好名
+          </p>
+        </form>
+      </main>
+    </div>
+  );
+}
+
+/* ─── 宠物起名结果 ─── */
 function PetResultContent() {
   const searchParams = useSearchParams();
 
@@ -29,6 +148,11 @@ function PetResultContent() {
   const gender = searchParams.get("gender") || "";
   const expectations = searchParams.get("expectations") || "";
   const style = searchParams.get("style") || "";
+
+  // 如果没有宠物类型参数，显示表单页
+  if (!petType) {
+    return <PetForm />;
+  }
 
   const [loading, setLoading] = useState(true);
   const [names, setNames] = useState<PetName[]>([]);

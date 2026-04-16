@@ -62,8 +62,8 @@ export default function PersonalFormPage() {
             <input
               type="text"
               value={surname}
-              onChange={(e) => setSurname(e.target.value.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 2))}
-              placeholder="请输入姓氏"
+              onChange={(e) => setSurname(e.target.value.slice(0, 2))}
+              placeholder="请输入姓氏（支持拼音输入）"
               required
               maxLength={2}
               className="w-full px-4 py-3 rounded-xl text-[#2C1810] text-base"

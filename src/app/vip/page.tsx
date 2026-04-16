@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import WxpayQRCode from "@/components/payment/WxpayQRCode";
+import AlipayQRCode from "@/components/payment/AlipayQRCode";
 
 // PayPal JS SDK 全局类型
 declare const paypal: {
@@ -111,7 +112,7 @@ const FAQS = [
   },
   {
     q: "支付安全吗？支持哪些支付方式？",
-    a: "支付全程由 PayPal 提供安全保护，我们不存储任何支付敏感信息（卡号、密码等）。支持 PayPal、 Visa、Mastercard、American Express、UnionPay 等多种方式。",
+    a: "支付全程由 PayPal/支付宝/微信提供安全保护，我们不存储任何支付敏感信息（卡号、密码等）。支持 PayPal、支付宝、微信支付、Visa、Mastercard 等多种方式。",
   },
   {
     q: "会员可以退款吗？",
@@ -141,9 +142,11 @@ function VipContent() {
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
-  const [payMethod, setPayMethod] = useState<"paypal" | "wechat" | "stripe">("paypal");
+  const [payMethod, setPayMethod] = useState<"paypal" | "wechat" | "alipay">("paypal");
   const [wxpayData, setWxpayData] = useState<{ orderNo: string; codeUrl: string; amount: number } | null>(null);
   const [wxpayLoading, setWxpayLoading] = useState(false);
+  const [alipayData, setAlipayData] = useState<{ orderNo: string; qrCode: string; amount: number } | null>(null);
+  const [alipayLoading, setAlipayLoading] = useState(false);
 
   // 处理 PayPal 返回结果
   useEffect(() => {
@@ -276,6 +279,7 @@ function VipContent() {
     setSelectedTier(tier);
     setShowUpgradeModal(true);
     setWxpayData(null);
+    setAlipayData(null);
     setPayMethod("paypal");
   };
 
@@ -312,6 +316,49 @@ function VipContent() {
 
   // 微信支付成功回调
   const handleWxpaySuccess = () => {
+    setPaymentMessage({
+      type: "success",
+      text: `🎉 开通成功！正在跳转...`,
+    });
+    setTimeout(() => {
+      window.dispatchEvent(new Event("vip-upgraded"));
+      router.push("/settings");
+    }, 2000);
+  };
+
+  // 处理支付宝支付
+  const handleAlipay = async () => {
+    if (!selectedTier) return;
+    setAlipayLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/alipay/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tier: selectedTier.level }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAlipayData({
+          orderNo: data.orderNo,
+          qrCode: data.qrCode,
+          amount: data.amount,
+        });
+      } else {
+        setPaymentMessage({ type: "error", text: data.error || "创建支付订单失败" });
+      }
+    } catch {
+      setPaymentMessage({ type: "error", text: "网络错误，请稍后重试" });
+    } finally {
+      setAlipayLoading(false);
+    }
+  };
+
+  // 支付宝支付成功回调
+  const handleAlipaySuccess = () => {
     setPaymentMessage({
       type: "success",
       text: `🎉 开通成功！正在跳转...`,
@@ -773,6 +820,26 @@ function VipContent() {
                   >
                     🟢 微信支付
                   </button>
+                  <button
+                    onClick={() => {
+                      setPayMethod("alipay");
+                      handleAlipay();
+                    }}
+                    disabled={alipayLoading}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: payMethod === "alipay" ? "2px solid #1677ff" : "1px solid #EEE",
+                      background: payMethod === "alipay" ? "#e6f7ff" : "#fff",
+                      fontSize: 13,
+                      cursor: alipayLoading ? "not-allowed" : "pointer",
+                      color: payMethod === "alipay" ? "#1677ff" : "#666",
+                      opacity: alipayLoading ? 0.6 : 1,
+                    }}
+                  >
+                    🐱 支付宝
+                  </button>
                 </div>
 
                 {/* PayPal 按钮 */}
@@ -792,6 +859,16 @@ function VipContent() {
 
                 {/* 微信支付加载中 */}
                 {payMethod === "wechat" && wxpayLoading && (
+                  <div style={{ textAlign: "center", padding: "20px" }}>
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+                    <div style={{ fontSize: 14, color: "#666", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                      正在生成支付二维码...
+                    </div>
+                  </div>
+                )}
+
+                {/* 支付宝支付加载中 */}
+                {payMethod === "alipay" && alipayLoading && (
                   <div style={{ textAlign: "center", padding: "20px" }}>
                     <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
                     <div style={{ fontSize: 14, color: "#666", fontFamily: "'Noto Sans SC', sans-serif" }}>
@@ -836,6 +913,45 @@ function VipContent() {
                   codeUrl={wxpayData.codeUrl}
                   amount={wxpayData.amount}
                   onSuccess={handleWxpaySuccess}
+                  onError={(error) => setPaymentMessage({ type: "error", text: error })}
+                />
+              </div>
+            )}
+
+            {/* 支付宝二维码 */}
+            {selectedTier.level > 0 && alipayData && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
+                  fontFamily: "'Noto Sans SC', sans-serif",
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#2D1B0E" }}>
+                    支付宝
+                  </span>
+                  <button
+                    onClick={() => {
+                      setAlipayData(null);
+                      setPayMethod("paypal");
+                    }}
+                    style={{
+                      fontSize: 12,
+                      color: "#999",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    返回选择
+                  </button>
+                </div>
+                <AlipayQRCode
+                  orderNo={alipayData.orderNo}
+                  qrCode={alipayData.qrCode}
+                  amount={alipayData.amount}
+                  onSuccess={handleAlipaySuccess}
                   onError={(error) => setPaymentMessage({ type: "error", text: error })}
                 />
               </div>

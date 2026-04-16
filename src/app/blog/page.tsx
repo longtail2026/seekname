@@ -162,7 +162,7 @@ export default function BlogPage() {
 
           {/* 文章卡片列表 */}
           {loading ? (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>加载中...</div>
+            <BlogSkeleton />
           ) : posts.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>📝</div>
@@ -205,6 +205,66 @@ export default function BlogPage() {
 
       {/* 写文章弹窗 */}
       {showWriteModal && <WriteModal onClose={() => { setShowWriteModal(false); fetchPosts(); }} />}
+    </div>
+  );
+}
+
+/* ─── 骨架屏 ─── */
+function BlogSkeleton() {
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+      gap: 20,
+      marginBottom: 40,
+    }}>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} style={{
+          background: "#FFF",
+          borderRadius: 12,
+          border: "1px solid #EEE8DD",
+          overflow: "hidden",
+          padding: 16,
+        }}>
+          {/* 封面占位 */}
+          <div style={{
+            height: 160,
+            borderRadius: 8,
+            background: "linear-gradient(90deg, #F5F0E8 25%, #EDE5D8 50%, #F5F0E8 75%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 1.5s infinite",
+            marginBottom: 12,
+          }} />
+          {/* 标签占位 */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <div style={{ width: 50, height: 20, borderRadius: 10, background: "#F5F0E8" }} />
+            <div style={{ width: 40, height: 20, borderRadius: 10, background: "#F5F0E8" }} />
+          </div>
+          {/* 标题占位 */}
+          <div style={{ height: 20, borderRadius: 4, background: "#F5F0E8", marginBottom: 8 }} />
+          <div style={{ height: 20, borderRadius: 4, background: "#F5F0E8", width: "70%", marginBottom: 12 }} />
+          {/* 摘要占位 */}
+          <div style={{ height: 14, borderRadius: 4, background: "#F5F0E8", marginBottom: 6 }} />
+          <div style={{ height: 14, borderRadius: 4, background: "#F5F0E8", width: "85%", marginBottom: 16 }} />
+          {/* 底部占位 */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F5F0E8" }} />
+              <div style={{ width: 60, height: 14, borderRadius: 4, background: "#F5F0E8" }} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ width: 40, height: 12, borderRadius: 4, background: "#F5F0E8" }} />
+              <div style={{ width: 30, height: 12, borderRadius: 4, background: "#F5F0E8" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}} />
     </div>
   );
 }

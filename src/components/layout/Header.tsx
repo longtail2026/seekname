@@ -163,12 +163,21 @@ export default function Header() {
             {navItems.map((item) => (
               <div key={item.labelKey} className="nav-submenu-trigger" style={{ position: "relative" }}
                 onMouseEnter={() => setOpenSubmenuKey(item.labelKey)}>
-                <Link href={item.href} style={{ ...navItemStyle, color: openSubmenuKey === item.labelKey ? "#E86A17" : "#4A3428", gap: 4 }}>
-                  {item.label}
-                  {item.submenu && (
+                {item.submenu ? (
+                  /* 有子菜单的主项：使用span禁止直接跳转 */
+                  <span 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    style={{ ...navItemStyle, color: openSubmenuKey === item.labelKey ? "#E86A17" : "#4A3428", gap: 4, cursor: "default" }}
+                  >
+                    {item.label}
                     <span style={{ fontSize: 9, marginLeft: 2, transition: "transform 0.2s", display: "inline-block", transform: openSubmenuKey === item.labelKey ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
-                  )}
-                </Link>
+                  </span>
+                ) : (
+                  /* 无子菜单的项：保持可点击 */
+                  <Link href={item.href} style={{ ...navItemStyle, color: openSubmenuKey === item.labelKey ? "#E86A17" : "#4A3428", gap: 4 }}>
+                    {item.label}
+                  </Link>
+                )}
                 {item.submenu && openSubmenuKey === item.labelKey && (
                   <div className="nav-submenu-panel" style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: "100%", background: "rgba(255,255,255,0.98)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 6px 24px rgba(74,52,40,0.12), 0 2px 6px rgba(74,52,40,0.06)", border: "1px solid rgba(212,148,26,0.18)", padding: "6px 0", zIndex: 2000, textAlign: "center" }}
                     onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={() => setOpenSubmenuKey(null)}>
