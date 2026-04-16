@@ -1,0 +1,17 @@
+feat: Sprint 10 - VIP 会员定价页 + 升级 API + 设置页 VIP 入口
+
+## VIP 会员中心
+- `src/app/vip/page.tsx` — 三档定价页（免费版 / VIP 月卡 ¥29 / SVIP 年卡 ¥199）
+  - 功能逐级解锁对比表（10 项权益）
+  - 权益保障介绍（安全/极速/典籍/多端）
+  - FAQ 手风琴（5 题）
+  - 支付确认弹窗（模拟微信支付）
+  - VIP 已登录用户显示续费/管理界面
+- `src/app/vip/metadata.ts` — 独立 SEO metadata
+
+## VIP 升级 API
+- `src/app/api/vip/upgrade/route.ts` — POST 升级会员等级（JWT 鉴权、数据库降级保护）
+
+## 设置页 VIP 入口
+- `src/app/settings/page.tsx` — VIP 用户显示会员状态卡（积分/到期提示）
+- 未 VIP 用户显示升级引导 banner

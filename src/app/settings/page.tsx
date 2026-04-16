@@ -609,6 +609,92 @@ export default function SettingsPage() {
               </div>
             )}
 
+            {/* ── VIP 状态卡 ── */}
+            {user?.vipLevel && user.vipLevel > 0 && (
+              <div
+                style={{
+                  padding: "16px 20px",
+                  borderRadius: 12,
+                  marginBottom: 24,
+                  background: user.vipLevel === 2
+                    ? "linear-gradient(135deg, rgba(212,148,26,0.1), rgba(212,148,26,0.05))"
+                    : "linear-gradient(135deg, rgba(232,106,23,0.1), rgba(232,106,23,0.05))",
+                  border: `1px solid ${user.vipLevel === 2 ? "rgba(212,148,26,0.25)" : "rgba(232,106,23,0.25)"}`,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div style={{
+                    fontSize: 15, fontWeight: 700,
+                    color: user.vipLevel === 2 ? "#D4941A" : "#E86A17",
+                    fontFamily: "'Noto Serif SC', serif",
+                  }}>
+                    {user.vipLevel === 2 ? "SVIP 会员" : "VIP 会员"}
+                    {user.points > 0 && (
+                      <span style={{ fontSize: 12, color: "#888", fontWeight: 400, marginLeft: 8 }}>
+                        · {user.points} 积分
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: "#888",
+                    marginTop: 3,
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                  }}>
+                    {user.vipLevel === 2 ? "SVIP 年度会员 · 全功能解锁" : "VIP 月度会员 · 功能升级中"}
+                  </div>
+                </div>
+                <Link
+                  href="/vip"
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    textDecoration: "none",
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    background: user.vipLevel === 2
+                      ? "linear-gradient(135deg, #D4941A, #C07D10)"
+                      : "linear-gradient(135deg, #E86A17, #D55A0B)",
+                    color: "#FFF",
+                  }}
+                >
+                  续费 / 升级
+                </Link>
+              </div>
+            )}
+
+            {/* ── 未开通 VIP 引导 ── */}
+            {(!user?.vipLevel || user.vipLevel === 0) && (
+              <div
+                onClick={() => router.push("/vip")}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: 12,
+                  marginBottom: 24,
+                  background: "rgba(232,106,23,0.06)",
+                  border: "1px dashed rgba(232,106,23,0.3)",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#E86A17", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                    ✨ 升级 VIP，解锁无限名字生成
+                  </div>
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 2, fontFamily: "'Noto Sans SC', sans-serif" }}>
+                    深度五行分析、AI 典籍解读、重名率查询
+                  </div>
+                </div>
+                <span style={{ fontSize: 18, color: "#E86A17" }}>→</span>
+              </div>
+            )}
+
             {/* ── 头像区域（带裁剪） ── */}
             <section style={{ textAlign: "center", marginBottom: 32 }}>
               <div
