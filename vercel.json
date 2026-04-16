@@ -3,19 +3,6 @@
   "buildCommand": "prisma generate && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "env": {
-    "POSTGRES_URL": "@postgres-url",
-    "POSTGRES_PRISMA_URL": "@postgres-prisma-url",
-    "POSTGRES_URL_NON_POOLING": "@postgres-url-non-pooling",
-    "POSTGRES_USER": "@postgres-user",
-    "POSTGRES_HOST": "@postgres-host",
-    "POSTGRES_PASSWORD": "@postgres-password",
-    "POSTGRES_DATABASE": "@postgres-database",
-    "JWT_SECRET": "@jwt-secret",
-    "DEEPSEEK_API_KEY": "@deepseek-api-key",
-    "GITHUB_CLIENT_ID": "@github-client-id",
-    "GITHUB_CLIENT_SECRET": "@github-client-secret"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
