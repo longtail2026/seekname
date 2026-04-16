@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2D1B0E"/>
+      <stop offset="100%" style="stop-color:#3D2510"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8A33"/>
+      <stop offset="100%" style="stop-color:#D4941A"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Decorative circle pattern -->
+  <circle cx="600" cy="315" r="280" fill="none" stroke="#D4941A" stroke-width="0.5" opacity="0.15"/>
+  <circle cx="600" cy="315" r="240" fill="none" stroke="#D4941A" stroke-width="0.5" opacity="0.1"/>
+  <!-- Top decorative line -->
+  <rect x="540" y="130" width="120" height="1" fill="#D4941A" opacity="0.4"/>
+  <rect x="560" y="134" width="80" height="0.5" fill="#D4941A" opacity="0.3"/>
+  <!-- Main character -->
+  <text x="600" y="330" font-size="180" font-family="serif" font-weight="bold"
+    fill="url(#gold)" text-anchor="middle" dominant-baseline="middle" filter="url(#glow)">名</text>
+  <!-- Brand name -->
+  <text x="600" y="410" font-size="36" font-family="sans-serif" font-weight="600"
+    fill="#FFFFFF" text-anchor="middle" letter-spacing="4">寻名网</text>
+  <text x="600" y="445" font-size="18" font-family="sans-serif"
+    fill="#D4941A" text-anchor="middle" letter-spacing="3" opacity="0.8">SeekName</text>
+  <!-- Tagline -->
+  <text x="600" y="520" font-size="20" font-family="sans-serif"
+    fill="rgba(255,255,255,0.55)" text-anchor="middle" letter-spacing="2">12万部典籍 × AI × 八字五行</text>
+  <!-- Bottom line -->
+  <rect x="420" y="545" width="360" height="0.5" fill="#D4941A" opacity="0.25"/>
+  <!-- Corner decorations -->
+  <path d="M30,30 L60,30 L60,33 L33,33 L33,60 L30,60 Z" fill="#D4941A" opacity="0.3"/>
+  <path d="M1170,30 L1140,30 L1140,33 L1167,33 L1167,60 L1170,60 Z" fill="#D4941A" opacity="0.3"/>
+  <path d="M30,600 L60,600 L60,597 L33,597 L33,570 L30,570 Z" fill="#D4941A" opacity="0.3"/>
+  <path d="M1170,600 L1140,600 L1140,597 L1167,597 L1167,570 L1170,570 Z" fill="#D4941A" opacity="0.3"/>
+</svg>

@@ -1,0 +1,61 @@
+{
+  "name": "寻名网 SeekName",
+  "short_name": "寻名网",
+  "description": "专业起名服务平台，12万部典籍 × AI × 八字五行，30秒生成6个吉祥好名",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFAF4",
+  "theme_color": "#E86A17",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "zh-CN",
+  "categories": ["lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-home.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "首页起名"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "个人起名",
+      "short_name": "个人",
+      "description": "新生儿或个人起名",
+      "url": "/personal",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "公司起名",
+      "short_name": "公司",
+      "description": "企业公司起名",
+      "url": "/company/form",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "名字测评",
+      "short_name": "测评",
+      "description": "已有名字深度测评",
+      "url": "/evaluate/form",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

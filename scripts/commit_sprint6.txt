@@ -1,0 +1,23 @@
+feat: Sprint 6 - 生产级就绪
+
+## SEO 基础
+- 新增 sitemap.xml（所有主路由，优先权分级）
+- 新增 robots.txt（屏蔽 /api/、/orders、/settings）
+- 全站 metadata 升级：OpenGraph + Twitter Card + viewport + verification
+- 新增独立 metadata：/naming、/personal、/company、/brand、/blog
+
+## 错误页
+- 自定义 404 not-found.tsx（中文主题，回归引导）
+- 自定义 error.tsx（带重试按钮，开发环境显示 error digest）
+
+## 骨架屏
+- naming/loading.tsx（6 张名字卡片骨架，含动画 pulse）
+- blog/loading.tsx（9 张文章卡片骨架 + 横幅骨架）
+
+## PWA 支持
+- public/manifest.json（独立应用、快速启动、3 个快捷方式）
+- layout.tsx 引入 manifest + apple-mobile-web-app meta
+
+## 性能优化
+- next.config.mjs：图片域名白名单、avif/webp 格式、standalone 输出
+- 生成 og-cover.svg 占位图（需后续替换为 1200x630 PNG）
