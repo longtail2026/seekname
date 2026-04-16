@@ -1,10 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
+
+// PayPal JS SDK 全局类型
+declare const paypal: {
+  Buttons(config: {
+    style?: Record<string, string>;
+    onClick?: (data: unknown, actions: { reject: () => unknown; resolve: () => unknown }) => unknown;
+    createOrder?: () => Promise<string>;
+    onApprove?: (data: { orderID: string }) => void;
+    onCancel?: () => void;
+    onError?: (err: unknown) => void;
+  }): { render: (el: HTMLElement) => void };
+};
 
 const TIERS = [
   {
@@ -98,7 +110,7 @@ const FAQS = [
   },
   {
     q: "支付安全吗？支持哪些支付方式？",
-    a: "支付全程由微信支付/支付宝提供安全保护，我们不存储任何支付敏感信息。支持微信支付、支付宝、信用卡等多种支付方式。",
+    a: "支付全程由 PayPal 提供安全保护，我们不存储任何支付敏感信息（卡号、密码等）。支持 PayPal、 Visa、Mastercard、American Express、UnionPay 等多种方式。",
   },
   {
     q: "会员可以退款吗？",
@@ -113,10 +125,129 @@ const FAQS = [
 export default function VipPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedTier, setSelectedTier] = useState<typeof TIERS[0] | null>(null);
   const [paying, setPaying] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const [paymentMessage, setPaymentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const paypalContainerRef = useRef<HTMLDivElement>(null);
+
+  // 处理 PayPal 返回结果
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment");
+    const orderId = searchParams.get("orderId");
+    if (paymentStatus === "success" && orderId && user) {
+      handlePayPalCapture(orderId);
+    } else if (paymentStatus === "cancelled") {
+      setPaymentMessage({ type: "error", text: "支付已取消，请选择其他支付方式" });
+      router.replace("/vip");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, user]);
+
+  // PayPal 扣款成功后升级 VIP
+  const handlePayPalCapture = async (orderId: string) => {
+    setPaying(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/paypal/capture-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPaymentMessage({
+          type: "success",
+          text: `🎉 ${data.message || "开通成功！"} 订单号：${data.orderId}`,
+        });
+        setShowUpgradeModal(false);
+        // 通知 AuthContext 刷新用户信息
+        window.dispatchEvent(new Event("vip-upgraded"));
+        setTimeout(() => router.push("/settings"), 2000);
+      } else {
+        setPaymentMessage({ type: "error", text: data.error || "支付确认失败，请联系客服" });
+      }
+    } catch {
+      setPaymentMessage({ type: "error", text: "网络异常，请稍后重试" });
+    } finally {
+      setPaying(false);
+      router.replace("/vip");
+    }
+  };
+
+  // 加载 PayPal SDK 并渲染按钮
+  useEffect(() => {
+    if (!showUpgradeModal || !selectedTier || selectedTier.level === 0) return;
+
+    const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+    if (!clientId) return;
+
+    // 动态加载 PayPal JS SDK
+    const loadPayPal = () => {
+      if (typeof window === "undefined") return;
+      const existing = document.getElementById("paypal-sdk");
+      if (!existing) {
+        const script = document.createElement("script");
+        script.id = "paypal-sdk";
+        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD`;
+        script.onload = () => renderPayPalButtons();
+        document.head.appendChild(script);
+      } else {
+        renderPayPalButtons();
+      }
+    };
+
+    const renderPayPalButtons = () => {
+      if (typeof paypal === "undefined" || !paypalContainerRef.current) return;
+      paypalContainerRef.current.innerHTML = "";
+
+      paypal.Buttons({
+        style: { layout: "vertical", color: "gold", shape: "rect", label: "pay" },
+        async onClick(_data: any, actions: any) {
+          if (!user) {
+            router.push("/login?redirect=/vip");
+            return actions.reject();
+          }
+          return actions.resolve();
+        },
+        async createOrder() {
+          const token = localStorage.getItem("token");
+          const res = await fetch("/api/paypal/create-order", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({ tier: selectedTier!.level }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.orderId) {
+            throw new Error(data.error || "创建订单失败");
+          }
+          return data.orderId;
+        },
+        onApprove(data: any) {
+          // PayPal 跳转会带上 orderId，直接在页面处理
+          window.location.href = `/vip?payment=success&orderId=${data.orderID}`;
+        },
+        onCancel() {
+          setPaymentMessage({ type: "error", text: "支付已取消" });
+        },
+        onError(err: any) {
+          console.error("[PayPal]", err);
+          setPaymentMessage({ type: "error", text: "支付出错，请重试" });
+        },
+      }).render(paypalContainerRef.current);
+    };
+
+    loadPayPal();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showUpgradeModal, selectedTier]);
 
   // 如果已登录且是 VIP，显示续费/管理界面
   const isVip = user && user.vipLevel > 0;
@@ -127,7 +258,6 @@ export default function VipPage() {
       return;
     }
     if (tier.level <= (user.vipLevel ?? 0)) {
-      // 已拥有同等级或更高等级
       router.push("/settings");
       return;
     }
@@ -135,33 +265,10 @@ export default function VipPage() {
     setShowUpgradeModal(true);
   };
 
-  const handlePayment = async () => {
-    if (!selectedTier || !user) return;
-    setPaying(true);
-    try {
-      // 模拟支付流程（实际接入微信/支付宝）
-      await new Promise((r) => setTimeout(r, 1500));
-      // 调用后端更新会员等级
-      const res = await fetch("/api/vip/upgrade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: selectedTier.level }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(
-          `🎉 恭喜！您已成功开通 ${selectedTier.name}\n订单号：${data.orderId || "VIP" + Date.now()}`
-        );
-        setShowUpgradeModal(false);
-        router.push("/settings");
-        window.location.reload();
-      } else {
-        alert(data.error || "支付失败，请稍后重试");
-      }
-    } catch {
-      alert("支付异常，请稍后重试");
-    } finally {
-      setPaying(false);
+  const closeModal = () => {
+    if (!paying) {
+      setShowUpgradeModal(false);
+      setPaymentMessage(null);
     }
   };
 
@@ -538,7 +645,7 @@ export default function VipPage() {
 
             <div style={{
               background: "#F9F7F4", borderRadius: 12,
-              padding: "16px 18px", marginBottom: 24,
+              padding: "16px 18px", marginBottom: 20,
               fontSize: 13, color: "#666",
               fontFamily: "'Noto Sans SC', sans-serif",
               lineHeight: 1.7,
@@ -551,40 +658,50 @@ export default function VipPage() {
               · 支付即表示同意《会员服务协议》
             </div>
 
+            {/* 支付状态提示 */}
+            {paymentMessage && (
+              <div style={{
+                padding: "10px 14px", borderRadius: 8, marginBottom: 16,
+                background: paymentMessage.type === "success" ? "#E8F5E9" : "#FFEBEE",
+                color: paymentMessage.type === "success" ? "#2E7D32" : "#C62828",
+                fontSize: 13, fontFamily: "'Noto Sans SC', sans-serif",
+                textAlign: "center",
+              }}>
+                {paymentMessage.text}
+              </div>
+            )}
+
+            {/* PayPal 按钮容器 */}
+            {selectedTier.level > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div ref={paypalContainerRef} id="paypal-button-container" />
+                {!process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID && !paying && (
+                  <div style={{
+                    padding: "12px", borderRadius: 8,
+                    background: "#FFF3E0", border: "1px dashed #FFB74D",
+                    color: "#E65100", fontSize: 12,
+                    textAlign: "center", fontFamily: "'Noto Sans SC', sans-serif",
+                  }}>
+                    ⚠️ PayPal 尚未配置，请在 .env 中设置 NEXT_PUBLIC_PAYPAL_CLIENT_ID
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 12 }}>
               <button
-                onClick={() => setShowUpgradeModal(false)}
+                onClick={closeModal}
                 disabled={paying}
                 style={{
                   flex: 1, padding: "12px",
                   borderRadius: 10, border: "1px solid #DDD0C0",
                   background: "#FFF", color: "#666",
-                  fontSize: 14, cursor: "not-allowed",
+                  fontSize: 14, cursor: paying ? "not-allowed" : "pointer",
                   fontFamily: "'Noto Sans SC', sans-serif",
                   opacity: paying ? 0.5 : 1,
                 }}
               >
                 取消
-              </button>
-              <button
-                onClick={handlePayment}
-                disabled={paying}
-                style={{
-                  flex: 2, padding: "12px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: paying
-                    ? "#CCC"
-                    : `linear-gradient(135deg, ${selectedTier.accentColor}, ${selectedTier.accentColor}BB)`,
-                  color: "#FFF", fontSize: 14, fontWeight: 600,
-                  cursor: paying ? "not-allowed" : "pointer",
-                  fontFamily: "'Noto Sans SC', sans-serif",
-                  boxShadow: paying
-                    ? "none"
-                    : `0 4px 16px ${selectedTier.accentColor}55`,
-                }}
-              >
-                {paying ? "支付中..." : `微信支付 ¥${selectedTier.price === "¥0" ? "0" : selectedTier.price.replace("¥", "")}`}
               </button>
             </div>
           </div>

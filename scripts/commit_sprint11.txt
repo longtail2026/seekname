@@ -1,0 +1,16 @@
+feat: Sprint 11 - PayPal 支付接入
+
+## PayPal API 路由
+- `src/app/api/paypal/create-order/route.ts` — 创建 PayPal 订单（OAuth2 获取 token → 创建 checkout order）
+- `src/app/api/paypal/capture-order/route.ts` — 确认支付 + 升级 VIP（capture → 验证 status → 更新数据库 → 返回结果）
+
+## VIP 页面改造
+- 移除模拟微信支付，接入 PayPal JS SDK
+- 动态加载 SDK，按需渲染 PayPal 按钮（vertical/gold 样式）
+- 完整支付流程：createOrder → PayPal 跳转 → onApprove 捕获 → 升级 VIP
+- 返回 URL 处理：?payment=success&orderId=xxx 自动确认并升级
+- 支付取消 / 失败状态提示
+- FAQ 更新为 PayPal + 多支付方式说明
+
+## 环境变量
+- `.env.example` 新增：PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_MODE / NEXT_PUBLIC_PAYPAL_CLIENT_ID
