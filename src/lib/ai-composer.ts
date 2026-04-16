@@ -26,6 +26,7 @@ import {
   checkSafetyWithDeepSeek,
   polishNameWithDeepSeek,
 } from "./deepseek-integration";
+import { computeRealScores, computeRealScoresBatch } from "./name-scorer";
 
 // ============================================================
 // 类型定义
@@ -396,14 +397,22 @@ export async function aiCompose(
         candidate.scoreBreakdown.safety = 85;
       }
 
-      // 4e. 计算综合分
+      // 4e. 计算综合分（占位，computeRealScores 会覆盖）
       candidate.score = calculateOverallScore(candidate, config.scenario);
 
       validatedCandidates.push(candidate);
     }
 
-    // 5. 排序并返回 Top N
-    const sorted = validatedCandidates
+    // ============================================================
+    // 5. Sprint 4：真实评分（文化 / 常用度 / 重名风险 / 音律）
+    // ============================================================
+    const gender = intent.gender === "F" ? "F" : "M";
+    console.log(`[AI Composer] 开始真实评分，共 ${validatedCandidates.length} 个候选...`);
+
+    const realScored = await computeRealScoresBatch(validatedCandidates, gender);
+
+    // 6. 排序并返回 Top N
+    const sorted = realScored
       .sort((a, b) => b.score - a.score)
       .slice(0, config.maxCandidates);
 

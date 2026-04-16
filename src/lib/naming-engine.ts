@@ -80,6 +80,7 @@ export interface NameCandidate {
     book: string;
     text: string;
     chapter?: string;
+    modernText?: string; // 现代释义
   }>;
   
   // 风险提示

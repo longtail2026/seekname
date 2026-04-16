@@ -1,0 +1,11 @@
+feat(Sprint4): Real scoring system with 4 dimensions
+
+- NEW: src/lib/name-scorer.ts (cultural/popularity/uniqueness/phonetic scoring)
+- NEW: src/lib/name-scorer.ts → queryCulturalSource (典籍出处查询)
+- NEW: src/lib/name-scorer.ts → queryPopularity (字频表查询)
+- NEW: src/lib/name-scorer.ts → queryUniqueness (真实人名数据库查询)
+- NEW: src/lib/name-scorer.ts → computeRealScores (综合评分)
+- NEW: scripts/create_char_freq_table.sql (建字频聚合表 character_frequency)
+- NEW: scripts/test-name-scorer.ts (四维度评分测试脚本)
+- CHG: ai-composer.ts → 接入 computeRealScoresBatch
+- CHG: naming-engine.ts → sources 新增 modernText 字段

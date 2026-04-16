@@ -1,0 +1,8 @@
+feat(Sprint3): AI creative composition layer
+
+- src/lib/ai-composer.ts: AI composition core module
+  - aiComposer() supports 6 scenarios (baby/adult/company/brand/shop/pet)
+  - Dual mode: DeepSeek LLM generation + Fallback rule-based composition
+  - Pipeline: char pool summary -> LLM selection -> meaning generation -> 5-dimension scoring -> ranking
+
+- scripts/test-ai-composer.ts: quick verification script
