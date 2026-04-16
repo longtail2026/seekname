@@ -7,6 +7,8 @@
  *
  * 请求体：
  *   surname, gender, birthDate, birthTime?, expectations?, style?
+ *   scenario?: "baby" | "adult" | "company" | "brand" | "shop" | "pet"  (默认 baby)
+ *   useAiComposer?: boolean  (默认 true，优先使用 AI 创意组合层)
  *
  * 响应：
  *   success, data: { orderId, orderNo, wuxing, names }
@@ -16,6 +18,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateOrderNo, generateAnonymousName } from "@/lib/order";
 import { verifyToken } from "@/lib/auth";
+import { aiCompose } from "@/lib/ai-composer";
+import type { NamingScenario } from "@/lib/ai-composer";
 
 // ─── 起名配置 ───
 const NAME_CONFIG = {
@@ -289,15 +293,92 @@ export async function POST(request: NextRequest) {
     // ── 计算五行喜忌 ──
     const wuxingResult = calculateWuxing(birthDate, birthTime);
 
-    // ── 生成名字 ──
-    const rawNames = await generateNames(
-      surname,
-      gender,
-      wuxingResult.likes,
-      expectations
-    );
+    // ── 确定场景 & 是否使用 AI 组合层 ──
+    const validScenarios: NamingScenario[] = ["baby", "adult", "company", "brand", "shop", "pet"];
+    const scenario: NamingScenario = validScenarios.includes(category as NamingScenario)
+      ? (category as NamingScenario)
+      : "baby";
+    const useAiComposer = body.useAiComposer !== false; // 默认开启
 
-    // ── 附加典籍出处 ──
+    let rawNames: any[] = [];
+
+    if (useAiComposer) {
+      // ── 使用 AI 创意组合层 ──
+      try {
+        console.log(`[API] 使用 AI Composer，场景=${scenario}`);
+
+        // 构建 StructuredIntent（与 naming-engine.ts 兼容的格式）
+        const intent = {
+          surname,
+          gender: gender as "M" | "F",
+          birthDate,
+          birthTime,
+          style: style ? [style] : [],
+          wordCount: 2 as const,
+          wuxing: wuxingResult.likes,
+          avoidances: [] as string[],
+          imagery: expectations
+            ? expectations.split(/[,，\s]+/).filter(Boolean)
+            : [],
+          sourcePreference: [],
+          notes: expectations,
+        };
+
+        // 构建候选字池（从五行字库中取）
+        const poolChars = wuxingResult.likes.flatMap((wx) => {
+          const chars = NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars] || [];
+          return chars;
+        });
+
+        const charInfo = await queryKangxiChars(poolChars.slice(0, 30));
+        const charMap = new Map(charInfo.map((c) => [c.character, c]));
+
+        const pool = poolChars
+          .filter((char) => charMap.has(char))
+          .map((char) => {
+            const info = charMap.get(char)!;
+            return {
+              character: char,
+              pinyin: info.pinyin || "",
+              wuxing: info.wuxing || wx || "",
+              meaning: info.meaning || "",
+              strokeCount: info.strokeCount || 0,
+              frequency: 50,
+            };
+          });
+
+        // 调用 AI Composer
+        const candidates = await aiCompose(pool, intent, {
+          scenario,
+          fallbackToRules: true,
+          maxCandidates: 8,
+          wordCount: 2,
+        }, surname);
+
+        rawNames = candidates.map((c) => ({
+          name: c.fullName,
+          givenName: c.givenName,
+          pinyin: c.pinyin,
+          wuxing: c.wuxing,
+          meaning: c.meaning,
+          strokeCount: c.strokeCount,
+          source: c.sources[0]
+            ? { book: c.sources[0].book, text: c.sources[0].text }
+            : undefined,
+          score: c.score,
+        }));
+
+        console.log(`[API] AI Composer 生成 ${rawNames.length} 个名字`);
+      } catch (err) {
+        console.error("[API] AI Composer 失败，降级到传统生成:", err);
+        rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
+      }
+    } else {
+      // ── 使用传统规则生成 ──
+      rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
+    }
+
+    // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
     const namesWithSource = await attachSources(rawNames, expectations);
 
     // ── 创建订单记录（每次必建）──
@@ -348,6 +429,8 @@ export async function POST(request: NextRequest) {
         orderDetail,
         wuxing: wuxingResult,
         names: namesWithSource,
+        scenario,
+        useAiComposer,
       },
     });
   } catch (error) {
