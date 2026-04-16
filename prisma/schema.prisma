@@ -128,12 +128,13 @@ model User {
   updatedAt   DateTime @updatedAt @map("updated_at")
   
   // 关联
-  orders      Order[]
-  nameRecords NameRecord[]
-  blogPosts   BlogPost[]
-  comments    BlogComment[]
-  likes       BlogLike[]
-  favorites   BlogFavorite[]
+  orders        Order[]
+  nameRecords   NameRecord[]
+  blogPosts     BlogPost[]
+  comments      BlogComment[]
+  likes         BlogLike[]
+  favorites     BlogFavorite[]
+  nameFavorites NameFavorite[]
 
   @@index([wxOpenId], map: "idx_user_wx")
   @@index([status], map: "idx_user_status")
@@ -255,6 +256,8 @@ model BlogPost {
   updatedAt     DateTime     @updatedAt @map("updated_at")
 
   tags          BlogPostTag[]
+  comments      BlogComment[]
+  favorites     BlogFavorite[]
 
   @@index([userId], map: "idx_bp_user")
   @@index([status], map: "idx_bp_status")
@@ -318,6 +321,8 @@ model BlogLike {
   targetId  Int      @map("target_id")
   createdAt DateTime @default(now()) @map("created_at")
 
+  user      User     @relation(fields: [userId], references: [id])
+
   @@unique([userId, targetType, targetId], map: "uk_blog_like")
   @@index([userId], map: "idx_bl_user")
   @@map("blog_likes")
@@ -337,4 +342,30 @@ model BlogFavorite {
   @@index([userId], map: "idx_bf_user")
   @@index([postId], map: "idx_bf_post")
   @@map("blog_favorites")
+}
+
+// ─── 14. 名字典藏表 ──────────────────────────────────────────────────────────
+model NameFavorite {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  // 名字基本信息
+  surname   String   @db.VarChar(10)
+  fullName  String   @map("full_name") @db.VarChar(30)
+  gender    String   @db.Char(1)       // M/F
+  score     Int?     @default(0)
+
+  // 完整分析结果（JSON，兼容 NameResult 结构）
+  analysis  Json?                          @map("analysis")
+  wuxing    String[] @map("wuxing")          // 喜用五行
+  source    String? @db.VarChar(200)        // 来源：naming_results / api_generate
+  note      String? @db.VarChar(200)        // 用户备注
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, fullName], map: "uk_name_fav_user_name")
+  @@index([userId], map: "idx_nf_user")
+  @@index([createdAt], map: "idx_nf_created")
+  @@map("name_favorites")
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -123,6 +123,14 @@ const FAQS = [
 ];
 
 export default function VipPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-gray-500">加载中...</div></div>}>
+      <VipContent />
+    </Suspense>
+  );
+}
+
+function VipContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();

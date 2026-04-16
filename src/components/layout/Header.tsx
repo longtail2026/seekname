@@ -44,6 +44,10 @@ const mainNavItems = [
     label: "起名杂谈",
     href: "/blog",
   },
+  {
+    label: "典藏本",
+    href: "/collection",
+  },
 ];
 
 export default function Header() {
@@ -547,6 +551,7 @@ export default function Header() {
                 {/* 菜单项 */}
                 {[
                   { icon: "📋", label: "我的订单", href: "/orders", desc: "查看起名历史记录" },
+                  { icon: "📖", label: "名字典藏本", href: "/collection", desc: "收藏的名字 · PDF 导出" },
                   { icon: "⚙️", label: "账号设置", href: "/settings", desc: "头像与个人信息管理" },
                 ].map((item) => (
                   <Link

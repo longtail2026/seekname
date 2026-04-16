@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!post_id) return NextResponse.json({ error: "缺少 post_id" }, { status: 400 });
 
     // 检查是否已收藏
-    const existing = await prisma.$queryRawUnsafe<any[]>`
+    const existing = await prisma.$queryRaw<any[]>`
       SELECT id FROM blog_favorites WHERE user_id = ${userId} AND post_id = ${parseInt(post_id)}
     `;
 

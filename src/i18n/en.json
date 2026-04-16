@@ -1,0 +1,184 @@
+{
+  "nav": {
+    "home": "Home",
+    "naming": "AI Naming",
+    "evaluate": "Name Evaluation",
+    "blog": "Blog",
+    "vip": "Upgrade VIP",
+    "login": "Login",
+    "register": "Register",
+    "personal": "Dashboard",
+    "settings": "Settings",
+    "logout": "Logout",
+    "collection": "Name Collection"
+  },
+  "home": {
+    "heroTitle": "A Name, a Gift for Life",
+    "heroSubtitle": "Blending Chinese classics with modern AI to find the perfect name for you",
+    "ctaFree": "Start Free",
+    "ctaVip": "Upgrade VIP",
+    "features": {
+      "classic": { "title": "Classic References", "desc": "Draw from Shijing, Chuci, Tang poetry and more — meanings with historical roots" },
+      "ai": { "title": "AI Smart Generation", "desc": "Generate the best name options based on BaZi and Five Elements analysis" },
+      "phonetic": { "title": "Phonetic Optimization", "desc": "Pleasant to the ear, easy to remember, low name collision" },
+      "security": { "title": "Privacy Protected", "desc": "Data encrypted and stored securely, visible only to you" }
+    },
+    "pricing": {
+      "title": "Simple & Transparent Pricing",
+      "free": "Free",
+      "freeDesc": "For trial and exploration",
+      "vip": "VIP Monthly",
+      "vipDesc": "For power users",
+      "svip": "SVIP Yearly",
+      "svipDesc": "For long-term members"
+    }
+  },
+  "naming": {
+    "title": "AI Name Generation",
+    "form": {
+      "surname": "Surname",
+      "surnamePlaceholder": "Enter surname",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "birthDate": "Birth Date",
+      "birthTime": "Birth Hour",
+      "style": "Style Preference",
+      "expectations": "Desired Meaning",
+      "expectationsPlaceholder": "Desired meaning, e.g.: wisdom, courage, kindness...",
+      "submit": "Generate Names",
+      "generating": "Generating..."
+    },
+    "results": {
+      "title": "Recommended Names",
+      "score": "Overall Score",
+      "wuxing": "Five Elements",
+      "phonetic": "Phonetics",
+      "classic": "Classic Origin",
+      "famous": "Famous Namesakes",
+      "uniqueness": "Name Collision",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "save": "Save",
+      "saved": "Saved",
+      "exportPdf": "Export PDF"
+    },
+    "bazi": {
+      "title": "BaZi Analysis",
+      "year": "Year Pillar",
+      "month": "Month Pillar",
+      "day": "Day Pillar",
+      "hour": "Hour Pillar",
+      "wuxing": "Five Elements",
+      "lacking": "Favorable Elements",
+      "avoiding": "Avoid Elements"
+    }
+  },
+  "vip": {
+    "title": "Upgrade to VIP",
+    "subtitle": "Unlock all premium features for the ultimate experience",
+    "features": {
+      "unlimited": "Unlimited Generation",
+      "deep": "Deep AI Analysis",
+      "export": "PDF Export",
+      "cloud": "Cloud Name Book",
+      "priority": "Priority Support"
+    },
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "bestValue": "Best Value",
+    "subscribe": "Subscribe Now",
+    "renew": "Renew",
+    "currentPlan": "Current Plan",
+    "faq": {
+      "title": "FAQ",
+      "q1": "Can I get a refund after payment?",
+      "a1": "Yes, you can request a refund within 7 days of payment. Contact our support team.",
+      "q2": "Can I cancel my yearly plan midway?",
+      "a2": "Yes, you can cancel anytime and it won't auto-renew.",
+      "q3": "What payment methods are supported?",
+      "a3": "We support PayPal, WeChat Pay, Alipay, and other major payment methods.",
+      "q4": "Can VIP benefits be stacked?",
+      "a4": "No, benefits are based on your highest membership tier.",
+      "q5": "Is there a free trial?",
+      "a5": "The free plan includes 5 name generations per day. Try it before you buy!",
+      "q6": "Is payment secure?",
+      "a6": "All payments are processed through PayPal / WeChat / Alipay official channels with full security."
+    }
+  },
+  "blog": {
+    "title": "Blog",
+    "readMore": "Read More",
+    "comments": "Comments",
+    "likes": "Likes",
+    "favorites": "Favorites",
+    "noComments": "No comments yet. Be the first to comment!",
+    "commentPlaceholder": "Write your comment...",
+    "submitComment": "Post Comment",
+    "reply": "Reply",
+    "delete": "Delete"
+  },
+  "collection": {
+    "title": "Name Collection",
+    "subtitle": "Save your favorite names, view anytime or export to PDF",
+    "empty": "No saved names yet",
+    "emptyDesc": "Click 'Save' on the naming results page, and names will be saved here automatically",
+    "goNaming": "Go Generate",
+    "exportPdf": "Export PDF",
+    "delete": "Remove",
+    "total": "{count} names saved",
+    "columns": {
+      "name": "Full Name",
+      "score": "Score",
+      "savedAt": "Saved At",
+      "actions": "Actions"
+    },
+    "pdfTitle": "SeekName · Name Collection",
+    "pdfGenerated": "Generated at"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "security": "Security",
+    "vip": "Membership",
+    "about": "About",
+    "vipBanner": {
+      "title": "Upgrade to VIP",
+      "desc": "Unlock unlimited generations, deep AI analysis, PDF export and all premium features",
+      "cta": "Upgrade Now"
+    }
+  },
+  "errors": {
+    "notFound": "Page Not Found",
+    "notFoundDesc": "Sorry, the page you are looking for does not exist",
+    "goHome": "Go Home",
+    "serverError": "Server Error",
+    "retry": "Retry",
+    "unauthorized": "Please login first",
+    "serverErrorDev": "Development mode error detail"
+  },
+  "footer": {
+    "desc": "Blending Chinese classics with modern AI to find the perfect name for you",
+    "links": {
+      "about": "About Us",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "contact": "Contact Us"
+    },
+    "copyright": "© {year} SeekName. All rights reserved."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Operation failed",
+    "success": "Operation successful",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "share": "Share",
+    "copy": "Copy",
+    "copied": "Copied"
+  }
+}

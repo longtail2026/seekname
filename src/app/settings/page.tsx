@@ -379,6 +379,10 @@ export default function SettingsPage() {
   // 裁剪弹窗状态
   const [cropSrc, setCropSrc] = useState<string | null>(null);
 
+  // 用户数据（用于 VIP 状态卡）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [user, setUser] = useState<any>(null);
+
   // 切换爱好选中
   const toggleHobby = (hobby: string) => {
     setSelectedHobbies((prev) =>
@@ -409,6 +413,7 @@ export default function SettingsPage() {
           return;
         }
         const u = data.user;
+        setUser(u);
         setName(u.name || "");
         setAvatar(u.avatar || null);
         setGender(u.gender || "");

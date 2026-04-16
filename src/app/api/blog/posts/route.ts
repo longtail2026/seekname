@@ -164,8 +164,7 @@ export async function GET(req: NextRequest) {
     }
 
     const countResult = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-      `SELECT COUNT(*) as count FROM blog_posts bp ${whereClause}`,
-      ...params
+      `SELECT COUNT(*) as count FROM blog_posts bp ${whereClause}` as string
     );
     const total = Number(countResult[0]?.count || 0);
 
@@ -183,8 +182,7 @@ export async function GET(req: NextRequest) {
        JOIN users u ON u.id = bp.user_id
        ${whereClause}
        ORDER BY bp.created_at DESC
-       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
-      ...params, pageSize, offset
+       LIMIT ${pageSize} OFFSET ${offset}` as string
     );
 
     return NextResponse.json({ posts, total, page, pageSize });

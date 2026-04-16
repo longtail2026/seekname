@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     // 1. 鉴权
     const token = req.headers.get("authorization")?.replace("Bearer ", "");
-    const payload = verifyToken(token || "");
+    const payload = await verifyToken(token || "");
     if (!payload || !payload.userId) {
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
     }

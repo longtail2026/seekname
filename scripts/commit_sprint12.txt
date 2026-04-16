@@ -1,0 +1,43 @@
+feat: Sprint 12 - i18n 国际化 + 名字典藏本 + PDF 导出 + 清理
+
+## i18n 国际化基础设施
+- `src/i18n/zh.json` — 完整中文翻译（nav/home/naming/vip/blog/collection 等所有页面）
+- `src/i18n/en.json` — 完整英文翻译
+- `src/lib/i18n.ts` — getTranslations() / parseAcceptLanguage() / isValidLocale()
+- `src/contexts/LocaleContext.tsx` — LocaleProvider（cookie 持久化 + useLocale hook）
+- `src/middleware.ts` — 语言检测（cookie 优先 → Accept-Language 降级 → 默认中文）
+
+## 名字典藏本
+- `prisma/schema.prisma` — 新增 NameFavorite 模型（surname/fullName/gender/score/analysis JSON/wuxing/source/note）
+- `prisma/migrations/202604161600_add_name_favorites/` — 迁移 SQL（带唯一约束 uk_name_fav_user_name）
+- `src/app/api/names/favorites/route.ts` — GET/POST/DELETE API（幂等 upsert）
+- `src/app/collection/page.tsx` — 典藏本页面（收藏列表 + 删除 + PDF 导出）
+- `src/app/collection/metadata.ts` — 独立 SEO
+
+## PDF 导出
+- 使用 jsPDF 客户端生成 PDF（无需服务端）
+- 封面 + 每张名字卡片 + 结尾统计页
+- 五行标签彩色显示
+
+## Header 增强
+- 新增主导航「典藏本」入口
+- 用户下拉菜单新增「名字典藏本 📖」
+
+## 修复（构建清理）
+- 安装 @vercel/blob（修复 upload/image 动态导入报错）
+- 修复 `$queryRawUnsafe` → `$queryRaw`（6 处，Prisma 类型签名问题）
+- 修复 verifyToken 缺少 await（3 处 API 路由）
+- 修复 settings/page.tsx 缺少 user 状态变量
+- 修复 vip/page.tsx useSearchParams Suspense 包裹
+- Prisma Schema 补全关系字段（BlogLike.user / BlogPost.comments/favorites）
+- Prisma $queryRawUnsafe 参数处理（移除无效 spread params）
+- Prisma generate 成功
+
+## 新增包
+- next-intl@^3 — i18n 框架
+- jspdf — 客户端 PDF 生成
+- html2canvas — PDF 图片渲染
+- @vercel/blob — Vercel Blob 存储
+
+## 环境变量
+- `.env.example` 新增 NEXT_PUBLIC_SITE_URL

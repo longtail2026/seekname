@@ -1,0 +1,184 @@
+{
+  "nav": {
+    "home": "首页",
+    "naming": "智能起名",
+    "evaluate": "名字测评",
+    "blog": "博客",
+    "vip": "开通会员",
+    "login": "登录",
+    "register": "注册",
+    "personal": "个人中心",
+    "settings": "设置",
+    "logout": "退出登录",
+    "collection": "名字典藏本"
+  },
+  "home": {
+    "heroTitle": "名字，伴随一生的礼物",
+    "heroSubtitle": "融合国学经典与现代 AI，为您找到最契合的名字",
+    "ctaFree": "免费开始",
+    "ctaVip": "开通会员",
+    "features": {
+      "classic": { "title": "典籍解读", "desc": "诗经、楚辞、唐诗等国学典籍，名字寓意有出处" },
+      "ai": { "title": "AI 智能生成", "desc": "基于八字五行分析，生成最契合的名字方案" },
+      "phonetic": { "title": "音韵优化", "desc": "音律朗朗上口，好听好记不易重名" },
+      "security": { "title": "隐私保护", "desc": "数据加密存储，仅您可见，请放心使用" }
+    },
+    "pricing": {
+      "title": "简单透明的定价",
+      "free": "免费版",
+      "freeDesc": "适合尝鲜体验",
+      "vip": "VIP 月卡",
+      "vipDesc": "适合深度使用",
+      "svip": "SVIP 年卡",
+      "svipDesc": "适合长期使用"
+    }
+  },
+  "naming": {
+    "title": "智能起名",
+    "form": {
+      "surname": "姓氏",
+      "surnamePlaceholder": "请输入姓氏",
+      "gender": "性别",
+      "male": "男",
+      "female": "女",
+      "birthDate": "出生日期",
+      "birthTime": "出生时辰",
+      "style": "风格偏好",
+      "expectations": "期望寓意",
+      "expectationsPlaceholder": "期望名字包含的美好含义，如：智慧、勇敢、善良...",
+      "submit": "生成名字",
+      "generating": "生成中..."
+    },
+    "results": {
+      "title": "为您推荐的名字",
+      "score": "综合评分",
+      "wuxing": "五行分析",
+      "phonetic": "音韵分析",
+      "classic": "典籍出处",
+      "famous": "同名名人",
+      "uniqueness": "重名风险",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "save": "收藏",
+      "saved": "已收藏",
+      "exportPdf": "导出 PDF"
+    },
+    "bazi": {
+      "title": "八字分析",
+      "year": "年柱",
+      "month": "月柱",
+      "day": "日柱",
+      "hour": "时柱",
+      "wuxing": "五行",
+      "lacking": "八字喜用",
+      "avoiding": "八字忌用"
+    }
+  },
+  "vip": {
+    "title": "开通会员",
+    "subtitle": "解锁全部高级功能，尊享极致体验",
+    "features": {
+      "unlimited": "无限生成",
+      "deep": "深度解读",
+      "export": "PDF 导出",
+      "cloud": "云端典藏本",
+      "priority": "专属客服"
+    },
+    "monthly": "月卡",
+    "yearly": "年卡",
+    "bestValue": "最划算",
+    "subscribe": "立即订阅",
+    "renew": "续费",
+    "currentPlan": "当前方案",
+    "faq": {
+      "title": "常见问题",
+      "q1": "付费后可以退款吗？",
+      "a1": "付费后 7 天内如有问题可申请退款，请联系客服。",
+      "q2": "年卡可以中途停止吗？",
+      "a2": "可以随时停止，到期后不再续费。",
+      "q3": "支持哪些支付方式？",
+      "a3": "支持 PayPal、微信支付、支付宝等主流支付方式。",
+      "q4": "会员权益可以叠加吗？",
+      "a4": "不可以叠加，以最高等级为准。",
+      "q5": "有试用版吗？",
+      "a5": "免费版每天有 5 次生成次数，可先体验再决定。",
+      "q6": "支付安全吗？",
+      "a6": "所有支付通过 PayPal / 微信 / 支付宝官方渠道完成，安全有保障。"
+    }
+  },
+  "blog": {
+    "title": "博客",
+    "readMore": "阅读全文",
+    "comments": "评论",
+    "likes": "点赞",
+    "favorites": "收藏",
+    "noComments": "暂无评论，来抢沙发吧~",
+    "commentPlaceholder": "写下你的评论...",
+    "submitComment": "发表评论",
+    "reply": "回复",
+    "delete": "删除"
+  },
+  "collection": {
+    "title": "名字典藏本",
+    "subtitle": "收藏您喜欢的名字，随时查看或导出",
+    "empty": "暂无收藏的名字",
+    "emptyDesc": "在起名结果页点击「收藏」按钮，名字将自动保存在这里",
+    "goNaming": "去起名",
+    "exportPdf": "导出 PDF",
+    "delete": "移除",
+    "total": "共 {count} 个名字",
+    "columns": {
+      "name": "姓名",
+      "score": "评分",
+      "savedAt": "收藏时间",
+      "actions": "操作"
+    },
+    "pdfTitle": "寻名网 · 名字典藏本",
+    "pdfGenerated": "生成时间"
+  },
+  "settings": {
+    "title": "设置",
+    "profile": "个人信息",
+    "security": "安全设置",
+    "vip": "会员管理",
+    "about": "关于",
+    "vipBanner": {
+      "title": "升级为 VIP 会员",
+      "desc": "解锁无限生成、AI 深度解读、PDF 导出等全部高级功能",
+      "cta": "立即升级"
+    }
+  },
+  "errors": {
+    "notFound": "页面未找到",
+    "notFoundDesc": "抱歉，您访问的页面不存在",
+    "goHome": "返回首页",
+    "serverError": "服务器错误",
+    "retry": "重试",
+    "unauthorized": "请先登录",
+    "serverErrorDev": "开发环境错误详情"
+  },
+  "footer": {
+    "desc": "融合国学经典与现代 AI，为您找到最契合的名字",
+    "links": {
+      "about": "关于我们",
+      "privacy": "隐私政策",
+      "terms": "服务条款",
+      "contact": "联系我们"
+    },
+    "copyright": "© {year} 寻名网 SeekName. All rights reserved."
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "操作失败",
+    "success": "操作成功",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "share": "分享",
+    "copy": "复制",
+    "copied": "已复制"
+  }
+}

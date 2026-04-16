@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
     }
 
     const [like, favorite] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>`SELECT 1 FROM blog_likes WHERE user_id = ${userId} AND target_type = 'post' AND target_id = ${parseInt(postId)} LIMIT 1`,
-      prisma.$queryRawUnsafe<any[]>`SELECT 1 FROM blog_favorites WHERE user_id = ${userId} AND post_id = ${parseInt(postId)} LIMIT 1`,
+      prisma.$queryRaw<any[]>`SELECT 1 FROM blog_likes WHERE user_id = ${userId} AND target_type = 'post' AND target_id = ${parseInt(postId)} LIMIT 1`,
+      prisma.$queryRaw<any[]>`SELECT 1 FROM blog_favorites WHERE user_id = ${userId} AND post_id = ${parseInt(postId)} LIMIT 1`,
     ]);
 
     return NextResponse.json({
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 检查是否已点赞
-    const existing = await prisma.$queryRawUnsafe<any[]>`
+    const existing = await prisma.$queryRaw<any[]>`
       SELECT id FROM blog_likes
       WHERE user_id = ${userId} AND target_type = ${target_type} AND target_id = ${parseInt(target_id)}
     `;

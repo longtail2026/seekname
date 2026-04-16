@@ -18,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error: "无效的文章ID" }, { status: 400 });
     }
 
-    const post = await prisma.$queryRawUnsafe<any[]>`
+    const post = await prisma.$queryRaw<any[]>`
       SELECT bp.id, bp.title, bp.slug, bp.summary, bp.content, bp.cover_image,
              bp.view_count, bp.like_count, bp.comment_count, bp.favorite_count,
              bp.created_at, bp.updated_at,

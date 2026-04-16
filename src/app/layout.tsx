@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LocaleProvider } from "@/contexts/LocaleContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -81,8 +82,10 @@ export default function RootLayout({
     <html lang="zh-CN" className={inter.variable}>
       <body className="min-h-screen tiled-bg text-gray-900 antialiased">
         <AuthProvider>
-          <Header />
-          {children}
+          <LocaleProvider>
+            <Header />
+            {children}
+          </LocaleProvider>
         </AuthProvider>
       </body>
     </html>

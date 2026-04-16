@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // 查询一级评论
-    const comments = await prisma.$queryRawUnsafe<any[]>`
+    const comments = await prisma.$queryRaw<any[]>`
       SELECT c.id, c.content, c.like_count, c.created_at,
              u.name as author_name, u.avatar as author_avatar, u.id as author_id,
              c.parent_id
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     `;
 
     // 查询所有子评论
-    const replies = await prisma.$queryRawUnsafe<any[]>`
+    const replies = await prisma.$queryRaw<any[]>`
       SELECT c.id, c.content, c.like_count, c.created_at,
              u.name as author_name, u.avatar as author_avatar, u.id as author_id,
              c.parent_id
@@ -113,7 +113,7 @@ export async function DELETE(req: NextRequest) {
 
   try {
     // 验证是否为评论作者
-    const comment = await prisma.$queryRawUnsafe<any[]>`
+    const comment = await prisma.$queryRaw<any[]>`
       SELECT id, post_id, user_id FROM blog_comments WHERE id = ${parseInt(id)}
     `;
     if (!comment || comment.length === 0) {
