@@ -1,0 +1,37 @@
+[IMPL] Sprint 5: 商业起名全场景上线
+
+## 核心改动
+
+### 新增商业起名页面（公司/品牌/店铺/宠物）
+
+- `src/app/company/page.tsx` — 公司起名结果页（黑金主题，易经数理分析）
+- `src/app/company/form/page.tsx` — 公司起名入口表单（行业选择 + 风格偏好）
+- `src/app/brand/page.tsx` — 品牌起名结果页（暗黑轻奢主题，调性标签）
+- `src/app/brand/form/page.tsx` — 品牌起名入口表单
+- `src/app/shop/page.tsx` — 店铺起名结果页（温暖橙色调）
+- `src/app/shop/form/page.tsx` — 店铺起名入口表单
+- `src/app/pet/page.tsx` — 宠物起名结果页（可爱主题，宠物类型适配）
+- `src/app/pet/form/page.tsx` — 宠物起名入口表单
+- `src/app/evaluate/page.tsx` — 名字测评结果页（基于 name-scorer 真实评分）
+- `src/app/evaluate/form/page.tsx` — 名字测评入口表单
+- `src/app/personal/page.tsx` — 个人起名入口表单（完善跳转链）
+
+### 修复 personal 起名链
+
+- `src/app/page.tsx` — 修正 gender "男/女" → "M/F" 转换，company href 改为 /company/form
+- `src/app/naming/page.tsx` — 完全重写，接入真实 API（/api/name/generate），替换 mock 数据，支持复制/分享/下载报告
+
+### 测试脚本
+
+- `scripts/test-commercial-scenarios.ts` — 自动遍历公司/品牌/店铺/宠物/baby 五场景
+
+## 页面架构
+
+```
+/personal              → 个人起名表单 → /naming?surname=...      (AI真实评分)
+/company/form          → 公司起名表单 → /company?name=...         (易经数理)
+/brand/form            → 品牌起名表单 → /brand?name=...          (调性标签)
+/shop/form             → 店铺起名表单 → /shop?name=...           (温馨亲切)
+/pet/form              → 宠物起名表单 → /pet?name=...            (宠物类型)
+/evaluate/form         → 名字测评表单 → /evaluate?name=...      (四维评分)
+```

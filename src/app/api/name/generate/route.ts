@@ -325,22 +325,30 @@ export async function POST(request: NextRequest) {
         };
 
         // 构建候选字池（从五行字库中取）
-        const poolChars = wuxingResult.likes.flatMap((wx) => {
+        const poolChars: Array<{ char: string; wx: string }> = [];
+        for (const wx of wuxingResult.likes) {
           const chars = NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars] || [];
-          return chars;
-        });
+          for (const char of chars) {
+            poolChars.push({ char, wx });
+          }
+        }
 
-        const charInfo = await queryKangxiChars(poolChars.slice(0, 30));
+        const uniqueChars = [...new Set(poolChars.map((p) => p.char))];
+        const charInfo = await queryKangxiChars(uniqueChars.slice(0, 30));
         const charMap = new Map(charInfo.map((c) => [c.character, c]));
 
         const pool = poolChars
-          .filter((char) => charMap.has(char))
-          .map((char) => {
-            const info = charMap.get(char)!;
+          .filter((p) => charMap.has(p.char))
+          .reduce<typeof poolChars>((acc, p) => {
+            if (!acc.find((x) => x.char === p.char)) acc.push(p);
+            return acc;
+          }, [])
+          .map((p) => {
+            const info = charMap.get(p.char)!;
             return {
-              character: char,
+              character: p.char,
               pinyin: info.pinyin || "",
-              wuxing: info.wuxing || wx || "",
+              wuxing: info.wuxing || p.wx || "",
               meaning: info.meaning || "",
               strokeCount: info.strokeCount || 0,
               frequency: 50,

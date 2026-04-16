@@ -70,7 +70,7 @@ const services = [
     title: "公司起名",
     desc: "结合行业属性与易经数理，为企业打造大气易记、寓意深远的品牌名称",
     features: ["行业适配", "数理吉凶", "商标查询"],
-    href: "/company",
+    href: "/company/form",
     gradient: "linear-gradient(135deg, #D4941A 0%, #E8B02E 100%)",
     tag: null,
   },
@@ -79,7 +79,7 @@ const services = [
     title: "宠物起名",
     desc: "根据宠物品种、性格特征和主人喜好，为毛孩子起个可爱又有寓意的名字",
     features: ["品种识别", "性格匹配", "趣味创意"],
-    href: "/pet",
+    href: "/pet/form",
     gradient: "linear-gradient(135deg, #F09A3A 0%, #F0B860 100%)",
     tag: null,
   },
@@ -88,7 +88,7 @@ const services = [
     title: "名字测评",
     desc: "已有名字想了解其内涵？深度解析名字的音律、字形、五行、典故等多维信息",
     features: ["音律评分", "五行分析", "典故溯源"],
-    href: "/evaluate",
+    href: "/evaluate/form",
     gradient: "linear-gradient(135deg, #C8540A 0%, #E86A17 100%)",
     tag: null,
   },
@@ -117,11 +117,12 @@ export default function Home() {
     if (!surname.trim()) return;
     if (!birthDate) return;
     setIsLoading(true);
-    // 携带完整参数跳转到起名页面
+    // 携带完整参数跳转到起名页面（性别转 M/F，补充 category=personal）
+    const genderCode = gender === "男" ? "M" : "F";
     const params = new URLSearchParams({
       surname,
-      gender,
-      birthDate,
+      gender: genderCode,
+      category: "personal",
     });
     if (birthTime) params.set("birthTime", birthTime);
     if (expectations.trim()) params.set("expectations", expectations.trim());
