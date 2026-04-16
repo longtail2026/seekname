@@ -131,6 +131,9 @@ model User {
   orders      Order[]
   nameRecords NameRecord[]
   blogPosts   BlogPost[]
+  comments    BlogComment[]
+  likes       BlogLike[]
+  favorites   BlogFavorite[]
 
   @@index([wxOpenId], map: "idx_user_wx")
   @@index([status], map: "idx_user_status")
@@ -282,4 +285,56 @@ model BlogPostTag {
   @@index([postId], map: "idx_bpt_post")
   @@index([tagId], map: "idx_bpt_tag")
   @@map("blog_post_tags")
+}
+
+// ─── 11. 博客评论表 ─────────────────────────────────────────────────────────
+model BlogComment {
+  id        Int         @id @default(autoincrement())
+  postId    Int         @map("post_id")
+  userId    String      @map("user_id")
+  parentId  Int?        @map("parent_id")        // 父评论 null=一级
+  content   String      @db.Text
+  likeCount Int         @default(0) @map("like_count")
+
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  post      BlogPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id])
+  parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   BlogComment[] @relation("CommentReplies")
+
+  @@index([postId], map: "idx_bc_post")
+  @@index([userId], map: "idx_bc_user")
+  @@index([parentId], map: "idx_bc_parent")
+  @@map("blog_comments")
+}
+
+// ─── 12. 博客点赞表 ─────────────────────────────────────────────────────────
+model BlogLike {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  targetType String  @map("target_type") @db.VarChar(20)  // post | comment
+  targetId  Int      @map("target_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, targetType, targetId], map: "uk_blog_like")
+  @@index([userId], map: "idx_bl_user")
+  @@map("blog_likes")
+}
+
+// ─── 13. 博客收藏表 ─────────────────────────────────────────────────────────
+model BlogFavorite {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  postId    Int      @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId], map: "uk_blog_favorite")
+  @@index([userId], map: "idx_bf_user")
+  @@index([postId], map: "idx_bf_post")
+  @@map("blog_favorites")
 }
