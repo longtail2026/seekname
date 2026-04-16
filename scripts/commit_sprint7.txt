@@ -1,0 +1,29 @@
+feat: Sprint 7 - 构建修复 + 博客种子数据 + GitHub OAuth 骨架
+
+## 🆕 新增文件
+- `src/app/api/auth/github/route.ts` — GitHub OAuth 授权发起
+- `src/app/api/auth/github/callback/route.ts` — GitHub OAuth 回调处理（自动建用户/签发 JWT）
+- `src/app/api/name/evaluate/route.ts` — 名字测评 API（含典籍查询、重名风险、音律评分）
+- `.env.example` — 环境变量模板（含 GitHub OAuth / JWT / DeepSeek 配置项）
+
+## 🐛 构建修复
+
+### 核心问题：pg 原生驱动错误
+**根因**：`evaluate/page.tsx` 是 "use client"，却动态 import 了 `@/lib/prisma`。
+pg 驱动依赖 Node.js 内置模块（fs/dns/net/tls），浏览器里不存在。
+
+**修复方案**：
+1. `src/app/evaluate/page.tsx` — 移除 prisma 导入，改为调用新的 API Route
+2. `src/app/api/name/evaluate/route.ts` — 新建服务端测评 API（含 DB 降级 fallback）
+3. `src/lib/prisma.ts` — 顶部加 `import "server-only"`，防止 client 代码误导入
+4. `evaluate/page.tsx` — 添加服务降级提示（离线时纯 JS 评分）
+
+### 其他 TypeScript 修复
+- `tsconfig.json` — 排除 scripts/、测试文件；添加 `"target": "ES2020"`（BigInt literal）
+- `src/app/api/name/generate/route.ts` — `[...new Set()]` → `Array.from(new Set())`
+- `src/app/api/blog/posts/route.ts` — 添加 `SEED_POSTS` 兜底数据（数据库不可用时自动降级）
+- `src/lib/ai-composer.ts` — `[...matches]` → `Array.from(matches)`
+- `src/lib/deepseek-integration.ts` — 导出缺失的 `callRaw` 方法
+- `src/lib/naming-engine.ts` — 扩展 `StructuredIntent` 接口（含 industry/brandTone/region/petType 等场景字段）
+- `src/app/layout.tsx` — 删除不支持的 `verification.baidu` 字段
+- `src/app/naming/metadata.ts` — `classicBooks` → `classicsCount`（匹配实际 config）

@@ -17,6 +17,16 @@ interface ScoreDetail {
   desc: string;
 }
 
+interface EvaluateResult {
+  name: string;
+  total: number;
+  cultural: number;
+  harmony: number;
+  uniqueness: number;
+  meaning: string;
+  suggestion: string;
+}
+
 function EvaluateContent() {
   const searchParams = useSearchParams();
   const name = searchParams.get("name") || "";
@@ -26,100 +36,76 @@ function EvaluateContent() {
   const [totalScore, setTotalScore] = useState(0);
   const [meaning, setMeaning] = useState("");
   const [suggestion, setSuggestion] = useState("");
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!name) return;
 
-    // 使用 name-scorer 的评分逻辑
     const evaluateName = async () => {
       setLoading(true);
+      setError(false);
       try {
-        // 动态导入避免 SSR 问题
-        const { PhoneticOptimizer } = await import("@/lib/phonetic-optimizer");
-        const { prisma } = await import("@/lib/prisma");
+        const res = await fetch("/api/name/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        const data: EvaluateResult = await res.json();
+        if (!res.ok) throw new Error(data.meaning || "评测失败");
 
-        // 音律评分
-        const chars = name.split("").filter(Boolean);
-        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality(
-          chars.map((c) => ({ character: c, pinyin: "", wuxing: "", meaning: "", strokeCount: 0, frequency: 50 }))
-        );
-        const harmony = phonetic.overallScore;
+        setTotalScore(data.total);
+        setMeaning(data.meaning);
+        setSuggestion(data.suggestion);
 
-        // 文化分（查询典籍）
-        let cultural = 30;
-        try {
-          const entry = await prisma.classicsEntry.findFirst({
-            where: {
-              ancientText: { contains: chars[chars.length - 1] || "" },
-            },
-            select: { bookName: true },
-          });
-          cultural = entry ? 70 : 30;
-        } catch {}
-
-        // 重名风险（查询人名样本）
-        let uniqueness = 70;
-        try {
-          const count = await prisma.$queryRaw<Array<{ cnt: bigint }>>`
-            SELECT COUNT(*) as cnt FROM name_samples
-            WHERE given_name LIKE ${"%" + (chars[chars.length - 1] || "") + "%"}
-            LIMIT 1
-          `;
-          if (count.length > 0 && typeof count[0].cnt === "bigint") {
-            uniqueness = Number(count[0].cnt) > 10000 ? 60 : Number(count[0].cnt) > 1000 ? 75 : 88;
-          }
-        } catch {}
-
-        const total = Math.round((cultural + harmony + (100 - uniqueness)) / 3);
-
-        setTotalScore(total);
         setScores([
           {
             label: "文化底蕴",
-            score: cultural,
+            score: data.cultural,
             icon: "📖",
             color: "#C84A2A",
-            desc: cultural >= 60 ? "此名出自典籍，文化内涵深厚" : cultural >= 30 ? "有一定文化渊源" : "建议选择更有典故的名字",
+            desc: data.cultural >= 60
+              ? "此名出自典籍，文化内涵深厚"
+              : "有一定文化渊源，寓意美好",
           },
           {
             label: "音律和谐",
-            score: harmony,
+            score: data.harmony,
             icon: "🎵",
             color: "#3B82F6",
-            desc: harmony >= 75 ? "声调搭配优美，朗朗上口" : harmony >= 60 ? "音律较和谐，整体顺口" : "建议调整字词以改善音律",
+            desc: data.harmony >= 75
+              ? "声调搭配优美，朗朗上口"
+              : data.harmony >= 60
+              ? "音律较和谐，整体顺口"
+              : "建议调整字词以改善音律",
           },
           {
             label: "独特性",
-            score: 100 - uniqueness,
+            score: data.uniqueness,
             icon: "✨",
             color: "#10B981",
-            desc: uniqueness >= 85 ? "非常独特，重名概率低" : uniqueness >= 70 ? "较为常见" : "重名概率较高",
+            desc: data.uniqueness >= 85
+              ? "非常独特，重名概率低"
+              : data.uniqueness >= 70
+              ? "较为常见"
+              : "重名概率较高",
           },
         ]);
-
-        // 寓意分析（基于姓名学）
-        const lastChar = name[1] || "";
-        const meanings: Record<string, string> = {
-          "浩": "浩：盛大、广阔，寓意胸怀宽广、志向远大",
-          "然": "然：如此、正确，寓意明理正直、表里如一",
-          "沐": "沐：润泽、洗涤，寓意心灵纯净、恩泽加被",
-          "涵": "涵：包容、涵养，寓意学识渊博、海纳百川",
-          "诗": "诗：诗歌、美文，寓意文采斐然、才情出众",
-          "雅": "雅：高雅、风尚，寓意举止端庄、品位不俗",
-        };
-        setMeaning(meanings[lastChar] || `此名富有寓意，体现了家长对孩子的美好期望`);
-        setSuggestion(total >= 75 ? "名字整体评分良好，可以使用" : total >= 60 ? "名字有一定优点，但有提升空间" : "建议综合考虑其他名字");
-      } catch (err) {
-        console.error(err);
-        // 降级处理
-        setTotalScore(75);
-        setScores([
-          { label: "文化底蕴", score: 70, icon: "📖", color: "#C84A2A", desc: "此名有一定文化内涵" },
-          { label: "音律和谐", score: 80, icon: "🎵", color: "#3B82F6", desc: "音律搭配较好" },
-          { label: "独特性", score: 75, icon: "✨", color: "#10B981", desc: "较为常见" },
-        ]);
+      } catch {
+        setError(true);
+        // 降级：纯客户端评分（无 DB）
+        const chars = name.split("").filter(Boolean);
+        const h = chars.length === 2 ? 82 : 70;
+        const u = 72;
+        const c = 65;
+        const t = Math.round((c + h + u) / 3);
+        setTotalScore(t);
         setMeaning("名字寓意美好，值得珍藏");
         setSuggestion("建议使用此名");
+        setScores([
+          { label: "文化底蕴", score: c, icon: "📖", color: "#C84A2A", desc: "此名有一定文化内涵" },
+          { label: "音律和谐", score: h, icon: "🎵", color: "#3B82F6", desc: "音律搭配较好" },
+          { label: "独特性", score: u, icon: "✨", color: "#10B981", desc: "较为常见" },
+        ]);
       } finally {
         setLoading(false);
       }
@@ -159,6 +145,13 @@ function EvaluateContent() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* 服务端错误提示（已降级） */}
+            {error && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 text-center">
+                当前使用离线评分（数据库未连接），评分结果仅供参考
+              </div>
+            )}
+
             {/* 名字总评分 */}
             <div className="ancient-card p-8 text-center bg-white">
               <div className="text-sm text-[#5C4A42] mb-2">名字测评</div>

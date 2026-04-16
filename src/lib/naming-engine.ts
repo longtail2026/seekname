@@ -33,7 +33,7 @@ export interface StructuredIntent {
   gender: "M" | "F";
   birthDate: string;
   birthTime?: string;
-  
+
   // 风格偏好
   style: string[]; // ["温柔", "诗意", "古风"]
   wordCount: 2 | 3; // 2字/3字
@@ -41,7 +41,19 @@ export interface StructuredIntent {
   avoidances: string[]; // 禁忌，如 ["生僻字", "复杂字"]
   imagery: string[]; // 意象，如 ["清", "涵", "汐", "沐", "雨", "淇", "雯"]
   sourcePreference: string[]; // 出处偏好，如 ["诗经"]
-  
+
+  // 公司/品牌场景扩展字段
+  industry?: string;
+  brandTone?: string[];
+  targetAudience?: string;
+  needEnglish?: boolean;
+  category?: string;        // 行业分类（公司/品牌/店铺场景）
+  region?: string;          // 地域（店铺场景）
+  petType?: string;        // 宠物类型
+  petStyle?: string;       // 宠物风格
+  petPersonality?: string;  // 宠物性格
+  businessExpectations?: string[]; // 商业期望
+
   // 其他
   notes?: string;
 }

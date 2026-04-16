@@ -466,7 +466,7 @@ function parseLLMResponse(raw: string): LLMNameEntry[] {
       /"name"\s*:\s*"([^"]+)"[^}]*"characters"\s*:\s*\[([^\]]+)\]/g
     );
     const entries: LLMNameEntry[] = [];
-    for (const match of matches) {
+    for (const match of Array.from(matches)) {
       entries.push({
         name: match[1],
         characters: match[2]

@@ -333,7 +333,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const uniqueChars = [...new Set(poolChars.map((p) => p.char))];
+        const uniqueChars = Array.from(new Set(poolChars.map((p) => p.char)));
         const charInfo = await queryKangxiChars(uniqueChars.slice(0, 30));
         const charMap = new Map(charInfo.map((c) => [c.character, c]));
 

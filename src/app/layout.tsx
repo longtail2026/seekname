@@ -70,9 +70,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.seekname.cn",
   },
-  verification: {
-    baidu: "your-baidu-verification-code",
-  },
 };
 
 export default function RootLayout({

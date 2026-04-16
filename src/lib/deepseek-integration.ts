@@ -413,4 +413,5 @@ export const DeepSeekIntegration = {
   polishName: polishNameWithDeepSeek,
   checkSafety: checkSafetyWithDeepSeek,
   batchInferWuxing: batchInferWuxing,
+  callRaw: callDeepSeek,
 };

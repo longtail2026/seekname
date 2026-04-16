@@ -22,7 +22,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   return {
     title,
-    description: `${label}起名推荐，结合${SITE_CONFIG.stats.classicBooks}部典籍文化与现代AI分析，深度解读名字的五行、音律、寓意。`,
+    description: `${label}起名推荐，结合${SITE_CONFIG.stats.classicsCount}典籍文化与现代AI分析，深度解读名字的五行、音律、寓意。`,
     openGraph: {
       title,
       description: `${label}起名推荐，AI智能分析八字五行、典籍出处，30秒生成吉祥好名。`,

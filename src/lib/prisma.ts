@@ -1,12 +1,20 @@
 /**
- * Prisma Client 单例
+ * Prisma Client 单例（仅限服务端使用）
+ *
+ * ⚠️ 重要：本文件仅限服务端代码导入。
+ * 在任意 Client Component（"use client"）中直接或动态导入本文件
+ * 都会导致构建失败，因为 pg 驱动依赖 Node.js 内置模块（fs/dns/net/tls）。
+ *
+ * 如需在客户端访问数据库，请创建 API Route（/app/api/xxx/route.ts）
+ * 然后让客户端通过 fetch() 调用。
  *
  * Prisma 7 新版通过 adapter（直连）或 accelerateUrl（云端加速）
  * 来传递连接 URL，不再在 schema.prisma 的 datasource 里写 url。
- *
  * 本地开发使用 pg adapter（需要 @prisma/adapter-pg + pg 包）。
  * 生产环境可替换为 Prisma Accelerate。
  */
+
+import "server-only";
 
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
