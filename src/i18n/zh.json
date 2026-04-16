@@ -2,6 +2,9 @@
   "nav": {
     "home": "首页",
     "naming": "智能起名",
+    "personal": "人名起名",
+    "business": "商业起名",
+    "pet": "宠物起名",
     "evaluate": "名字测评",
     "blog": "博客",
     "vip": "开通会员",
@@ -109,6 +112,7 @@
   },
   "blog": {
     "title": "博客",
+    "back": "返回博客",
     "readMore": "阅读全文",
     "comments": "评论",
     "likes": "点赞",
@@ -117,7 +121,16 @@
     "commentPlaceholder": "写下你的评论...",
     "submitComment": "发表评论",
     "reply": "回复",
-    "delete": "删除"
+    "cancelReply": "取消回复",
+    "delete": "删除",
+    "confirmDelete": "确定删除此评论？",
+    "linkCopied": "链接已复制到剪贴板",
+    "loginToComment": "登录后可发表评论",
+    "relatedArticles": "相关推荐",
+    "noRelatedArticles": "暂无相关文章",
+    "views": "阅读",
+    "author": "作者",
+    "publishDate": "发布时间"
   },
   "collection": {
     "title": "名字典藏本",
@@ -126,7 +139,10 @@
     "emptyDesc": "在起名结果页点击「收藏」按钮，名字将自动保存在这里",
     "goNaming": "去起名",
     "exportPdf": "导出 PDF",
+    "exporting": "导出中...",
+    "exportSingle": "导出此名字",
     "delete": "移除",
+    "confirmDelete": "确定移除这个名字吗？",
     "total": "共 {count} 个名字",
     "columns": {
       "name": "姓名",
@@ -135,7 +151,36 @@
       "actions": "操作"
     },
     "pdfTitle": "寻名网 · 名字典藏本",
-    "pdfGenerated": "生成时间"
+    "pdfGenerated": "生成时间",
+    "back": "返回典藏本",
+    "editNote": "编辑备注",
+    "saveNote": "保存备注",
+    "notePlaceholder": "添加备注，记录取名时的想法...",
+    "noNote": "暂无备注",
+    "detail": {
+      "title": "名字分析报告",
+      "overallScore": "综合评分",
+      "wuxingAnalysis": "五行分析",
+      "phoneticAnalysis": "音韵分析",
+      "uniquenessAnalysis": "重名分析",
+      "classicAnalysis": "典籍出处",
+      "favorableElements": "喜用五行",
+      "avoidElements": "忌用五行",
+      "phoneticScore": "音韵评分",
+      "classicScore": "典籍评分",
+      "uniquenessRisk": "重名风险",
+      "source": "出处",
+      "scoreValue": "{score}分",
+      "lowRisk": "低风险",
+      "mediumRisk": "中风险",
+      "highRisk": "高风险",
+      "exportPdf": "导出 PDF",
+      "regenerate": "重新生成",
+      "gender": "性别",
+      "male": "男",
+      "female": "女",
+      "savedAt": "收藏于"
+    }
   },
   "settings": {
     "title": "设置",

@@ -1,0 +1,35 @@
+Sprint 13: 名字典藏本详情页 + 博客详情增强 + Header 语言切换器
+
+### 名字典藏本详情页
+- 新增 `src/app/collection/[id]/page.tsx` — 完整名字分析报告页面
+  - 综合评分仪表盘（总分 + 音韵/典籍分项评分条）
+  - 五行分析（喜用/忌用标签，颜色区分）
+  - 音韵分析（分数 + 详细解读）
+  - 重名分析（低/中/高风险标签）
+  - 典籍出处（来源标签 + 诗句展示）
+  - 可编辑备注（PATCH API）
+  - 单名字 PDF 导出（独立封面 + 详细分析页）
+- 新增 `src/app/api/names/favorites/[id]/route.ts` — GET/PATCH/DELETE 单条收藏
+
+### 博客详情页增强
+- 重写 `blog/[id]/page.tsx` — 增强 Markdown 渲染
+  - 完整 HTML 结构：h1/h2/h3/blockquote/ul/ol/code
+  - 引用块样式（左侧金色边框 + 暖色背景）
+  - 代码块深色样式
+  - 相关文章推荐（按标签取 3 篇）
+- 所有硬编码中文替换为 i18n
+- 评论翻译文案（回复/取消回复/确认删除等）
+
+### Header 语言切换器
+- 新增语言切换下拉菜单（🌐 图标 + EN/中）
+  - 中/英文双语切换
+  - cookie 持久化（LocaleContext 原生支持）
+  - 桌面端 + 移动端均可用
+- 所有硬编码中文替换为条件渲染（locale === "en" ? EN : CN）
+- 导航项/用户下拉菜单/移动端菜单全部双语
+
+### i18n 补全
+- `zh.json` / `en.json` 新增键：
+  - `nav.personal` / `nav.business` / `nav.pet`
+  - `blog.*` 完整博客相关文案（back/relatedArticles/reply 等）
+  - `collection.detail.*` 典藏本详情页全量文案

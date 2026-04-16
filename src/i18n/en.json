@@ -2,6 +2,9 @@
   "nav": {
     "home": "Home",
     "naming": "AI Naming",
+    "personal": "AI Naming",
+    "business": "Business Naming",
+    "pet": "Pet Naming",
     "evaluate": "Name Evaluation",
     "blog": "Blog",
     "vip": "Upgrade VIP",
@@ -109,6 +112,7 @@
   },
   "blog": {
     "title": "Blog",
+    "back": "Back to Blog",
     "readMore": "Read More",
     "comments": "Comments",
     "likes": "Likes",
@@ -117,7 +121,16 @@
     "commentPlaceholder": "Write your comment...",
     "submitComment": "Post Comment",
     "reply": "Reply",
-    "delete": "Delete"
+    "cancelReply": "Cancel Reply",
+    "delete": "Delete",
+    "confirmDelete": "Are you sure you want to delete this comment?",
+    "linkCopied": "Link copied to clipboard",
+    "loginToComment": "Please login to post a comment",
+    "relatedArticles": "Related Articles",
+    "noRelatedArticles": "No related articles found",
+    "views": "views",
+    "author": "Author",
+    "publishDate": "Published"
   },
   "collection": {
     "title": "Name Collection",
@@ -126,7 +139,10 @@
     "emptyDesc": "Click 'Save' on the naming results page, and names will be saved here automatically",
     "goNaming": "Go Generate",
     "exportPdf": "Export PDF",
+    "exporting": "Exporting...",
+    "exportSingle": "Export This Name",
     "delete": "Remove",
+    "confirmDelete": "Are you sure you want to remove this name?",
     "total": "{count} names saved",
     "columns": {
       "name": "Full Name",
@@ -135,7 +151,36 @@
       "actions": "Actions"
     },
     "pdfTitle": "SeekName · Name Collection",
-    "pdfGenerated": "Generated at"
+    "pdfGenerated": "Generated at",
+    "back": "Back to Collection",
+    "editNote": "Edit Note",
+    "saveNote": "Save Note",
+    "notePlaceholder": "Add a note to record your thoughts on this name...",
+    "noNote": "No note yet",
+    "detail": {
+      "title": "Name Analysis Report",
+      "overallScore": "Overall Score",
+      "wuxingAnalysis": "Five Elements Analysis",
+      "phoneticAnalysis": "Phonetic Analysis",
+      "uniquenessAnalysis": "Name Collision Analysis",
+      "classicAnalysis": "Classic Origin",
+      "favorableElements": "Favorable Elements",
+      "avoidElements": "Avoid Elements",
+      "phoneticScore": "Phonetic Score",
+      "classicScore": "Classic Score",
+      "uniquenessRisk": "Name Collision Risk",
+      "source": "Source",
+      "scoreValue": "{score} pts",
+      "lowRisk": "Low Risk",
+      "mediumRisk": "Medium Risk",
+      "highRisk": "High Risk",
+      "exportPdf": "Export PDF",
+      "regenerate": "Regenerate",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "savedAt": "Saved at"
+    }
   },
   "settings": {
     "title": "Settings",

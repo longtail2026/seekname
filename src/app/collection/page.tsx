@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
+import { useLocale } from "@/contexts/LocaleContext";
 
 interface NameFavorite {
   id: string;
@@ -34,6 +35,7 @@ const WUXING_COLORS: Record<string, string> = {
 };
 
 export default function CollectionPage() {
+  const { t } = useLocale();
   const [items, setItems] = useState<NameFavorite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export default function CollectionPage() {
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(12);
-      doc.text("SeekName · 寻名网", pageW / 2, 75, { align: "center" });
+      doc.text(t("collection.pdfTitle"), pageW / 2, 75, { align: "center" });
 
       doc.setFontSize(10);
       doc.setTextColor(120);
@@ -180,7 +182,7 @@ export default function CollectionPage() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(120);
-      doc.text("数据来源：寻名网 SeekName", pageW / 2, 155, {
+      doc.text("SeekName", pageW / 2, 155, {
         align: "center",
       });
       doc.text("seekname.cn", pageW / 2, 165, { align: "center" });
@@ -201,9 +203,9 @@ export default function CollectionPage() {
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">名字典藏本</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t("collection.title")}</h1>
               <p className="mt-2 text-gray-500">
-                {loading ? "" : `共收藏 ${items.length} 个名字`}
+                {loading ? "" : t("collection.total", { count: items.length })}
               </p>
             </div>
             <div className="flex gap-3">
@@ -211,7 +213,7 @@ export default function CollectionPage() {
                 href="/naming"
                 className="px-4 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors"
               >
-                去起名
+                {t("collection.goNaming")}
               </Link>
               <button
                 onClick={exportPdf}
@@ -224,10 +226,10 @@ export default function CollectionPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    导出中...
+                    {t("collection.exporting")}
                   </>
                 ) : (
-                  <>导出 PDF</>
+                  <>{t("collection.exportPdf")}</>
                 )}
               </button>
             </div>
@@ -246,7 +248,7 @@ export default function CollectionPage() {
               onClick={fetchItems}
               className="px-4 py-2 bg-amber-600 text-white rounded-lg"
             >
-              重试
+              {t("errors.retry")}
             </button>
           </div>
         ) : items.length === 0 ? (
@@ -293,15 +295,15 @@ function NameCard({
         <div>
           <div className="text-2xl font-bold text-gray-900">{item.fullName}</div>
           <div className="text-sm text-gray-400 mt-0.5">
-            {item.gender === "M" ? "男" : "女"}
-            {item.score !== null && ` · 评分 ${item.score}`}
+            {item.gender === "M" ? t("naming.form.male") : t("naming.form.female")}
+            {item.score !== null && ` · ${t("collection.columns.score")} ${item.score}`}
           </div>
         </div>
         <button
           onClick={() => onDelete(item.id)}
           disabled={deleting}
           className="p-1.5 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
-          title="移除"
+          title={t("collection.delete")}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -334,13 +336,13 @@ function NameCard({
       {/* 底部 */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <span className="text-xs text-gray-400">
-          {new Date(item.createdAt).toLocaleDateString("zh-CN")}
+          {new Date(item.createdAt).toLocaleDateString()}
         </span>
         <Link
-          href={`/naming?regenerate=${encodeURIComponent(item.fullName)}`}
+          href={`/collection/${item.id}`}
           className="text-xs text-amber-600 hover:text-amber-700"
         >
-          再生成 →
+          查看详情 →
         </Link>
       </div>
     </div>
@@ -352,16 +354,16 @@ function EmptyState() {
     <div className="text-center py-24">
       <div className="text-6xl mb-4">📖</div>
       <h3 className="text-xl font-semibold text-gray-700 mb-2">
-        暂无收藏的名字
+        {t("collection.empty")}
       </h3>
       <p className="text-gray-400 mb-6">
-        在起名结果页点击「收藏」按钮，名字将自动保存在这里
+        {t("collection.emptyDesc")}
       </p>
       <Link
         href="/naming"
         className="inline-block px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
       >
-        去起名
+        {t("collection.goNaming")}
       </Link>
     </div>
   );
