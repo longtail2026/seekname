@@ -16,7 +16,40 @@
     "logout": "Logout",
     "collection": "Name Collection",
     "dashboard": "Dashboard",
-    "orders": "My Orders"
+    "orders": "My Orders",
+    "compare": "Compare Names"
+  },
+  "compare": {
+    "title": "Name Comparison",
+    "subtitle": "Analyze names from multiple dimensions to find the best one",
+    "noNames": "No names to compare",
+    "goNaming": "Start Naming",
+    "dimensions": {
+      "overall": "Overall Score",
+      "cultural": "Cultural Heritage",
+      "harmony": "Phonetic Harmony",
+      "safety": "Safety Score",
+      "popularity": "Popularity",
+      "strokes": "Stroke Count",
+      "risk": "Name Uniqueness",
+      "wuxing": "Wuxing"
+    },
+    "risk": {
+      "low": "Low Risk",
+      "medium": "Medium",
+      "high": "Higher"
+    },
+    "actions": {
+      "copy": "Copy Name",
+      "share": "Share",
+      "collect": "Add to Collection"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "relations": "Relations",
+      "advice": "Advice"
+    },
+    "vipExclusive": "VIP Exclusive"
   },
   "dashboard": {
     "title": "User Dashboard",

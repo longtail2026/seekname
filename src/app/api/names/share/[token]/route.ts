@@ -15,46 +15,50 @@ export async function GET(
   try {
     const { token } = await params;
 
-    // Token 格式: base64(nameId:randomKey) 简化处理
-    // 这里直接用 token 字段查询（假设 shareToken 存在 names 表）
-    // 实际项目中可以设计更复杂的 token 体系
-
-    // 暂时通过 nameId 查询（token 即 nameId），后续扩展为独立 shareToken
-    const name = await prisma.names.findFirst({
+    // 从典藏本查询（token 即 id）
+    const favorite = await prisma.nameFavorite.findFirst({
       where: {
         OR: [
           { id: token },
-          { shareToken: token },
         ],
       },
       select: {
         id: true,
-        name: true,
-        pinyin: true,
-        gender: true,
+        fullName: true,
         surname: true,
+        gender: true,
         score: true,
         wuxing: true,
-        strokes: true,
-        meaning: true,
-        classicSource: true,
-        classicQuote: true,
-        uniqueness: true,
-        popularity: true,
-        category: true,
+        analysis: true,
         createdAt: true,
-        // 不暴露 userId
       },
     });
 
-    if (!name) {
+    if (!favorite) {
       return NextResponse.json(
         { error: "分享链接已失效或名字不存在" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ name });
+    // 从 analysis 中提取更多信息
+    const analysis = favorite.analysis as any || {};
+
+    return NextResponse.json({
+      name: {
+        id: favorite.id,
+        fullName: favorite.fullName,
+        surname: favorite.surname,
+        gender: favorite.gender,
+        score: favorite.score || analysis.score,
+        wuxing: analysis.wuxing || favorite.wuxing?.join("") || "未知",
+        pinyin: analysis.pinyin || "",
+        meaning: analysis.meaning || "",
+        sources: analysis.sources || [],
+        uniqueness: analysis.uniqueness || "medium",
+        createdAt: favorite.createdAt,
+      }
+    });
   } catch (error) {
     console.error("[Share API Error]", error);
     return NextResponse.json(

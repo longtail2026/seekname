@@ -99,7 +99,7 @@ export default function DashboardPage() {
     setError(null);
 
     const token = localStorage.getItem("seekname_token");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
       if (tab === "orders") {
@@ -301,7 +301,7 @@ function OrdersTab({ orders, isEn }: { orders: Order[]; isEn: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {orders.map((order) => {
-        const candidates: string[] = Array.isArray(order.nameRecord?.results) ? order.nameRecord.results.map((r: unknown) => (r as { name?: string }).name).filter(Boolean) : [];
+        const candidates: string[] = Array.isArray(order.nameRecord?.results) ? order.nameRecord.results.map((r: unknown) => (r as { name?: string }).name).filter((n): n is string => Boolean(n)) : [];
         return (
           <div key={order.id} style={{ background: "var(--background-warm)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px", transition: "border-color 0.2s" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px 12px", flexWrap: "wrap", marginBottom: candidates.length > 0 ? 12 : 0 }}>

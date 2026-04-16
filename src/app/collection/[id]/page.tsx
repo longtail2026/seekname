@@ -43,7 +43,7 @@ interface NameFavorite {
 }
 
 // 五行颜色
-const WUXING_COLORS: Record<string, string> = {
+const WUXING_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   金: { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-300" },
   木: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300"  },
   水: { bg: "bg-blue-100",   text: "text-blue-800",   border: "border-blue-300"   },

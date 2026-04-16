@@ -14,29 +14,12 @@ interface Props {
 
 async function getSharedName(token: string) {
   try {
-    const name = await prisma.names.findFirst({
+    const favorite = await prisma.nameFavorite.findFirst({
       where: {
-        OR: [{ id: token }, { shareToken: token }],
-      },
-      select: {
-        id: true,
-        name: true,
-        pinyin: true,
-        gender: true,
-        surname: true,
-        score: true,
-        wuxing: true,
-        strokes: true,
-        meaning: true,
-        classicSource: true,
-        classicQuote: true,
-        uniqueness: true,
-        popularity: true,
-        category: true,
-        createdAt: true,
+        id: token,
       },
     });
-    return name;
+    return favorite;
   } catch {
     return null;
   }
@@ -44,11 +27,31 @@ async function getSharedName(token: string) {
 
 export default async function SharePage({ params }: Props) {
   const { token } = await params;
-  const name = await getSharedName(token);
+  const favorite = await getSharedName(token);
 
-  if (!name) {
+  if (!favorite) {
     return <ShareNotFound />;
   }
+
+  // 从 analysis 中提取数据
+  const analysis = favorite.analysis as any || {};
+  const name = {
+    id: favorite.id,
+    name: favorite.fullName,
+    surname: favorite.surname,
+    gender: favorite.gender,
+    score: favorite.score || analysis.score,
+    wuxing: analysis.wuxing || favorite.wuxing?.join("") || "未知",
+    pinyin: analysis.pinyin || "",
+    meaning: analysis.meaning || "",
+    sources: analysis.sources || [],
+    uniqueness: analysis.uniqueness || "medium",
+    strokes: analysis.strokeCount || 0,
+    classicSource: analysis.sources?.[0]?.book || "",
+    classicQuote: analysis.sources?.[0]?.text || "",
+    popularity: analysis.popularity || "",
+    createdAt: favorite.createdAt,
+  };
 
   const genderLabel = name.gender === "M" ? "男孩" : "女孩";
   const shareUrl = typeof window !== "undefined" ? window.location.href : `https://www.seekname.cn/share/${token}`;

@@ -1,59 +1,101 @@
 {
-  "name": "寻名网 SeekName",
+  "name": "寻名网 - AI智能起名",
   "short_name": "寻名网",
-  "description": "专业起名服务平台，12万部典籍 × AI × 八字五行，30秒生成6个吉祥好名",
+  "description": "AI智能起名，结合五行八字与国学典籍，为您找到最适合的名字",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FDFAF4",
+  "background_color": "#FFFCF7",
   "theme_color": "#E86A17",
   "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "zh-CN",
-  "categories": ["lifestyle", "utilities"],
   "icons": [
     {
-      "src": "/images/icon-192.png",
-      "sizes": "192x192",
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/images/icon-512.png",
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     }
   ],
+  "categories": ["lifestyle", "utilities"],
+  "lang": "zh-CN",
+  "dir": "ltr",
   "screenshots": [
     {
-      "src": "/images/screenshot-home.png",
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "桌面端首页"
+    },
+    {
+      "src": "/screenshots/mobile.png",
       "sizes": "390x844",
       "type": "image/png",
-      "form_factor": "narrow",
-      "label": "首页起名"
+      "label": "移动端起名页"
     }
   ],
   "shortcuts": [
     {
-      "name": "个人起名",
-      "short_name": "个人",
-      "description": "新生儿或个人起名",
+      "name": "起个好名字",
+      "short_name": "起名",
+      "description": "开始智能起名",
       "url": "/personal",
-      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "公司起名",
-      "short_name": "公司",
-      "description": "企业公司起名",
-      "url": "/company/form",
-      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+      "name": "我的典藏本",
+      "short_name": "典藏",
+      "description": "查看收藏的名字",
+      "url": "/collection",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "名字测评",
-      "short_name": "测评",
-      "description": "已有名字深度测评",
-      "url": "/evaluate/form",
-      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+      "name": "VIP会员",
+      "short_name": "会员",
+      "description": "开通VIP会员",
+      "url": "/vip",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
   "related_applications": [],

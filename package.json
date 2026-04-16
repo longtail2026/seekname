@@ -13,6 +13,7 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@types/pg": "^8.20.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.3",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.1",
@@ -23,6 +24,7 @@
     "next": "14.2.3",
     "next-intl": "^3.26.5",
     "node-fetch": "^3.3.2",
+    "nodemailer": "^8.0.5",
     "pg": "^8.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -31,6 +33,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.19",

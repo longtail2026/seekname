@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
 import { useLocale } from "@/contexts/LocaleContext";
+import { Scale } from "lucide-react";
 
 interface NameFavorite {
   id: string;
@@ -41,6 +42,8 @@ export default function CollectionPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -196,6 +199,42 @@ export default function CollectionPage() {
     }
   };
 
+  // 选择模式切换
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode);
+    setSelectedIds(new Set());
+  };
+
+  // 选择/取消选择名字
+  const toggleSelect = (id: string, fullName: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else if (newSelected.size < 3) {
+      newSelected.add(id);
+    } else {
+      alert("最多选择 3 个名字进行对比");
+      return;
+    }
+    setSelectedIds(newSelected);
+  };
+
+  // 获取选中名字并跳转到对比页
+  const goToCompare = () => {
+    const selectedNames = items
+      .filter((item) => selectedIds.has(item.id))
+      .map((item) => item.fullName);
+
+    if (selectedNames.length < 2) {
+      alert("请至少选择 2 个名字");
+      return;
+    }
+
+    const surname = selectedNames[0].slice(0, 1);
+    const namesParam = selectedNames.join(",");
+    window.location.href = `/compare?names=${namesParam}&surname=${surname}&from=collection`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
       {/* 头部 */}
@@ -205,10 +244,26 @@ export default function CollectionPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{t("collection.title")}</h1>
               <p className="mt-2 text-gray-500">
-                {loading ? "" : t("collection.total", { count: items.length })}
+                {loading ? "" : selectMode
+                  ? `已选择 ${selectedIds.size}/3 个名字`
+                  : t("collection.total", { count: items.length })
+                }
               </p>
             </div>
             <div className="flex gap-3">
+              {items.length >= 2 && (
+                <button
+                  onClick={toggleSelectMode}
+                  className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                    selectMode
+                      ? "bg-amber-100 text-amber-700 border border-amber-300"
+                      : "border border-amber-300 text-amber-700 hover:bg-amber-50"
+                  }`}
+                >
+                  <Scale className="w-4 h-4" />
+                  {selectMode ? "取消选择" : "名字 PK"}
+                </button>
+              )}
               <Link
                 href="/naming"
                 className="px-4 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors"
@@ -237,6 +292,31 @@ export default function CollectionPage() {
         </div>
       </div>
 
+      {/* 对比操作栏 */}
+      {selectMode && selectedIds.size >= 2 && (
+        <div className="sticky top-0 z-10 bg-amber-600 text-white px-4 py-3 shadow-lg">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <span className="text-sm">
+              已选择 {selectedIds.size} 个名字，可前往对比
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-sm bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+              >
+                重选
+              </button>
+              <button
+                onClick={goToCompare}
+                className="px-4 py-1.5 text-sm bg-white text-amber-700 font-medium rounded-lg hover:bg-white/90 transition-colors"
+              >
+                开始对比 →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 内容 */}
       <div className="max-w-5xl mx-auto px-4 py-8">
         {loading ? (
@@ -261,6 +341,9 @@ export default function CollectionPage() {
                 item={item}
                 onDelete={handleDelete}
                 deleting={deleting === item.id}
+                selectMode={selectMode}
+                selected={selectedIds.has(item.id)}
+                onSelect={() => toggleSelect(item.id, item.fullName)}
               />
             ))}
           </div>
@@ -274,11 +357,18 @@ function NameCard({
   item,
   onDelete,
   deleting,
+  selectMode,
+  selected,
+  onSelect,
 }: {
   item: NameFavorite;
   onDelete: (id: string) => void;
   deleting: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
+  const { t } = useLocale();
   const analysis = item.analysis as {
     wuxing?: { likes?: string[] };
     phonetic?: { score?: number };
@@ -289,27 +379,56 @@ function NameCard({
   const likes = analysis?.wuxing?.likes || item.wuxing || [];
 
   return (
-    <div className="bg-white rounded-xl border border-amber-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-      {/* 名字 */}
+    <div
+      className={`bg-white rounded-xl border p-5 shadow-sm hover:shadow-md transition-all cursor-pointer ${
+        selectMode
+          ? selected
+            ? "border-amber-500 ring-2 ring-amber-200"
+            : "border-amber-100 hover:border-amber-300"
+          : "border-amber-100"
+      }`}
+      onClick={selectMode ? onSelect : undefined}
+    >
+      {/* 选择指示器 + 名字 */}
       <div className="flex items-start justify-between mb-3">
-        <div>
-          <div className="text-2xl font-bold text-gray-900">{item.fullName}</div>
-          <div className="text-sm text-gray-400 mt-0.5">
-            {item.gender === "M" ? t("naming.form.male") : t("naming.form.female")}
-            {item.score !== null && ` · ${t("collection.columns.score")} ${item.score}`}
+        <div className="flex items-center gap-3">
+          {/* 选择框 */}
+          {selectMode && (
+            <div
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                selected
+                  ? "bg-amber-500 border-amber-500"
+                  : "border-gray-300 hover:border-amber-400"
+              }`}
+            >
+              {selected && (
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          )}
+          <div>
+            <div className="text-2xl font-bold text-gray-900">{item.fullName}</div>
+            <div className="text-sm text-gray-400 mt-0.5">
+              {item.gender === "M" ? t("naming.form.male") : t("naming.form.female")}
+              {item.score !== null && ` · ${t("collection.columns.score")} ${item.score}`}
+            </div>
           </div>
         </div>
-        <button
-          onClick={() => onDelete(item.id)}
-          disabled={deleting}
-          className="p-1.5 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
-          title={t("collection.delete")}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {!selectMode && (
+          <button
+            onClick={() => onDelete(item.id)}
+            disabled={deleting}
+            className="p-1.5 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
+            title={t("collection.delete")}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* 五行 */}
@@ -350,6 +469,7 @@ function NameCard({
 }
 
 function EmptyState() {
+  const { t } = useLocale();
   return (
     <div className="text-center py-24">
       <div className="text-6xl mb-4">📖</div>

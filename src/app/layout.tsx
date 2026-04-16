@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import PWAProvider from "@/components/PWAProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -92,11 +94,13 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <LocaleProvider>
+              <PWAProvider />
               <Header />
               {children}
             </LocaleProvider>
           </AuthProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );

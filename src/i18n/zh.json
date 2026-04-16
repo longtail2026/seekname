@@ -16,7 +16,40 @@
     "logout": "退出登录",
     "collection": "名字典藏本",
     "dashboard": "用户中心",
-    "orders": "我的订单"
+    "orders": "我的订单",
+    "compare": "名字对比"
+  },
+  "compare": {
+    "title": "名字横向对比",
+    "subtitle": "从多个维度帮您分析名字的优劣，选择最合适的那一个",
+    "noNames": "暂无对比名字",
+    "goNaming": "去起名",
+    "dimensions": {
+      "overall": "综合评分",
+      "cultural": "文化底蕴",
+      "harmony": "音律和谐",
+      "safety": "安全评分",
+      "popularity": "常用度",
+      "strokes": "笔画数",
+      "risk": "重名风险",
+      "wuxing": "五行"
+    },
+    "risk": {
+      "low": "低风险",
+      "medium": "中等",
+      "high": "较高"
+    },
+    "actions": {
+      "copy": "复制名字",
+      "share": "分享",
+      "collect": "收藏到典藏本"
+    },
+    "tabs": {
+      "overview": "五行总览",
+      "relations": "相生相克",
+      "advice": "运势建议"
+    },
+    "vipExclusive": "VIP 专属"
   },
   "dashboard": {
     "title": "用户中心",

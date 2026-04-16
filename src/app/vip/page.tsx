@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
+import WxpayQRCode from "@/components/payment/WxpayQRCode";
 
 // PayPal JS SDK 全局类型
 declare const paypal: {
@@ -140,6 +141,9 @@ function VipContent() {
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
+  const [payMethod, setPayMethod] = useState<"paypal" | "wechat" | "stripe">("paypal");
+  const [wxpayData, setWxpayData] = useState<{ orderNo: string; codeUrl: string; amount: number } | null>(null);
+  const [wxpayLoading, setWxpayLoading] = useState(false);
 
   // 处理 PayPal 返回结果
   useEffect(() => {
@@ -271,6 +275,51 @@ function VipContent() {
     }
     setSelectedTier(tier);
     setShowUpgradeModal(true);
+    setWxpayData(null);
+    setPayMethod("paypal");
+  };
+
+  // 处理微信支付
+  const handleWxpay = async () => {
+    if (!selectedTier) return;
+    setWxpayLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/wxpay/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tier: selectedTier.level }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWxpayData({
+          orderNo: data.orderNo,
+          codeUrl: data.codeUrl,
+          amount: data.amount,
+        });
+      } else {
+        setPaymentMessage({ type: "error", text: data.error || "创建支付订单失败" });
+      }
+    } catch {
+      setPaymentMessage({ type: "error", text: "网络错误，请稍后重试" });
+    } finally {
+      setWxpayLoading(false);
+    }
+  };
+
+  // 微信支付成功回调
+  const handleWxpaySuccess = () => {
+    setPaymentMessage({
+      type: "success",
+      text: `🎉 开通成功！正在跳转...`,
+    });
+    setTimeout(() => {
+      window.dispatchEvent(new Event("vip-upgraded"));
+      router.push("/settings");
+    }, 2000);
   };
 
   const closeModal = () => {
@@ -679,11 +728,58 @@ function VipContent() {
               </div>
             )}
 
-            {/* PayPal 按钮容器 */}
-            {selectedTier.level > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div ref={paypalContainerRef} id="paypal-button-container" />
-                {!process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID && !paying && (
+            {/* 支付方式选择 */}
+            {selectedTier.level > 0 && !wxpayData && (
+              <div style={{ marginBottom: 20 }}>
+                {/* 支付方式切换 */}
+                <div style={{
+                  display: "flex",
+                  gap: 8,
+                  marginBottom: 16,
+                  fontFamily: "'Noto Sans SC', sans-serif",
+                }}>
+                  <button
+                    onClick={() => setPayMethod("paypal")}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: payMethod === "paypal" ? "2px solid #1890ff" : "1px solid #EEE",
+                      background: payMethod === "paypal" ? "#e6f7ff" : "#fff",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      color: payMethod === "paypal" ? "#1890ff" : "#666",
+                    }}
+                  >
+                    🅿️ PayPal
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPayMethod("wechat");
+                      handleWxpay();
+                    }}
+                    disabled={wxpayLoading}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: payMethod === "wechat" ? "2px solid #07c160" : "1px solid #EEE",
+                      background: payMethod === "wechat" ? "#f6ffed" : "#fff",
+                      fontSize: 13,
+                      cursor: wxpayLoading ? "not-allowed" : "pointer",
+                      color: payMethod === "wechat" ? "#07c160" : "#666",
+                      opacity: wxpayLoading ? 0.6 : 1,
+                    }}
+                  >
+                    🟢 微信支付
+                  </button>
+                </div>
+
+                {/* PayPal 按钮 */}
+                {payMethod === "paypal" && (
+                  <div ref={paypalContainerRef} id="paypal-button-container" />
+                )}
+                {payMethod === "paypal" && !process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID && !paying && (
                   <div style={{
                     padding: "12px", borderRadius: 8,
                     background: "#FFF3E0", border: "1px dashed #FFB74D",
@@ -693,6 +789,55 @@ function VipContent() {
                     ⚠️ PayPal 尚未配置，请在 .env 中设置 NEXT_PUBLIC_PAYPAL_CLIENT_ID
                   </div>
                 )}
+
+                {/* 微信支付加载中 */}
+                {payMethod === "wechat" && wxpayLoading && (
+                  <div style={{ textAlign: "center", padding: "20px" }}>
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+                    <div style={{ fontSize: 14, color: "#666", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                      正在生成支付二维码...
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 微信支付二维码 */}
+            {selectedTier.level > 0 && wxpayData && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
+                  fontFamily: "'Noto Sans SC', sans-serif",
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#2D1B0E" }}>
+                    微信支付
+                  </span>
+                  <button
+                    onClick={() => {
+                      setWxpayData(null);
+                      setPayMethod("paypal");
+                    }}
+                    style={{
+                      fontSize: 12,
+                      color: "#999",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    返回选择
+                  </button>
+                </div>
+                <WxpayQRCode
+                  orderNo={wxpayData.orderNo}
+                  codeUrl={wxpayData.codeUrl}
+                  amount={wxpayData.amount}
+                  onSuccess={handleWxpaySuccess}
+                  onError={(error) => setPaymentMessage({ type: "error", text: error })}
+                />
               </div>
             )}
 
