@@ -416,17 +416,26 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
 
   if (error) {
     return (
-      <>
-        <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-          <div className="text-center max-w-2xl px-4">
-            <p className="text-xl text-red-500 mb-4">{error}</p>
-            <Link href="/" className="text-[#E86A17] hover:underline">
-              ← 返回重新起名
-            </Link>
+      <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
+        <div className="text-center max-w-2xl px-4">
+          <p className="text-xl text-red-500 mb-4">{error}</p>
+          
+          {/* 错误详情面板 - 始终显示 */}
+          <div className="bg-red-100 border-2 border-red-400 rounded-xl p-6 mb-4 text-left max-w-xl mx-auto">
+            <p className="text-red-700 font-bold text-sm mb-2">🔍 错误详情（请复制此内容）：</p>
+            <pre className="text-red-600 text-sm whitespace-pre-wrap font-mono bg-white p-3 rounded border border-red-200 max-h-60 overflow-auto">
+{`loading: ${loading}
+error: ${error}
+names.length: ${names.length}
+debugError: ${debugError || "(空)"}`}
+            </pre>
           </div>
+          
+          <Link href="/" className="text-[#E86A17] hover:underline">
+            ← 返回重新起名
+          </Link>
         </div>
-        {debugInfo}
-      </>
+      </div>
     );
   }
 
