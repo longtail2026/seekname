@@ -100,6 +100,7 @@ function NamingResultContent() {
 
         const result = await response.json();
         console.log("[Naming Page] API 完整响应:", JSON.stringify(result, null, 2).slice(0, 2000));
+        console.log("[Naming Page] result.data 完整结构:", JSON.stringify(result?.data, null, 2)?.slice(0, 1500));
 
         if (!result?.success) {
           console.error("[Naming Page] API 失败:", result?.error);
@@ -130,39 +131,67 @@ function NamingResultContent() {
           console.log("[Naming Page] 使用 candidates 字段，数量:", rawNames.length);
         } else {
           console.error("[Naming Page] names 和 candidates 都为空或无效");
+          console.error("[Naming Page] namesData:", JSON.stringify(namesData)?.slice(0, 300));
+          console.error("[Naming Page] candidatesData:", JSON.stringify(candidatesData)?.slice(0, 300));
           setError("未找到合适的名字，请稍后重试");
           return;
         }
 
-        if (!Array.isArray(rawNames)) {
-          console.error("[Naming Page] names 不是数组:", typeof rawNames, rawNames);
-          setError("数据格式错误，请稍后重试");
-          return;
-        }
+        console.log("[Naming Page] 开始处理 rawNames，数量:", rawNames.length);
 
         const mapped: NameItem[] = rawNames.map((n: any, idx: number) => {
-          const wuxingVal = n?.wuxing;
-          let wuxingArray: string[] = [];
-          if (typeof wuxingVal === "string" && wuxingVal.length > 0) {
-            wuxingArray = wuxingVal.split("").filter(Boolean);
-          } else if (Array.isArray(wuxingVal)) {
-            wuxingArray = wuxingVal.filter((c: any) => typeof c === "string" && c.length > 0);
-          }
+          try {
+            const wuxingVal = n?.wuxing;
+            let wuxingStr = "";
+            // 有效的五行值
+            const validWuxing = ["金", "木", "水", "火", "土"];
+            if (typeof wuxingVal === "string" && wuxingVal.length > 0) {
+              // 检查是否是有效五行
+              if (validWuxing.includes(wuxingVal)) {
+                wuxingStr = wuxingVal;
+              } else {
+                // 如果不是单字五行，取第一个字符
+                wuxingStr = wuxingVal[0] || "";
+              }
+            } else if (Array.isArray(wuxingVal) && wuxingVal.length > 0) {
+              const first = wuxingVal[0];
+              wuxingStr = typeof first === "string" && validWuxing.includes(first) ? first : "";
+            }
 
-          return {
-            rank: idx + 1,
-            name: (n?.name || n?.fullName || `名字${idx + 1}`) as string,
-            pinyin: (n?.pinyin || "") as string,
-            wuxing: wuxingArray[0] || "",
-            score: typeof n?.score === "number" ? n.score : Math.round(70 + Math.random() * 20),
-            meaning: (n?.meaning || "") as string,
-            source: n?.source?.book
-              ? `《${n.source.book}》：${n.source.text || ""}`
-              : undefined,
-            culturalScore: typeof n?.scoreBreakdown?.cultural === "number" ? n.scoreBreakdown.cultural : undefined,
-            harmonyScore: typeof n?.scoreBreakdown?.harmony === "number" ? n.scoreBreakdown.harmony : undefined,
-            uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
-          };
+            const name = (n?.name || n?.fullName || `名字${idx + 1}`) as string;
+            const score = typeof n?.score === "number" && n.score > 0 ? n.score : Math.round(70 + Math.random() * 20);
+            
+            console.log(`[Naming Page] 处理名字 ${idx + 1}:`, name, "wuxing:", wuxingStr, "score:", score);
+
+            return {
+              rank: idx + 1,
+              name,
+              pinyin: (n?.pinyin || "") as string,
+              wuxing: wuxingStr,
+              score,
+              meaning: (n?.meaning || "") as string,
+              source: n?.source?.book
+                ? `《${n.source.book}》：${n.source.text || ""}`
+                : undefined,
+              culturalScore: typeof n?.scoreBreakdown?.cultural === "number" ? n.scoreBreakdown.cultural : undefined,
+              harmonyScore: typeof n?.scoreBreakdown?.harmony === "number" ? n.scoreBreakdown.harmony : undefined,
+              uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
+            };
+          } catch (err) {
+            console.error(`[Naming Page] 处理第 ${idx + 1} 个名字出错:`, err);
+            return {
+              rank: idx + 1,
+              name: `名字${idx + 1}`,
+              pinyin: "",
+              wuxing: "",
+              score: 70,
+              meaning: "",
+              source: undefined,
+              culturalScore: undefined,
+              harmonyScore: undefined,
+              uniqueness: "medium" as const,
+            };
+          }
         });
 
         setNames(mapped.length > 0 ? mapped : []);
