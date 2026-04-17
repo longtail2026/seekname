@@ -137,7 +137,7 @@ function NamingResultContent() {
             name: n.name,
             fullName,
             pinyin: n.pinyin,
-            wuxing: (n.wuxing || []).join(""),
+            wuxing: n.wuxing || "",
             score: n.score,
             scoreBreakdown: {
               cultural: n.culturalScore ?? Math.round(n.score * 0.85),
