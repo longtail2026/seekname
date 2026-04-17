@@ -88,7 +88,7 @@ async function main() {
   console.log("[setup-db] Running prisma db push...");
   try {
     // buildCommand 阶段 node_modules/.bin/prisma 已存在，直接调用二进制
-    execSync("./node_modules/.bin/prisma db push --skip-seed --accept-data-loss", {
+    execSync("./node_modules/.bin/prisma db push --accept-data-loss", {
       stdio: "inherit",
       shell: true,
     });
