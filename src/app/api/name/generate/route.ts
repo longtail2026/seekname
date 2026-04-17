@@ -198,7 +198,7 @@ async function createOrder(params: {
     // 先创建起名记录
     const nameRecord = await prisma.nameRecord.create({
       data: {
-        userId: params.userId || "",
+        userId: params.userId ?? null,
         surname: params.surname,
         gender: params.gender === "M" ? "male" : params.gender === "F" ? "female" : params.gender,
         birthDate: new Date(params.birthDate),
@@ -216,7 +216,7 @@ async function createOrder(params: {
     const order = await prisma.order.create({
       data: {
         orderNo,
-        userId: params.userId || "", // 匿名用户为空字符串
+        userId: params.userId ?? null,
         type: params.category,
         amount: isPaid ? 9.9 : 0, // 免费起名 = 0 元
         payStatus: isPaid ? "paid" : "free", // free 表示免费无需支付
@@ -403,7 +403,7 @@ export async function POST(request: NextRequest) {
 
     // ── 创建订单记录（每次必建）──
     const order = await createOrder({
-      userId: currentUser?.id || null,
+      userId: currentUser?.id ?? null,
       userName: currentUser?.name || anonymousName,
       category: CATEGORY_MAP[category] || category,
       surname,

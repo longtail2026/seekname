@@ -108,14 +108,16 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 更新用户 VIP 状态
-      await prisma.user.update({
-        where: { id: order.userId },
-        data: {
-          vipLevel: tier,
-          vipExpire: expiresAt,
-        },
-      });
+      // 更新用户 VIP 状态（仅当用户已登录时）
+      if (order.userId) {
+        await prisma.user.update({
+          where: { id: order.userId },
+          data: {
+            vipLevel: tier,
+            vipExpire: expiresAt,
+          },
+        });
+      }
 
       console.log("[Alipay Notify] Payment processed successfully:", out_trade_no);
     }

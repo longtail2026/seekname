@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证订单属于当前用户
-    if (order.userId !== payload.userId) {
+    if (!order.userId || order.userId !== payload.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
     }
 
@@ -62,13 +62,15 @@ export async function POST(request: NextRequest) {
     });
 
     // 更新用户 VIP 状态
-    await prisma.user.update({
-      where: { id: order.userId },
-      data: {
-        vipLevel: tier,
-        vipExpire: expiresAt,
-      },
-    });
+    if (order.userId) {
+      await prisma.user.update({
+        where: { id: order.userId },
+        data: {
+          vipLevel: tier,
+          vipExpire: expiresAt,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

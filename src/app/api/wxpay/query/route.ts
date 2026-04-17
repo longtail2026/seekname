@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 验证订单属于当前用户
-    if (order.userId !== payload.userId) {
+    if (!order.userId || order.userId !== payload.userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
     }
 

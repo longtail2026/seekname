@@ -148,14 +148,14 @@ model Order {
   id          String   @id @default(cuid())
   orderNo     String   @unique @map("order_no")
   
-  userId      String   @map("user_id")
-  user        User     @relation(fields: [userId], references: [id])
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id])
   
   // 订单类型
   type        String   @db.VarChar(20)  // name/report/vip
   
   // 金额
-  amount      Decimal  @db.Decimal(10, 2)
+  amount      Decimal  @db.Decimal(10, 2) @default(0)
   
   // 支付状态
   payStatus   String   @default("pending") @map("pay_status") @db.VarChar(20)
@@ -185,8 +185,8 @@ model Order {
 model NameRecord {
   id          String   @id @default(cuid())
 
-  userId      String   @map("user_id")
-  user        User     @relation(fields: [userId], references: [id])
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id])
 
   // 起名参数
   surname     String   @db.VarChar(10)
