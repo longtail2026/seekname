@@ -228,6 +228,8 @@ function NamingResultContent() {
 
         setNames(mapped.length > 0 ? mapped : []);
 
+        console.log("[Naming Page] setNames 完成，names 长度:", mapped.length);
+
         // 保存到 sessionStorage，供详情页兜底读取
         for (const n of mapped) {
           const fullName = surname + n.name;
@@ -245,7 +247,9 @@ function NamingResultContent() {
               safety: Math.round(85 + Math.random() * 10),
             },
             meaning: n.meaning,
-            sources: n.source ? [{ book: n.source.split("》：")[0].replace("《", ""), text: n.source.split("》：")[1] || "" }] : [],
+            sources: typeof n.source === "string" && n.source.includes("》：") 
+              ? [{ book: n.source.split("》：")[0].replace("《", ""), text: n.source.split("》：")[1] || "" }] 
+              : [],
             warnings: [],
             uniqueness: n.uniqueness || "medium",
             strokeCount: (n.name || "").length * 8 + Math.floor(Math.random() * 4),
