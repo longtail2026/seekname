@@ -284,6 +284,8 @@ function NamingResultContent() {
         console.log("[Naming Page] 全部处理完成，最终 names 数量:", mapped.length);
       } catch (err) {
         console.error("[Naming Page] 处理 API 响应时发生未捕获错误:", err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setDebugError(`外层捕获错误: ${errMsg}\n${err?.stack || ""}`);
         setError("服务处理异常，请稍后重试");
       } finally {
         setLoading(false);
