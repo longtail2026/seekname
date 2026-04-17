@@ -115,6 +115,7 @@ function NamingResultContent() {
 
         if (!result?.success) {
           console.error("[Naming Page] API 失败:", result?.error);
+          setDebugError(`API 返回失败: ${result?.error || "未知错误"}\n完整响应: ${JSON.stringify(result).slice(0, 500)}`);
           setError(result?.error || "起名失败");
           return;
         }
