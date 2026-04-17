@@ -489,7 +489,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                       )}
 
                       {/* 五行标签 */}
-                      {!isLocked && nameItem.wuxing.split("").map((wx, i) =>
+                      {!isLocked && (nameItem.wuxing || "").split("").map((wx: string, i: number) =>
                         wuxingColors[wx] ? (
                           <span
                             key={i}
