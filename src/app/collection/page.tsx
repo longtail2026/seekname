@@ -13,7 +13,7 @@ interface NameFavorite {
   gender: string;
   score: number | null;
   analysis: Record<string, unknown> | null;
-  wuxing: string[];
+  wuxing: string;
   note: string | null;
   createdAt: string;
 }
@@ -376,7 +376,7 @@ function NameCard({
     classic?: { score?: number };
   } | null;
 
-  const likes = analysis?.wuxing?.likes || item.wuxing || [];
+  const likes = analysis?.wuxing?.likes || (item.wuxing ? item.wuxing.split("") : []);
 
   return (
     <div

@@ -41,7 +41,7 @@ interface Favorite {
   gender: string;
   score: number | null;
   analysis: string | null;
-  wuxing: string[];
+  wuxing: string;
   source: string;
   createdAt: string;
 }
@@ -356,7 +356,7 @@ function FavoritesTab({ favorites, isEn }: { favorites: Favorite[]; isEn: boolea
               )}
             </div>
             <div style={{ fontSize: 12, color: "var(--foreground-muted)", fontFamily: "'Noto Sans SC', sans-serif" }}>
-              {fav.surname}姓 · {fav.wuxing?.join(" · ")} · {new Date(fav.createdAt).toLocaleDateString("zh-CN")}
+              {fav.surname}姓 · {fav.wuxing ? fav.wuxing.split("").join(" · ") : ""} · {new Date(fav.createdAt).toLocaleDateString("zh-CN")}
             </div>
           </div>
           <Link href={`/naming/${fav.fullName}`} style={{ padding: "6px 14px", background: "var(--primary)", borderRadius: 8, color: "#fff", textDecoration: "none", fontSize: 13, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>

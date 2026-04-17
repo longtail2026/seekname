@@ -39,7 +39,7 @@ interface NameItem {
   rank: number;
   name: string;
   pinyin: string;
-  wuxing: string[];
+  wuxing: string;
   score: number;
   meaning: string;
   source?: string;
@@ -183,7 +183,7 @@ function NamingResultContent() {
 基本信息：
 - 全名：${name.name}
 - 拼音：${name.pinyin}
-- 五行：${name.wuxing.join(" / ")}
+- 五行：${name.wuxing || "未知"}
 - 评分：${name.score}分
 
 名字寓意：
@@ -372,7 +372,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                       )}
 
                       {/* 五行标签 */}
-                      {!isLocked && nameItem.wuxing.map((wx, i) =>
+                      {!isLocked && nameItem.wuxing.split("").map((wx, i) =>
                         wuxingColors[wx] ? (
                           <span
                             key={i}

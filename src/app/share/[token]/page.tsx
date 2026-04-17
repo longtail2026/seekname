@@ -41,7 +41,7 @@ export default async function SharePage({ params }: Props) {
     surname: favorite.surname,
     gender: favorite.gender,
     score: favorite.score || analysis.score,
-    wuxing: analysis.wuxing || favorite.wuxing?.join("") || "未知",
+    wuxing: analysis.wuxing || favorite.wuxing || "未知",
     pinyin: analysis.pinyin || "",
     meaning: analysis.meaning || "",
     sources: analysis.sources || [],

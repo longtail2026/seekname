@@ -36,7 +36,7 @@ interface NameFavorite {
   gender: string;
   score: number | null;
   analysis: NameAnalysis | null;
-  wuxing: string[];
+  wuxing: string;
   source: string | null;
   note: string | null;
   createdAt: string;
@@ -152,10 +152,10 @@ export default function CollectionDetailPage() {
       }
 
       // 五行
-      if (item.wuxing?.length > 0) {
+      if (item.wuxing && item.wuxing.length > 0) {
         doc.setFontSize(10);
         doc.setTextColor(80);
-        doc.text(`${t("collection.detail.favorableElements")}：${item.wuxing.join(" / ")}`, pageW / 2, 110, { align: "center" });
+        doc.text(`${t("collection.detail.favorableElements")}：${item.wuxing.split("").join(" / ")}`, pageW / 2, 110, { align: "center" });
       }
 
       // 分析详情
@@ -261,7 +261,7 @@ export default function CollectionDetailPage() {
   );
 
   const analysis = item.analysis as NameAnalysis | null;
-  const likes = analysis?.wuxing?.likes || item.wuxing || [];
+  const likes = analysis?.wuxing?.likes || (item.wuxing ? item.wuxing.split("") : []);
   const avoid = analysis?.wuxing?.avoid || [];
 
   return (
