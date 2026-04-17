@@ -111,7 +111,7 @@ function NamingResultContent() {
         if (result.data?.wuxing) setWuxingResult(result.data.wuxing);
 
         // 转换 API 结果为前端格式（加防御性检查，防止 Error Boundary）
-        const apiNames = Array.isArray(result.data?.names) ? result.data.names : [];
+        const apiNames = Array.isArray(result.data?.candidates) ? result.data.candidates : [];
         const mapped: NameItem[] = apiNames.map((n: any, idx: number) => ({
           rank: idx + 1,
           name: n?.name || n?.fullName || "",
