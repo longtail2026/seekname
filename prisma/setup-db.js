@@ -99,6 +99,7 @@ async function main() {
         birth_date  TIMESTAMPTZ NOT NULL,
         birth_time  VARCHAR(20),
         style       VARCHAR(20),
+        expectations VARCHAR(1000),
         results     JSONB,
         status      VARCHAR(20) DEFAULT 'generating',
         is_paid     BOOLEAN     DEFAULT FALSE,
