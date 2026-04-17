@@ -73,6 +73,7 @@ function NamingResultContent() {
   const [orderId, setOrderId] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [debugError, setDebugError] = useState<string>("");
 
   // 调用真实 API
   useEffect(() => {
@@ -229,7 +230,9 @@ function NamingResultContent() {
               uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
             };
           } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
             console.error(`[Naming Page] 处理第 ${idx + 1} 个名字出错:`, err);
+            setDebugError(`处理第${idx + 1}个名字出错: ${errMsg}`);
             return {
               rank: idx + 1,
               name: `名字${idx + 1}`,
@@ -374,8 +377,14 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
   if (error) {
     return (
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-red-500 mb-4">{error}</p>
+          {debugError && (
+            <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-4 text-left">
+              <p className="text-red-700 font-mono text-sm">🔍 调试信息：</p>
+              <pre className="text-red-600 text-xs mt-2 whitespace-pre-wrap">{debugError}</pre>
+            </div>
+          )}
           <Link href="/" className="text-[#E86A17] hover:underline">
             ← 返回重新起名
           </Link>
@@ -387,8 +396,14 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
   if (names.length === 0) {
     return (
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-[#5C4A42] mb-4">未找到合适的名字，请调整条件重试</p>
+          {debugError && (
+            <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-4 text-left">
+              <p className="text-red-700 font-mono text-sm">🔍 调试信息：</p>
+              <pre className="text-red-600 text-xs mt-2 whitespace-pre-wrap">{debugError}</pre>
+            </div>
+          )}
           <Link href="/" className="text-[#E86A17] hover:underline">
             ← 返回重新起名
           </Link>
