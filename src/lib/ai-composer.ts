@@ -390,10 +390,10 @@ export async function aiCompose(
     if (safetyTargets.length > 0) {
       const safetyPromises = safetyTargets.map((candidate) =>
         Promise.race([
-          checkSafetyWithDeepSeek(candidate.fullName, {
-            pinyin: candidate.pinyin,
-            characters: candidate.characters.map((c) => c.character),
-          }).then((safety) => ({ candidate, safety, ok: true })),
+            checkSafetyWithDeepSeek(candidate.fullName, {
+              pinyin: candidate.pinyin,
+              characters: candidate.fullName.split(""),
+            }).then((safety) => ({ candidate, safety, ok: true })),
           new Promise<null>((resolve) =>
             setTimeout(() => {
               console.warn(`[AI Composer] 安全检查超时: ${candidate.fullName}`);
