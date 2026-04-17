@@ -116,11 +116,12 @@ function NamingResultContent() {
         // 调试：检查 names 和 candidates 字段
         console.log("[Naming Page] names 类型:", typeof result.data?.names, "值:", JSON.stringify(result.data?.names)?.slice(0, 200));
         console.log("[Naming Page] candidates 类型:", typeof result.data?.candidates, "值:", JSON.stringify(result.data?.candidates)?.slice(0, 200));
+        console.log("[Naming Page] orderDetail.candidates 类型:", typeof result.data?.orderDetail?.candidates, "值:", JSON.stringify(result.data?.orderDetail?.candidates)?.slice(0, 200));
 
         // 转换 API 结果为前端格式（加防御性检查，防止 Error Boundary）
-        // 优先使用 names，如果为空或不存在则 fallback 到 candidates
+        // 优先使用 names，如果为空或不存在则 fallback 到 candidates 和 orderDetail.candidates
         const namesData = result.data?.names;
-        const candidatesData = result.data?.candidates;
+        const candidatesData = result.data?.candidates || result.data?.orderDetail?.candidates;
         let rawNames: any[] = [];
         
         if (Array.isArray(namesData) && namesData.length > 0) {
