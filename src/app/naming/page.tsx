@@ -564,6 +564,14 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           })}
         </div>
 
+        {/* 调试信息 - 如果有错误，显示在这里 */}
+        {debugError && (
+          <div className="mt-8 bg-red-100 border-2 border-red-300 rounded-xl p-4">
+            <p className="text-red-700 font-bold text-sm mb-2">🔍 处理错误信息：</p>
+            <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
+          </div>
+        )}
+
         {/* 选中名字的操作区 */}
         {names[selectedIdx] && !showPaywall || (unlocked || !showPaywall) && names[selectedIdx] ? (
           <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-[#E5DDD3]">
