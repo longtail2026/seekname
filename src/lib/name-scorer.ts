@@ -91,15 +91,13 @@ export async function queryCulturalSource(
     ORDER BY hit_count DESC
     LIMIT 5`;
 
-    const entries = await queryRaw<
-      Array<{
-        id: number;
-        book_name: string;
-        ancient_text: string;
-        modern_text: string;
-        hit_count: number;
-      }>
-    >(sql);
+    const entries = await queryRaw(sql) as Array<{
+      id: number;
+      book_name: string;
+      ancient_text: string;
+      modern_text: string;
+      hit_count: number;
+    }>;
 
     if (!entries || entries.length === 0) {
       // 没有典籍匹配，文化分为 0
@@ -174,15 +172,13 @@ export async function queryPopularity(
 
   try {
     const charsArray = charStrings.map(c => `'${c}'`).join(",");
-    const rows = await queryRaw<
-      Array<{
-        char: string;
-        freq: string;
-        freq_rank: string;
-        gender_m: string;
-        gender_f: string;
-      }>
-    >(`SELECT char, freq, freq_rank, gender_m, gender_f FROM character_frequency WHERE char IN (${charsArray})`);
+    const rows = await queryRaw(`SELECT char, freq, freq_rank, gender_m, gender_f FROM character_frequency WHERE char IN (${charsArray})`) as Array<{
+      char: string;
+      freq: string;
+      freq_rank: string;
+      gender_m: string;
+      gender_f: string;
+    }>;
 
     // 构造查询结果映射
     const freqMap = new Map<string, {
@@ -294,17 +290,17 @@ export async function queryUniqueness(
     const genderParam = gender || null;
 
     // 查询全名出现次数
-    const fullNameCountRaw = await queryRaw<Array<{ count: string }>>(
+    const fullNameCountRaw = await queryRaw(
       `SELECT COUNT(*) as count FROM name_samples WHERE full_name = $1 AND ($2::text IS NULL OR gender = $2)`,
       [fullName, genderParam]
-    );
+    ) as Array<{ count: string }>;
     const fullNameCount = parseInt(fullNameCountRaw[0]?.count || "0");
 
     // 查询名字（不含姓）出现次数
-    const givenNameCountRaw = await queryRaw<Array<{ count: string }>>(
+    const givenNameCountRaw = await queryRaw(
       `SELECT COUNT(*) as count FROM name_samples WHERE given_name = $1 AND ($2::text IS NULL OR gender = $2)`,
       [givenName, genderParam]
-    );
+    ) as Array<{ count: string }>;
     const givenNameCount = parseInt(givenNameCountRaw[0]?.count || "0");
 
     // 查询同音不同字的数量（用于评估谐音重名）
