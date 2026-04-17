@@ -8,7 +8,7 @@
     "db:push": "prisma db push --accept-data-loss",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "node prisma/setup-db.js && npx prisma generate"
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.7.0",

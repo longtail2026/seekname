@@ -2,7 +2,10 @@
  * Vercel Build 时初始化数据库
  * 步骤：
  *   1. 用原生 pg 建 character_frequency 表（种子数据）
- *   2. 用 prisma db push 同步所有 schema 中的表结构
+ *   2. 用 prisma db push 同步所有 schema 表结构
+ *
+ * 注意：本文件在 vercel.json 的 buildCommand 中被显式调用
+ *（不在 postinstall 里，postinstall 只做 prisma generate）
  */
 const { execSync } = require("child_process");
 const { Pool } = require("pg");
@@ -15,7 +18,7 @@ const DATABASE_URL =
 async function main() {
   console.log("[setup-db] Starting at " + new Date().toISOString());
 
-  // Step 1: 建 character_frequency 表（种子数据）
+  // Step 1: 建 character_frequency 表（原生 pg，种子数据）
   if (DATABASE_URL) {
     const pool = new Pool({ connectionString: DATABASE_URL });
     try {
@@ -69,29 +72,25 @@ async function main() {
         }
         console.log(`[setup-db] Inserted ${unique.length} character_frequency rows`);
       } else {
-        console.log(`[setup-db] character_frequency already has ${rows[0].cnt} rows, skipping seed`);
+        console.log(`[setup-db] character_frequency already has ${rows[0].cnt} rows, skipping`);
       }
 
       client.release();
       await pool.end();
     } catch (err) {
       console.error("[setup-db] pg step FAILED:", err.message);
-      // 继续执行 prisma db push
     }
   } else {
     console.log("[setup-db] No DATABASE_URL, skipping pg step");
   }
 
-  // Step 2: 用 prisma db push 创建所有 schema 表
-  console.log("[setup-db] Running prisma db push to sync schema...");
+  // Step 2: 用 prisma db push 同步所有 schema 表
+  console.log("[setup-db] Running prisma db push...");
   try {
-    execSync("npx prisma db push --skip-seed --accept-data-loss", {
+    // buildCommand 阶段 node_modules/.bin/prisma 已存在，直接调用二进制
+    execSync("./node_modules/.bin/prisma db push --skip-seed --accept-data-loss", {
       stdio: "inherit",
-      env: {
-        ...process.env,
-        // 确保 Prisma 读得到连接串
-        DATABASE_URL: DATABASE_URL || process.env.DATABASE_URL || "",
-      },
+      shell: true,
     });
     console.log("[setup-db] prisma db push completed");
   } catch (err) {
