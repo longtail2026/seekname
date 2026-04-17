@@ -268,11 +268,15 @@ function NamingResultContent() {
             uniqueness: n.uniqueness || "medium",
             strokeCount: (n.name || "").length * 8 + Math.floor(Math.random() * 4),
           };
-          try { sessionStorage.setItem(`name:${fullName}`, JSON.stringify(detailObj)); } catch {}
+          try { sessionStorage.setItem(`name:${fullName}`, JSON.stringify(detailObj)); } catch (e) {
+            console.error("[Naming Page] sessionStorage 保存失败:", e);
+          }
         }
+        
+        console.log("[Naming Page] 全部处理完成，最终 names 数量:", mapped.length);
       } catch (err) {
-        setError("网络错误，请稍后重试");
-        console.error(err);
+        console.error("[Naming Page] 处理 API 响应时发生未捕获错误:", err);
+        setError("服务处理异常，请稍后重试");
       } finally {
         setLoading(false);
       }
@@ -424,8 +428,8 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               {[
                 { label: "八字", value: birthDate ? `${new Date(birthDate).getFullYear()}年` : "待输入" },
-                { label: "五行喜用", value: wuxingResult.likes.join("、") || "水木" },
-                { label: "五行忌用", value: wuxingResult.avoids.join("、") || "无" },
+                { label: "五行喜用", value: (wuxingResult.likes || []).join("、") || "水木" },
+                { label: "五行忌用", value: (wuxingResult.avoids || []).join("、") || "无" },
                 { label: "推荐用字", value: "补水补木" },
               ].map((item, i) => (
                 <div key={i} className="p-3 bg-white rounded-lg">
