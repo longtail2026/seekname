@@ -371,21 +371,12 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
     }
   };
 
-  // 强制显示调试信息（无论什么状态）
-  const debugInfo = (
+  // 调试面板（仅开发时使用）
+  const showDebugPanel = debugError ? (
     <div className="fixed bottom-4 right-4 z-50 bg-yellow-100 border-2 border-yellow-400 rounded-xl p-4 max-w-lg text-left shadow-lg">
-      <p className="text-yellow-800 font-bold text-sm mb-1">🔧 调试信息（始终显示）</p>
-      <p className="text-yellow-700 text-xs">loading: {String(loading)}</p>
-      <p className="text-yellow-700 text-xs">error: {error || "(无)"}</p>
-      <p className="text-yellow-700 text-xs">names.length: {names.length}</p>
-      <p className="text-yellow-700 text-xs">debugError: {debugError || "(空)"}</p>
-      {debugError && (
-        <pre className="text-red-600 text-xs mt-2 whitespace-pre-wrap max-h-40 overflow-auto">
-          {debugError}
-        </pre>
-      )}
+      <p className="text-red-600 font-bold text-sm mb-1">调试: {debugError.slice(0, 200)}</p>
     </div>
-  );
+  ) : null;
 
   if (loading) {
     return (
@@ -419,18 +410,11 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
         <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-red-500 mb-4">{error}</p>
-          
-          {/* 错误详情面板 - 始终显示 */}
-          <div className="bg-red-100 border-2 border-red-400 rounded-xl p-6 mb-4 text-left max-w-xl mx-auto">
-            <p className="text-red-700 font-bold text-sm mb-2">🔍 错误详情（请复制此内容）：</p>
-            <pre className="text-red-600 text-sm whitespace-pre-wrap font-mono bg-white p-3 rounded border border-red-200 max-h-60 overflow-auto">
-{`loading: ${loading}
-error: ${error}
-names.length: ${names.length}
-debugError: ${debugError || "(空)"}`}
-            </pre>
-          </div>
-          
+          {debugError && (
+            <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-left">
+              <p className="text-gray-700 text-sm font-mono">{debugError.slice(0, 500)}</p>
+            </div>
+          )}
           <Link href="/" className="text-[#E86A17] hover:underline">
             ← 返回重新起名
           </Link>
