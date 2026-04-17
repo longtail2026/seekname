@@ -99,7 +99,7 @@ function NamingResultContent() {
         });
 
         const result = await response.json();
-        console.log("[Naming Page] API 响应:", JSON.stringify(result).slice(0, 500));
+        console.log("[Naming Page] API 完整响应:", JSON.stringify(result, null, 2).slice(0, 2000));
 
         if (!result?.success) {
           console.error("[Naming Page] API 失败:", result?.error);
@@ -112,8 +112,28 @@ function NamingResultContent() {
         if (result.data?.orderId) setOrderId(result.data.orderId);
         if (result.data?.wuxing) setWuxingResult(result.data.wuxing);
 
+        // 调试：检查 names 和 candidates 字段
+        console.log("[Naming Page] names 类型:", typeof result.data?.names, "值:", JSON.stringify(result.data?.names)?.slice(0, 200));
+        console.log("[Naming Page] candidates 类型:", typeof result.data?.candidates, "值:", JSON.stringify(result.data?.candidates)?.slice(0, 200));
+
         // 转换 API 结果为前端格式（加防御性检查，防止 Error Boundary）
-        const rawNames = result.data?.names || result.data?.candidates || [];
+        // 优先使用 names，如果为空或不存在则 fallback 到 candidates
+        const namesData = result.data?.names;
+        const candidatesData = result.data?.candidates;
+        let rawNames: any[] = [];
+        
+        if (Array.isArray(namesData) && namesData.length > 0) {
+          rawNames = namesData;
+          console.log("[Naming Page] 使用 names 字段，数量:", rawNames.length);
+        } else if (Array.isArray(candidatesData) && candidatesData.length > 0) {
+          rawNames = candidatesData;
+          console.log("[Naming Page] 使用 candidates 字段，数量:", rawNames.length);
+        } else {
+          console.error("[Naming Page] names 和 candidates 都为空或无效");
+          setError("未找到合适的名字，请稍后重试");
+          return;
+        }
+
         if (!Array.isArray(rawNames)) {
           console.error("[Naming Page] names 不是数组:", typeof rawNames, rawNames);
           setError("数据格式错误，请稍后重试");
