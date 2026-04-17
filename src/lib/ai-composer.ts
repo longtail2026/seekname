@@ -365,11 +365,11 @@ export async function aiCompose(
 
   for (const entry of entries) {
     // 4a. 验证每个字都在字池中存在
-    const validatedChars = entry.characters
-      .map((char) => pool.find((c) => c.character === char))
+    const validatedChars = (entry.characters as string[])
+      .map((char: string) => pool.find((c) => c.character === char))
       .filter(Boolean) as CharacterInfo[];
 
-    if (validatedChars.length !== entry.characters.length) {
+    if (validatedChars.length !== (entry.characters as string[]).length) {
       console.log(`[AI Composer] 过滤无效名 ${entry.name}，部分字不在字池中`);
       continue;
     }
