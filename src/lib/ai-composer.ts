@@ -325,7 +325,7 @@ export async function aiCompose(
 
   console.log(`[AI Composer] 字池摘要长度=${poolSummary.length} chars`);
 
-  // 2. 调用 DeepSeek
+  // 2. 调用 DeepSeek（3秒超时快速降级）
   if (!DeepSeekIntegration.isAvailable()) {
     console.warn("[AI Composer] DeepSeek 不可用，降级到规则循环");
     return config.fallbackToRules
@@ -333,25 +333,32 @@ export async function aiCompose(
       : [];
   }
 
+  let entries: any[] = [];
   try {
-    console.log("[AI Composer] 调用 DeepSeek...");
-    const rawResponse = await DeepSeekIntegration.callRaw(
-      system,
-      user,
-      0.7,   // 适度创意
-      1500   // 足够输出多个名字
-    );
+    console.log("[AI Composer] 调用 DeepSeek（3秒超时）...");
+    const rawResponse = await Promise.race([
+      DeepSeekIntegration.callRaw(system, user, 0.7, 1500),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("DeepSeek 超时降级")), 3000)
+      ),
+    ]);
 
     // 3. 解析 JSON
-    const entries = parseLLMResponse(rawResponse);
+    entries = parseLLMResponse(rawResponse as string);
     console.log(`[AI Composer] 解析出 ${entries.length} 个名字`);
+  } catch (e) {
+    console.warn(`[AI Composer] DeepSeek 调用失败，降级到规则循环: ${e}`);
+    return config.fallbackToRules
+      ? fallbackRuleBasedCompose(pool, intent, config, surname)
+      : [];
+  }
 
-    if (entries.length === 0) {
-      console.warn("[AI Composer] LLM 返回无法解析，降级到规则循环");
-      return config.fallbackToRules
-        ? fallbackRuleBasedCompose(pool, intent, config, surname)
-        : [];
-    }
+  if (entries.length === 0) {
+    console.warn("[AI Composer] LLM 返回无法解析，降级到规则循环");
+    return config.fallbackToRules
+      ? fallbackRuleBasedCompose(pool, intent, config, surname)
+      : [];
+  }
 
     // 4. 后验：过滤 + 构建候选
     const validatedCandidates: NameCandidate[] = [];
