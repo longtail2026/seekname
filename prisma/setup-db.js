@@ -23,6 +23,93 @@ async function main() {
     const client = await pool.connect();
     console.log("[setup-db] Connected to database");
 
+    // ── 0. 典籍书籍表（classics_books）──────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS classics_books (
+        id          SERIAL       PRIMARY KEY,
+        orig_id     INTEGER,
+        name        VARCHAR(100) NOT NULL,
+        author      VARCHAR(100),
+        category    VARCHAR(20),
+        dynasty     VARCHAR(20),
+        description TEXT
+      )
+    `).catch(() => {});
+    console.log("[setup-db] Table 'classics_books' OK");
+
+    // ── 0a. 典籍条目表（classics_entries）─────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS classics_entries (
+        id          SERIAL       PRIMARY KEY,
+        book_id     INTEGER,
+        book_name   VARCHAR(100),
+        chapter_name VARCHAR(200),
+        ancient_text TEXT        NOT NULL,
+        modern_text TEXT,
+        keywords    TEXT[]       DEFAULT '{}',
+        FOREIGN KEY (book_id) REFERENCES classics_books(id) ON DELETE CASCADE
+      )
+    `).catch(() => {});
+    console.log("[setup-db] Table 'classics_entries' OK");
+
+    // ── 0b. 名字样本表（name_samples）─────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS name_samples (
+        id          SERIAL       PRIMARY KEY,
+        full_name   VARCHAR(30)  NOT NULL,
+        surname     VARCHAR(10),
+        given_name  VARCHAR(20),
+        gender      CHAR(1),
+        frequency   INTEGER,
+        pinyin      VARCHAR(100)
+      )
+    `).catch(() => {});
+    console.log("[setup-db] Table 'name_samples' OK");
+
+    // ── 0c. 康熙字典表（kangxi_dict）──────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS kangxi_dict (
+        id          SERIAL       PRIMARY KEY,
+        character   VARCHAR(10)  NOT NULL,
+        pinyin      VARCHAR(50),
+        radical     VARCHAR(10),
+        stroke_count INTEGER,
+        meaning     TEXT,
+        wuxing      VARCHAR(10),
+        source      VARCHAR(100),
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `).catch(() => {});
+    console.log("[setup-db] Table 'kangxi_dict' OK");
+
+    // ── 0d. 敏感词表（sensitive_words）────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sensitive_words (
+        id          SERIAL       PRIMARY KEY,
+        word        VARCHAR(100) NOT NULL,
+        category    VARCHAR(50),
+        level       INTEGER,
+        source_file VARCHAR(100),
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `).catch(() => {});
+    console.log("[setup-db] Table 'sensitive_words' OK");
+
+    // ── 0e. 五行字符表（wuxing_characters）────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wuxing_characters (
+        id          SERIAL       PRIMARY KEY,
+        character   VARCHAR(10)  NOT NULL,
+        wuxing      VARCHAR(10),
+        meaning     TEXT,
+        suitability TEXT,
+        pinyin      VARCHAR(50),
+        stroke_count INTEGER,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `).catch(() => {});
+    console.log("[setup-db] Table 'wuxing_characters' OK");
+
     // ── 1. character_frequency ──────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS character_frequency (
