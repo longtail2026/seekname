@@ -369,3 +369,15 @@ model NameFavorite {
   @@index([createdAt], map: "idx_nf_created")
   @@map("name_favorites")
 }
+
+// ─── 字符频率表（起名评分：常用度维度）───────────────────────────────
+// 用 raw SQL 查询，所以这个 model 只是为了让 Prisma 引擎识别表存在
+model CharacterFrequency {
+  char      String @id @db.VarChar(1)
+  freq      Int    @default(0) @db.Integer
+  freqRank  Int    @default(9999) @map("freq_rank") @db.Integer
+  genderM   Int    @default(0) @map("gender_m") @db.Integer
+  genderF   Int    @default(0) @map("gender_f") @db.Integer
+
+  @@map("character_frequency")
+}
