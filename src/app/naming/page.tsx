@@ -142,18 +142,6 @@ function NamingResultContent() {
           setError("未找到合适的名字，请稍后重试");
           return;
         }
-          rawNames = namesData;
-          console.log("[Naming Page] 使用 names 字段，数量:", rawNames.length);
-        } else if (Array.isArray(candidatesData) && candidatesData.length > 0) {
-          rawNames = candidatesData;
-          console.log("[Naming Page] 使用 candidates 字段，数量:", rawNames.length);
-        } else {
-          console.error("[Naming Page] names 和 candidates 都为空或无效");
-          console.error("[Naming Page] namesData:", JSON.stringify(namesData)?.slice(0, 300));
-          console.error("[Naming Page] candidatesData:", JSON.stringify(candidatesData)?.slice(0, 300));
-          setError("未找到合适的名字，请稍后重试");
-          return;
-        }
 
         console.log("[Naming Page] 开始处理 rawNames，数量:", rawNames.length);
         console.log("[Naming Page] 第一个名字的完整结构:", JSON.stringify(rawNames[0], null, 2));
