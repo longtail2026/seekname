@@ -113,16 +113,33 @@ function NamingResultContent() {
         if (result.data?.orderId) setOrderId(result.data.orderId);
         if (result.data?.wuxing) setWuxingResult(result.data.wuxing);
 
-        // 调试：检查 names 和 candidates 字段
-        console.log("[Naming Page] names 类型:", typeof result.data?.names, "值:", JSON.stringify(result.data?.names)?.slice(0, 200));
-        console.log("[Naming Page] candidates 类型:", typeof result.data?.candidates, "值:", JSON.stringify(result.data?.candidates)?.slice(0, 200));
-        console.log("[Naming Page] orderDetail.candidates 类型:", typeof result.data?.orderDetail?.candidates, "值:", JSON.stringify(result.data?.orderDetail?.candidates)?.slice(0, 200));
+        // 调试：检查所有可能的数据源
+        console.log("[Naming Page] result.data?.names:", JSON.stringify(result.data?.names)?.slice(0, 300));
+        console.log("[Naming Page] result.data?.candidates:", JSON.stringify(result.data?.candidates)?.slice(0, 300));
+        console.log("[Naming Page] result.data?.orderDetail?.candidates:", JSON.stringify(result.data?.orderDetail?.candidates)?.slice(0, 300));
 
-        // 转换 API 结果为前端格式（加防御性检查，防止 Error Boundary）
-        // 优先使用 names，如果为空或不存在则 fallback 到 candidates 和 orderDetail.candidates
+        // 转换 API 结果为前端格式
+        // 优先使用 names，然后是 candidates，最后是 orderDetail.candidates
         const namesData = result.data?.names;
-        const candidatesData = result.data?.candidates || result.data?.orderDetail?.candidates;
+        const candidatesData = result.data?.candidates;
+        const orderDetailCandidates = result.data?.orderDetail?.candidates;
+        
         let rawNames: any[] = [];
+        if (Array.isArray(namesData) && namesData.length > 0) {
+          rawNames = namesData;
+          console.log("[Naming Page] 使用 names，数量:", rawNames.length);
+        } else if (Array.isArray(candidatesData) && candidatesData.length > 0) {
+          rawNames = candidatesData;
+          console.log("[Naming Page] 使用 data.candidates，数量:", rawNames.length);
+        } else if (Array.isArray(orderDetailCandidates) && orderDetailCandidates.length > 0) {
+          rawNames = orderDetailCandidates;
+          console.log("[Naming Page] 使用 orderDetail.candidates，数量:", rawNames.length);
+        } else {
+          console.error("[Naming Page] 所有数据源都为空");
+          console.error("[Naming Page] namesData:", JSON.stringify(namesData)?.slice(0, 300));
+          setError("未找到合适的名字，请稍后重试");
+          return;
+        }
         
         if (Array.isArray(namesData) && namesData.length > 0) {
           rawNames = namesData;
