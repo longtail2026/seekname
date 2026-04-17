@@ -359,6 +359,22 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
     }
   };
 
+  // 强制显示调试信息（无论什么状态）
+  const debugInfo = (
+    <div className="fixed bottom-4 right-4 z-50 bg-yellow-100 border-2 border-yellow-400 rounded-xl p-4 max-w-lg text-left shadow-lg">
+      <p className="text-yellow-800 font-bold text-sm mb-1">🔧 调试信息（始终显示）</p>
+      <p className="text-yellow-700 text-xs">loading: {String(loading)}</p>
+      <p className="text-yellow-700 text-xs">error: {error || "(无)"}</p>
+      <p className="text-yellow-700 text-xs">names.length: {names.length}</p>
+      <p className="text-yellow-700 text-xs">debugError: {debugError || "(空)"}</p>
+      {debugError && (
+        <pre className="text-red-600 text-xs mt-2 whitespace-pre-wrap max-h-40 overflow-auto">
+          {debugError}
+        </pre>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
@@ -380,53 +396,41 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           {orderNo && (
             <p className="text-xs text-[#BBB] mt-4">订单号：{orderNo}</p>
           )}
-          {/* 调试信息 - 加载时也显示，以便看到过程中的错误 */}
-          {debugError.length > 0 && (
-            <div className="mt-6 bg-red-100 border-2 border-red-300 rounded-xl p-4 max-w-md mx-auto text-left">
-              <p className="text-red-700 font-bold text-sm mb-2">🔍 处理错误：</p>
-              <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
-            </div>
-          )}
         </div>
+        {debugInfo}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-        <div className="text-center max-w-2xl px-4">
-          <p className="text-xl text-red-500 mb-4">{error}</p>
-          {debugError.length > 0 && (
-            <div className="bg-red-100 border-2 border-red-300 rounded-xl p-4 mb-4 text-left">
-              <p className="text-red-700 font-bold text-sm mb-2">🔍 调试信息：</p>
-              <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
-            </div>
-          )}
-          <Link href="/" className="text-[#E86A17] hover:underline">
-            ← 返回重新起名
-          </Link>
+      <>
+        <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
+          <div className="text-center max-w-2xl px-4">
+            <p className="text-xl text-red-500 mb-4">{error}</p>
+            <Link href="/" className="text-[#E86A17] hover:underline">
+              ← 返回重新起名
+            </Link>
+          </div>
         </div>
-      </div>
+        {debugInfo}
+      </>
     );
   }
 
   if (names.length === 0) {
     return (
-      <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-        <div className="text-center max-w-2xl px-4">
-          <p className="text-xl text-[#5C4A42] mb-4">未找到合适的名字，请调整条件重试</p>
-          {debugError && (
-            <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-4 text-left">
-              <p className="text-red-700 font-mono text-sm">🔍 调试信息：</p>
-              <pre className="text-red-600 text-xs mt-2 whitespace-pre-wrap">{debugError}</pre>
-            </div>
-          )}
-          <Link href="/" className="text-[#E86A17] hover:underline">
-            ← 返回重新起名
-          </Link>
+      <>
+        <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
+          <div className="text-center max-w-2xl px-4">
+            <p className="text-xl text-[#5C4A42] mb-4">未找到合适的名字，请调整条件重试</p>
+            <Link href="/" className="text-[#E86A17] hover:underline">
+              ← 返回重新起名
+            </Link>
+          </div>
         </div>
-      </div>
+        {debugInfo}
+      </>
     );
   }
 
