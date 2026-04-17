@@ -369,6 +369,13 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           {orderNo && (
             <p className="text-xs text-[#BBB] mt-4">订单号：{orderNo}</p>
           )}
+          {/* 调试信息 - 加载时也显示，以便看到过程中的错误 */}
+          {debugError && (
+            <div className="mt-6 bg-red-100 border-2 border-red-300 rounded-xl p-4 max-w-md mx-auto text-left">
+              <p className="text-red-700 font-bold text-sm mb-2">🔍 处理错误：</p>
+              <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -380,9 +387,9 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
         <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-red-500 mb-4">{error}</p>
           {debugError && (
-            <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-4 text-left">
-              <p className="text-red-700 font-mono text-sm">🔍 调试信息：</p>
-              <pre className="text-red-600 text-xs mt-2 whitespace-pre-wrap">{debugError}</pre>
+            <div className="bg-red-100 border-2 border-red-300 rounded-xl p-4 mb-4 text-left">
+              <p className="text-red-700 font-bold text-sm mb-2">🔍 调试信息：</p>
+              <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
             </div>
           )}
           <Link href="/" className="text-[#E86A17] hover:underline">
