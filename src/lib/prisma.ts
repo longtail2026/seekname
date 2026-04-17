@@ -50,3 +50,31 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export default prisma;
+
+// ─── 原生 SQL 查询（绕过 Prisma adapter，用于 Serverless 环境）─────────────
+// 用途：Prisma 7 adapter 在 Serverless 中对某些操作行为异常，用原生 pg 替代
+export async function queryRaw<T = Record<string, unknown>>(
+  sql: string,
+  params?: unknown[]
+): Promise<T[]> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(sql, params);
+    return result.rows as T[];
+  } finally {
+    client.release();
+  }
+}
+
+export async function executeRaw(
+  sql: string,
+  params?: unknown[]
+): Promise<number> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(sql, params);
+    return result.rowCount ?? 0;
+  } finally {
+    client.release();
+  }
+}

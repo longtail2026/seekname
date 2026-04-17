@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, queryRaw, executeRaw } from "@/lib/prisma";
 import { generateOrderNo, generateAnonymousName } from "@/lib/order";
 import { verifyToken } from "@/lib/auth";
 import { aiCompose } from "@/lib/ai-composer";
@@ -177,6 +177,7 @@ async function attachSources(names: any[], expectations?: string) {
 
 /**
  * 创建订单记录（每次起名调用都会创建）
+ * 使用原生 SQL 而非 Prisma ORM，避免 Prisma 7 adapter 在 Serverless 环境的类型问题
  */
 async function createOrder(params: {
   userId?: string | null;
@@ -192,51 +193,79 @@ async function createOrder(params: {
 }) {
   const orderNo = generateOrderNo();
   const now = new Date();
-  const isPaid = false; // 目前全部免费，后续接入支付后根据业务判断
+  const isPaid = false; // 目前全部免费
 
   try {
-    // 先创建起名记录（注意：不传 String[] 字段，Prisma 7 adapter 对数组类型有 bug）
-    const nameRecord = await prisma.nameRecord.create({
-      data: {
-        userId: params.userId ?? null,
-        surname: params.surname,
-        gender: params.gender, // "M" 或 "F"，Char(1) 列
-        birthDate: new Date(params.birthDate),
-        birthTime: params.birthTime,
-        expectations: params.expectations,
-        style: params.style,
-        results: params.results as object, // Json 字段，不用 any
-        status: "completed",
-      },
-    });
+    // 用原生 SQL 插入 name_record，绕过 Prisma adapter
+    const resultsJson = JSON.stringify(params.results);
+    const nameRecordRows = await queryRaw<{ id: string }>(
+      `INSERT INTO name_record
+        (user_id, surname, gender, birth_date, birth_time, expectations, style,
+         results, status, is_paid, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id`,
+      [
+        params.userId ?? null,
+        params.surname,
+        params.gender, // "M" / "F"
+        new Date(params.birthDate),
+        params.birthTime ?? null,
+        params.expectations ?? null,
+        params.style ?? null,
+        resultsJson,
+        "completed",
+        isPaid,
+        now,
+        now,
+      ]
+    );
 
-    // 再创建订单（关联起名记录）
-    const order = await prisma.order.create({
-      data: {
+    if (!nameRecordRows[0]) {
+      console.error("[Create Order] name_record insert failed, no RETURNING id");
+      return null;
+    }
+    const nameRecordId = nameRecordRows[0].id;
+
+    // 用原生 SQL 插入 order
+    const orderRows = await queryRaw<{
+      id: string; orderno: string; type: string;
+      amount: string; pay_status: string; status: string; created_at: Date;
+    }>(
+      `INSERT INTO "order"
+        (order_no, user_id, type, amount, pay_status, status, name_record_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, order_no as orderno, type, amount, pay_status, status, created_at`,
+      [
         orderNo,
-        userId: params.userId ?? null,
-        type: params.category,
-        amount: isPaid ? 9.9 : 0, // 免费起名 = 0 元
-        payStatus: isPaid ? "paid" : "free", // free 表示免费无需支付
-        status: "completed",
-        nameRecordId: nameRecord.id,
-      },
-    });
+        params.userId ?? null,
+        params.category,
+        isPaid ? 9.9 : 0,
+        isPaid ? "paid" : "free",
+        "completed",
+        nameRecordId,
+        now,
+        now,
+      ]
+    );
 
-    // 返回订单信息（用于前端展示）
+    if (!orderRows[0]) {
+      console.error("[Create Order] order insert failed, no RETURNING id");
+      return null;
+    }
+
+    const order = orderRows[0];
     return {
       id: order.id,
-      orderNo: order.orderNo,
+      orderNo: order.orderno,
       type: order.type,
       amount: Number(order.amount),
-      payStatus: order.payStatus,
+      payStatus: order.pay_status,
       status: order.status,
-      createdAt: order.createdAt.toISOString(),
-      nameRecordId: nameRecord.id,
+      createdAt: order.created_at.toISOString(),
+      nameRecordId,
     };
   } catch (e) {
     console.error("[Create Order Error]", e);
-    // 即使订单创建失败也不阻断主流程
     return null;
   }
 }
