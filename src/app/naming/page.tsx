@@ -107,7 +107,18 @@ function NamingResultContent() {
           body: JSON.stringify(body),
         });
 
-        const result = await response.json();
+        let result;
+        try {
+          result = await response.json();
+        } catch (jsonErr) {
+          const responseText = await response.text().catch(() => "无法读取响应内容");
+          console.error("[Naming Page] JSON 解析失败:", jsonErr);
+          console.error("[Naming Page] HTTP 状态:", response.status);
+          console.error("[Naming Page] 响应内容:", responseText.slice(0, 500));
+          setDebugError(`JSON解析失败\n状态: ${response.status}\n内容: ${responseText.slice(0, 500)}`);
+          setError("服务处理异常，请稍后重试");
+          return;
+        }
         console.log("[Naming Page] API 完整响应:", JSON.stringify(result, null, 2).slice(0, 3000));
         console.log("[Naming Page] result.data keys:", result?.data ? Object.keys(result.data) : "data is null/undefined");
         console.log("[Naming Page] result.data.names:", JSON.stringify(result?.data?.names));
