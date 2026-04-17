@@ -395,7 +395,7 @@ export async function POST(request: NextRequest) {
         const candidates = await aiCompose(pool, intent, {
           scenario,
           fallbackToRules: true,
-          maxCandidates: 8,
+          maxCandidates: 4, // 减少一半，减少 AI 等待时间
           wordCount: 2,
         }, surname);
         console.log(`[API] aiCompose 完成，返回 ${candidates.length} 个候选`);

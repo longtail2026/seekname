@@ -10,7 +10,7 @@
  *  4. uniqueness（重名分）→ 查询 name_samples 真实人名数据库
  */
 
-import { prisma } from "./prisma";
+import { queryRaw } from "./prisma";
 import { PhoneticOptimizer, evaluatePhoneticQuality } from "./phonetic-optimizer";
 import type { CharacterInfo, NameCandidate } from "./naming-engine";
 
@@ -91,7 +91,7 @@ export async function queryCulturalSource(
     ORDER BY hit_count DESC
     LIMIT 5`;
 
-    const entries = await prisma.$queryRawUnsafe<
+    const entries = await queryRaw<
       Array<{
         id: number;
         book_name: string;
@@ -173,19 +173,16 @@ export async function queryPopularity(
   const charStrings = characters.map((c) => c.character);
 
   try {
-    const rows = await prisma.$queryRaw<
+    const charsArray = charStrings.map(c => `'${c}'`).join(",");
+    const rows = await queryRaw<
       Array<{
         char: string;
-        freq: number;
-        freq_rank: number;
-        gender_m: number;
-        gender_f: number;
+        freq: string;
+        freq_rank: string;
+        gender_m: string;
+        gender_f: string;
       }>
-    >`
-      SELECT char, freq, freq_rank, gender_m, gender_f
-      FROM character_frequency
-      WHERE char = ANY(${charStrings}::text[])
-    `;
+    >(`SELECT char, freq, freq_rank, gender_m, gender_f FROM character_frequency WHERE char IN (${charsArray})`);
 
     // 构造查询结果映射
     const freqMap = new Map<string, {
@@ -198,10 +195,10 @@ export async function queryPopularity(
     for (const row of rows) {
       freqMap.set(row.char, {
         char: row.char,
-        freq: Number(row.freq) || 0,
-        freqRank: Number(row.freq_rank) || 9999,
-        genderM: Number(row.gender_m) || 0,
-        genderF: Number(row.gender_f) || 0,
+        freq: parseInt(row.freq as unknown as string) || 0,
+        freqRank: parseInt(row.freq_rank as unknown as string) || 9999,
+        genderM: parseInt(row.gender_m as unknown as string) || 0,
+        genderF: parseInt(row.gender_f as unknown as string) || 0,
       });
     }
 
@@ -297,26 +294,22 @@ export async function queryUniqueness(
     const genderParam = gender || null;
 
     // 查询全名出现次数
-    const fullNameCountRaw = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+    const fullNameCountRaw = await queryRaw<Array<{ count: string }>>(
       `SELECT COUNT(*) as count FROM name_samples WHERE full_name = $1 AND ($2::text IS NULL OR gender = $2)`,
-      fullName, genderParam
+      [fullName, genderParam]
     );
-    const fullNameCount = Number(fullNameCountRaw[0]?.count || 0n);
+    const fullNameCount = parseInt(fullNameCountRaw[0]?.count || "0");
 
     // 查询名字（不含姓）出现次数
-    const givenNameCountRaw = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+    const givenNameCountRaw = await queryRaw<Array<{ count: string }>>(
       `SELECT COUNT(*) as count FROM name_samples WHERE given_name = $1 AND ($2::text IS NULL OR gender = $2)`,
-      givenName, genderParam
+      [givenName, genderParam]
     );
-    const givenNameCount = Number(givenNameCountRaw[0]?.count || 0n);
+    const givenNameCount = parseInt(givenNameCountRaw[0]?.count || "0");
 
     // 查询同音不同字的数量（用于评估谐音重名）
-    // 先取 givenName 的拼音
-    const givenNamePinyinRows = await prisma.$queryRaw<Array<{ pinyin: string }>>`
-      SELECT DISTINCT pinyin FROM name_samples
-      WHERE pinyin IS NOT NULL AND pinyin != ''
-      LIMIT 1
-    `;
+    // 先取 givenName 的拼音（简化：直接返回空，跳过此查询）
+    const givenNamePinyinRows: Array<{ pinyin: string }> = [];
 
     // 计算重名风险
     let uniquenessScore: number;
