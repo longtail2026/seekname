@@ -143,14 +143,16 @@ function NamingResultContent() {
           return;
         }
 
-        console.log("[Naming Page] 开始处理 rawNames，数量:", rawNames.length);
-        console.log("[Naming Page] rawNames[0] 类型:", typeof rawNames[0], "值:", rawNames[0]);
-        console.log("[Naming Page] rawNames[0] 是 null?", rawNames[0] === null);
-        console.log("[Naming Page] rawNames[0] 是 undefined?", rawNames[0] === undefined);
+        console.log("[Naming Page] rawNames赋值完成，长度:", rawNames.length);
+        console.log("[Naming Page] namesData 检查:", Array.isArray(namesData), namesData?.length);
+        console.log("[Naming Page] candidatesData 检查:", Array.isArray(candidatesData), candidatesData?.length);
+        console.log("[Naming Page] orderDetailCandidates 检查:", Array.isArray(orderDetailCandidates), orderDetailCandidates?.length);
+        console.log("[Naming Page] rawNames[0]:", rawNames[0]);
+        console.log("[Naming Page] rawNames[0] 完整JSON:", JSON.stringify(rawNames[0], null, 2));
 
         // 过滤掉 null 和 undefined
         const validNames = rawNames.filter((n): n is NonNullable<typeof n> => n != null);
-        console.log("[Naming Page] 过滤后有效名字数量:", validNames.length);
+        console.log("[Naming Page] 过滤前数量:", rawNames.length, "过滤后:", validNames.length);
 
         if (validNames.length === 0) {
           console.error("[Naming Page] 所有名字都是无效值");
