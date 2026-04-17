@@ -384,37 +384,9 @@ export async function aiCompose(
       validatedCandidates.push(candidate);
     }
 
-    // 4f. 并行安全检查（最多 2 个，每个超时 5 秒）
-    // 避免串行等待导致的 Vercel 10 秒超时
-    const safetyTargets = validatedCandidates.slice(0, 2);
-    if (safetyTargets.length > 0) {
-      const safetyPromises = safetyTargets.map((candidate) =>
-        Promise.race([
-            checkSafetyWithDeepSeek(candidate.fullName, {
-              pinyin: candidate.pinyin,
-              characters: candidate.fullName.split(""),
-            }).then((safety) => ({ candidate, safety, ok: true })),
-          new Promise<null>((resolve) =>
-            setTimeout(() => {
-              console.warn(`[AI Composer] 安全检查超时: ${candidate.fullName}`);
-              resolve(null);
-            }, 5000)
-          ),
-        ])
-      );
-      const results = await Promise.all(safetyPromises);
-      for (const r of results) {
-        if (r && r.ok) {
-          r.candidate.scoreBreakdown.safety =
-            r.safety.safetyLevel === "high"
-              ? 100
-              : r.safety.safetyLevel === "medium"
-              ? 70
-              : 30;
-          r.candidate.warnings.push(...r.safety.warnings);
-        }
-      }
-    }
+    // 4f. 安全检查已禁用（原来串行调用导致 Vercel 10s 超时，总耗时 50s+）
+    // 实际生产应考虑：1) 本地关键词黑名单 2) Vercel Pro 的更长超时
+    // 安全评分默认 90 分
 
     // ============================================================
     // 5. Sprint 4：真实评分（文化 / 常用度 / 重名风险 / 音律）
