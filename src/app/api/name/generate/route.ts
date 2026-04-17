@@ -386,6 +386,9 @@ export async function POST(request: NextRequest) {
       rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
     }
 
+    // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
+    const namesWithSource = await attachSources(rawNames, expectations);
+
     // ── 如果名字为空，直接报错（方便调试）──
     if (namesWithSource.length === 0) {
       // 先检查数据库是否有康熙字典数据
@@ -397,9 +400,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
-    const namesWithSource = await attachSources(rawNames, expectations);
 
     // ── 创建订单记录（每次必建）──
     const order = await createOrder({
