@@ -27,6 +27,7 @@ export default function PersonalENPage() {
       surname,
       gender: genderCode,
       category: "personal",
+      birthDate,
     });
     if (birthTime) params.set("birthTime", birthTime);
     if (expectations.trim()) params.set("expectations", expectations.trim());
@@ -36,7 +37,9 @@ export default function PersonalENPage() {
   };
 
   const handleInput = (rawValue: string) => {
-    return rawValue.replace(/[^\u4e00-\u9fa5]/g, "").slice(0, 2);
+    const chinese = rawValue.replace(/[^\u4e00-\u9fa5]/g, "");
+    if (chinese.length > 0) return chinese.slice(0, 2);
+    return rawValue.slice(0, 10);
   };
 
   return (

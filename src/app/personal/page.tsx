@@ -15,6 +15,17 @@ export default function PersonalFormPage() {
   const [birthTime, setBirthTime] = useState("");
   const [expectations, setExpectations] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+
+  // 处理姓氏输入：拼音输入时不限制，确认后只保留中文（最多2个汉字）
+  const handleSurnameChange = (val: string) => {
+    const chinese = val.replace(/[^\u4e00-\u9fa5]/g, '');
+    if (chinese.length > 0) {
+      setSurname(chinese.slice(0, 2));
+    } else {
+      setSurname(val.slice(0, 10)); // 拼音过渡态，允许字母
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,10 +73,17 @@ export default function PersonalFormPage() {
             <input
               type="text"
               value={surname}
-              onChange={(e) => setSurname(e.target.value.slice(0, 2))}
+              onChange={(e) => {
+                if (isComposing) { setSurname(e.target.value); return; }
+                handleSurnameChange(e.target.value);
+              }}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={(e) => {
+                setIsComposing(false);
+                handleSurnameChange((e.target as HTMLInputElement).value);
+              }}
               placeholder="请输入姓氏（支持拼音输入）"
               required
-              maxLength={2}
               className="w-full px-4 py-3 rounded-xl text-[#2C1810] text-base"
               style={{ fontFamily: "'Noto Serif SC', serif", background: 'rgba(255,255,255,0.8)', border: '1px solid #DDD0C0', outline: 'none' }}
             />

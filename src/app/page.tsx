@@ -123,6 +123,7 @@ export default function Home() {
       surname,
       gender: genderCode,
       category: "personal",
+      birthDate,
     });
     if (birthTime) params.set("birthTime", birthTime);
     if (expectations.trim()) params.set("expectations", expectations.trim());
@@ -130,10 +131,15 @@ export default function Home() {
     window.location.href = `/naming?${params.toString()}`;
   };
 
-  // 统一的输入处理函数
+  // 统一的输入处理函数：提取中文部分（允许拼音输入法中途状态）
   const handleInput = (rawValue: string) => {
-    // 只保留中文字符，最多2个
-    return rawValue.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 2);
+    // 如果包含中文，只保留中文（最多2个汉字）
+    const chineseOnly = rawValue.replace(/[^\u4e00-\u9fa5]/g, '');
+    if (chineseOnly.length > 0) {
+      return chineseOnly.slice(0, 2);
+    }
+    // 否则保留原始值（拼音字母状态，最多10个字符防止过长）
+    return rawValue.slice(0, 10);
   };
 
   return (
