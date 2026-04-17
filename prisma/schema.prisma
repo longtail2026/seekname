@@ -146,22 +146,22 @@ model User {
 // ─────────────────────────────────────────────
 model Order {
   id          String   @id @default(cuid())
-  orderNo     String   @unique @map("order_no")
-  
+  orderNo     String   @unique @map("order_no") @db.VarChar(50)
+
   userId      String?  @map("user_id")
   user        User?    @relation(fields: [userId], references: [id])
-  
+
   // 订单类型
   type        String   @db.VarChar(20)  // name/report/vip
-  
+
   // 金额
   amount      Decimal  @db.Decimal(10, 2) @default(0)
-  
+
   // 支付状态
   payStatus   String   @default("pending") @map("pay_status") @db.VarChar(20)
   payMethod   String?  @map("pay_method") @db.VarChar(20)
   payTime     DateTime? @map("pay_time")
-  
+
   // 订单状态
   status      String   @default("pending") @db.VarChar(20)  // pending/processing/completed/closed
 
@@ -189,23 +189,23 @@ model NameRecord {
   user        User?    @relation(fields: [userId], references: [id])
 
   // 起名参数
-  surname     String   @db.VarChar(10)
+  surname     String   @db.VarChar(20)
   gender      String   @db.Char(1)
   birthDate   DateTime @map("birth_date")
-  birthTime   String?  @map("birth_time") @db.VarChar(10)
+  birthTime   String?  @map("birth_time") @db.VarChar(20)
 
   // 八字信息
-  baziYear    String?  @map("bazi_year") @db.VarChar(10)
-  baziMonth   String?  @map("bazi_month") @db.VarChar(10)
-  baziDay     String?  @map("bazi_day") @db.VarChar(10)
-  baziHour    String?  @map("bazi_hour") @db.VarChar(10)
+  baziYear    String?  @map("bazi_year") @db.VarChar(20)
+  baziMonth   String?  @map("bazi_month") @db.VarChar(20)
+  baziDay     String?  @map("bazi_day") @db.VarChar(20)
+  baziHour    String?  @map("bazi_hour") @db.VarChar(20)
 
   // 五行喜忌
   wuxingLikes String[] @map("wuxing_likes")
   wuxingAvoids String[] @map("wuxing_avoids")
 
   // 期望寓意
-  expectations String?
+  expectations String? @db.VarChar(1000)
   style       String?  @db.VarChar(20)
 
   // 生成的名字结果
