@@ -484,6 +484,12 @@ export async function POST(request: NextRequest) {
       : null;
 
     console.log(`[API] 返回成功，names=${namesWithSource.length}，order=${order?.id || 'null'}`);
+    
+    // 调试：检查返回数据
+    console.log(`[API] namesWithSource[0]:`, JSON.stringify(namesWithSource[0]));
+    console.log(`[API] namesWithSource[0] 是 null?`, namesWithSource[0] === null);
+    console.log(`[API] namesWithSource[0] 是 undefined?`, namesWithSource[0] === undefined);
+    
     return NextResponse.json({
       success: true,
       data: {
