@@ -108,6 +108,8 @@ async function main() {
         updated_at  TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    // 如果表已存在但缺列，补上
+    await client.query(`ALTER TABLE name_record ADD COLUMN IF NOT EXISTS expectations VARCHAR(1000)`).catch(()=>{});
     console.log("[setup-db] Table 'name_record' OK");
 
     // ── 4. order ─────────────────────────────────────────────────────────────
