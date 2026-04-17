@@ -260,9 +260,9 @@ function NamingResultContent() {
             wuxing: n.wuxing || "",
             score: n.score,
             scoreBreakdown: {
-              cultural: n.culturalScore ?? Math.round(n.score * 0.85),
-              popularity: n.score - Math.round(n.score * 0.85) - Math.round(n.score * 0.1),
-              harmony: n.harmonyScore ?? Math.round(n.score * 0.9),
+              cultural: n.culturalScore ?? Math.round((n.score || 80) * 0.85),
+              popularity: (n.score || 80) - Math.round((n.score || 80) * 0.85) - Math.round((n.score || 80) * 0.1),
+              harmony: n.harmonyScore ?? Math.round((n.score || 80) * 0.9),
               safety: Math.round(85 + Math.random() * 10),
             },
             meaning: n.meaning,
