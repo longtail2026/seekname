@@ -264,8 +264,8 @@ async function createOrder(params: {
       createdAt: order.created_at.toISOString(),
       nameRecordId,
     };
-  } catch (e) {
-    console.error("[Create Order Error]", e);
+  } catch (e: any) {
+    console.error("[Create Order Error]", e?.message || e, "detail:", e?.detail || "");
     return null;
   }
 }
@@ -383,12 +383,14 @@ export async function POST(request: NextRequest) {
           });
 
         // 调用 AI Composer
+        console.log(`[API] aiCompose 开始，候选池=${pool.length}个字`);
         const candidates = await aiCompose(pool, intent, {
           scenario,
           fallbackToRules: true,
           maxCandidates: 8,
           wordCount: 2,
         }, surname);
+        console.log(`[API] aiCompose 完成，返回 ${candidates.length} 个候选`);
 
         rawNames = candidates.map((c) => ({
           name: c.fullName,
@@ -415,6 +417,7 @@ export async function POST(request: NextRequest) {
 
     // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
     const namesWithSource = await attachSources(rawNames, expectations);
+    console.log(`[API] attachSources 完成，namesWithSource=${namesWithSource.length}个`);
 
     // ── 如果名字为空，直接报错（方便调试）──
     if (namesWithSource.length === 0) {
@@ -429,6 +432,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 创建订单记录（每次必建）──
+    console.log(`[API] 开始创建订单，namesWithSource=${namesWithSource.length}个`);
     const order = await createOrder({
       userId: currentUser?.id ?? null,
       userName: currentUser?.name || anonymousName,
@@ -441,6 +445,7 @@ export async function POST(request: NextRequest) {
       style,
       results: namesWithSource,
     });
+    console.log(`[API] createOrder 完成，orderId=${order?.id || 'null'}`);
 
     // 构建返回的订单详情（给前端/后台用）
     const orderDetail = order
@@ -468,6 +473,7 @@ export async function POST(request: NextRequest) {
         }
       : null;
 
+    console.log(`[API] 返回成功，names=${namesWithSource.length}，order=${order?.id || 'null'}`);
     return NextResponse.json({
       success: true,
       data: {
