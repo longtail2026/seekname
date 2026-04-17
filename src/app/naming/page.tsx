@@ -381,7 +381,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-        {debugInfo}
+        {showDebugPanel}
         <div className="text-center">
           <div className="relative w-24 h-24 mx-auto mb-6">
             <div className="absolute inset-0 border-4 border-[#E5DDD3] rounded-full" />
@@ -434,7 +434,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
             </Link>
           </div>
         </div>
-        {debugInfo}
+        {showDebugPanel}
       </>
     );
   }
