@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma, queryRaw, executeRaw } from "@/lib/prisma";
+import { queryRaw, executeRaw } from "@/lib/prisma";
 import { generateOrderNo, generateAnonymousName } from "@/lib/order";
 import { verifyToken } from "@/lib/auth";
 import { aiCompose } from "@/lib/ai-composer";
@@ -61,38 +61,40 @@ function calculateWuxing(birthDate: string, birthTime?: string) {
   return seasonMap[month] || { likes: ["土"], avoids: [] };
 }
 
-// 从数据库查询典籍名句
+// 从数据库查询典籍名句（原生SQL，替代Prisma ORM）
 async function queryClassics(keywords: string[], limit: number = 3) {
-  const entries = await prisma.classicsEntry.findMany({
-    where: {
-      OR: [
-        { keywords: { hasSome: keywords } },
-        { ancientText: { contains: keywords[0] || "" } },
-      ],
-    },
-    take: limit,
-    select: {
-      id: true,
-      bookName: true,
-      ancientText: true,
-      modernText: true,
-    },
-  });
+  const keyword = (keywords[0] || "德").slice(0, 10); // 限制长度防止SQL注入
+  const entries = await queryRaw<{
+    id: string;
+    book_name: string;
+    ancient_text: string;
+    modern_text: string;
+  }>(
+    `SELECT id, book_name, ancient_text, modern_text
+     FROM classics_entries
+     WHERE ancient_text LIKE $1
+     LIMIT $2`,
+    [`%${keyword}%`, limit]
+  );
   return entries;
 }
 
-// 从康熙字典查询字
+// 从康熙字典查询字（原生SQL，替代Prisma ORM）
 async function queryKangxiChars(chars: string[]) {
-  const dict = await prisma.kangxiDict.findMany({
-    where: { character: { in: chars } },
-    select: {
-      character: true,
-      pinyin: true,
-      wuxing: true,
-      meaning: true,
-      strokeCount: true,
-    },
-  });
+  if (!chars.length) return [];
+  const placeholders = chars.map((_, i) => `$${i + 1}`).join(", ");
+  const dict = await queryRaw<{
+    character: string;
+    pinyin: string;
+    wuxing: string;
+    meaning: string;
+    stroke_count: number;
+  }>(
+    `SELECT character, pinyin, wuxing, meaning, stroke_count
+     FROM kangxi_dict
+     WHERE character IN (${placeholders})`,
+    chars
+  );
   return dict;
 }
 
@@ -112,7 +114,7 @@ async function generateNames(
   }
 
   const charInfo = await queryKangxiChars(preferredChars.slice(0, 20));
-  const charMap = new Map(charInfo.map((c) => [c.character, c]));
+  const charMap = new Map(charInfo.map((c) => [c.character, { ...c, strokeCount: c.stroke_count }]));
 
   const suitableChars = preferredChars.filter((char) => {
     const info = charMap.get(char);
@@ -166,9 +168,9 @@ async function attachSources(names: any[], expectations?: string) {
       ...name,
       source: entry
         ? {
-            book: entry.bookName,
-            text: entry.ancientText?.slice(0, 50) + "...",
-            fullText: entry.modernText,
+            book: entry.book_name,
+            text: entry.ancient_text?.slice(0, 50) + "...",
+            fullText: entry.modern_text,
           }
         : undefined,
     };
@@ -309,11 +311,12 @@ export async function POST(request: NextRequest) {
       try {
         const payload = await verifyToken(token);
         if (payload) {
-          const user = await prisma.user.findUnique({
-            where: { id: payload.userId },
-            select: { id: true, name: true },
-          });
-          if (user) currentUser = user;
+          // 用原生 SQL 替代 Prisma ORM（避免 Serverless 连接池问题）
+          const users = await queryRaw<{ id: string; name: string | null }>(
+            `SELECT id, name FROM "user" WHERE id = $1 LIMIT 1`,
+            [payload.userId]
+          );
+          if (users[0]) currentUser = users[0];
         }
       } catch {}
     }
@@ -367,7 +370,7 @@ export async function POST(request: NextRequest) {
 
         const uniqueChars = Array.from(new Set(poolChars.map((p) => p.char)));
         const charInfo = await queryKangxiChars(uniqueChars.slice(0, 30));
-        const charMap = new Map(charInfo.map((c) => [c.character, c]));
+        const charMap = new Map(charInfo.map((c) => [c.character, { ...c, strokeCount: c.stroke_count }]));
 
         const pool = poolChars
           .filter((p) => charMap.has(p.char))
@@ -427,8 +430,10 @@ export async function POST(request: NextRequest) {
     // ── 如果名字为空，直接报错（方便调试）──
     if (namesWithSource.length === 0) {
       // 先检查数据库是否有康熙字典数据
-      const charCount = await prisma.kangxiDict.count();
-      const entryCount = await prisma.classicsEntry.count();
+      const charCountRows = await queryRaw<{ cnt: string }>(`SELECT COUNT(*) as cnt FROM kangxi_dict`);
+      const entryCountRows = await queryRaw<{ cnt: string }>(`SELECT COUNT(*) as cnt FROM classics_entries`);
+      const charCount = parseInt(charCountRows[0]?.cnt || "0");
+      const entryCount = parseInt(entryCountRows[0]?.cnt || "0");
       console.error(`[API] 名字列表为空！康熙字典=${charCount}条，典籍=${entryCount}条`);
       return NextResponse.json(
         { success: false, error: `名字生成失败（康熙字典${charCount}条，典籍${entryCount}条）。请检查数据库是否有初始数据。` },
