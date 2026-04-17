@@ -410,11 +410,13 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
         <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-red-500 mb-4">{error}</p>
-          {debugError && (
-            <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-left">
-              <p className="text-gray-700 text-sm font-mono">{debugError.slice(0, 500)}</p>
-            </div>
-          )}
+          {/* 醒目调试面板 */}
+          <div className="bg-yellow-100 border-4 border-red-500 rounded-2xl p-6 mb-4 text-left shadow-2xl">
+            <p className="text-red-700 font-bold text-base mb-2">🔧 调试信息 (debugError):</p>
+            <pre className="text-red-800 text-sm font-mono whitespace-pre-wrap bg-yellow-50 rounded p-3 max-h-60 overflow-auto">
+              {debugError || "(debugError 为空)"}
+            </pre>
+          </div>
           <Link href="/" className="text-[#E86A17] hover:underline">
             ← 返回重新起名
           </Link>
