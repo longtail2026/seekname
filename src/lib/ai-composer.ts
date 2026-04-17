@@ -353,7 +353,7 @@ export async function aiCompose(
         : [];
     }
 
-    // 4. 后验：过滤 + 转换 + 评分
+    // 4. 后验：过滤 + 构建候选
     const validatedCandidates: NameCandidate[] = [];
 
     for (const entry of entries) {
@@ -375,33 +375,45 @@ export async function aiCompose(
       candidate.scoreBreakdown.harmony = phonetic.overallScore;
       candidate.warnings.push(...phonetic.warnings, ...phonetic.suggestions);
 
-      // 4d. 安全检查（DeepSeek，对 Top 5 做二次检查；超时或失败不影响主流程）
-      if (validatedCandidates.length < 5) {
-        try {
-          const safety = await checkSafetyWithDeepSeek(candidate.fullName, {
-            pinyin: candidate.pinyin,
-            characters: entry.characters,
-          });
-          candidate.scoreBreakdown.safety =
-            safety.safetyLevel === "high"
-              ? 100
-              : safety.safetyLevel === "medium"
-              ? 70
-              : 30;
-          candidate.warnings.push(...safety.warnings);
-        } catch (safetyErr) {
-          // 超时或网络错误不影响主流程
-          console.warn(`[AI Composer] 安全检查跳过（${candidate.fullName}）:`, safetyErr);
-          candidate.scoreBreakdown.safety = 80;
-        }
-      } else {
-        candidate.scoreBreakdown.safety = 85;
-      }
+      // 4d. 安全分默认 85（后续并行更新 Top 2）
+      candidate.scoreBreakdown.safety = 85;
 
       // 4e. 计算综合分（占位，computeRealScores 会覆盖）
       candidate.score = calculateOverallScore(candidate, config.scenario);
 
       validatedCandidates.push(candidate);
+    }
+
+    // 4f. 并行安全检查（最多 2 个，每个超时 5 秒）
+    // 避免串行等待导致的 Vercel 10 秒超时
+    const safetyTargets = validatedCandidates.slice(0, 2);
+    if (safetyTargets.length > 0) {
+      const safetyPromises = safetyTargets.map((candidate) =>
+        Promise.race([
+          checkSafetyWithDeepSeek(candidate.fullName, {
+            pinyin: candidate.pinyin,
+            characters: candidate.characters.map((c) => c.character),
+          }).then((safety) => ({ candidate, safety, ok: true })),
+          new Promise<null>((resolve) =>
+            setTimeout(() => {
+              console.warn(`[AI Composer] 安全检查超时: ${candidate.fullName}`);
+              resolve(null);
+            }, 5000)
+          ),
+        ])
+      );
+      const results = await Promise.all(safetyPromises);
+      for (const r of results) {
+        if (r && r.ok) {
+          r.candidate.scoreBreakdown.safety =
+            r.safety.safetyLevel === "high"
+              ? 100
+              : r.safety.safetyLevel === "medium"
+              ? 70
+              : 30;
+          r.candidate.warnings.push(...r.safety.warnings);
+        }
+      }
     }
 
     // ============================================================
