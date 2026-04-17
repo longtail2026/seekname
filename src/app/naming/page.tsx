@@ -137,11 +137,11 @@ function NamingResultContent() {
         } else {
           console.error("[Naming Page] 所有数据源都为空");
           console.error("[Naming Page] namesData:", JSON.stringify(namesData)?.slice(0, 300));
+          console.error("[Naming Page] candidatesData:", JSON.stringify(candidatesData)?.slice(0, 300));
+          console.error("[Naming Page] orderDetailCandidates:", JSON.stringify(orderDetailCandidates)?.slice(0, 300));
           setError("未找到合适的名字，请稍后重试");
           return;
         }
-        
-        if (Array.isArray(namesData) && namesData.length > 0) {
           rawNames = namesData;
           console.log("[Naming Page] 使用 names 字段，数量:", rawNames.length);
         } else if (Array.isArray(candidatesData) && candidatesData.length > 0) {
@@ -156,9 +156,27 @@ function NamingResultContent() {
         }
 
         console.log("[Naming Page] 开始处理 rawNames，数量:", rawNames.length);
+        console.log("[Naming Page] 第一个名字的完整结构:", JSON.stringify(rawNames[0], null, 2));
 
         const mapped: NameItem[] = rawNames.map((n: any, idx: number) => {
           try {
+            // 确保 n 是对象
+            if (!n || typeof n !== "object") {
+              console.error(`[Naming Page] 第 ${idx + 1} 个名字不是对象:`, n);
+              return {
+                rank: idx + 1,
+                name: `名字${idx + 1}`,
+                pinyin: "",
+                wuxing: "",
+                score: 70,
+                meaning: "",
+                source: undefined,
+                culturalScore: undefined,
+                harmonyScore: undefined,
+                uniqueness: "medium" as const,
+              };
+            }
+
             const wuxingVal = n?.wuxing;
             let wuxingStr = "";
             // 有效的五行值
@@ -181,6 +199,16 @@ function NamingResultContent() {
             
             console.log(`[Naming Page] 处理名字 ${idx + 1}:`, name, "wuxing:", wuxingStr, "score:", score);
 
+            // 处理 source 字段（可能是对象或字符串）
+            let sourceValue: string | undefined = undefined;
+            if (n?.source) {
+              if (typeof n.source === "string") {
+                sourceValue = n.source;
+              } else if (typeof n.source === "object" && n.source?.book) {
+                sourceValue = `《${n.source.book}》：${n.source.text || ""}`;
+              }
+            }
+
             return {
               rank: idx + 1,
               name,
@@ -188,9 +216,7 @@ function NamingResultContent() {
               wuxing: wuxingStr,
               score,
               meaning: (n?.meaning || "") as string,
-              source: n?.source?.book
-                ? `《${n.source.book}》：${n.source.text || ""}`
-                : undefined,
+              source: sourceValue,
               culturalScore: typeof n?.scoreBreakdown?.cultural === "number" ? n.scoreBreakdown.cultural : undefined,
               harmonyScore: typeof n?.scoreBreakdown?.harmony === "number" ? n.scoreBreakdown.harmony : undefined,
               uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
