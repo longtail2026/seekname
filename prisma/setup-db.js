@@ -17,11 +17,21 @@ async function main() {
     return;
   }
 
-  const pool = new Pool({ connectionString: DATABASE_URL });
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: { rejectUnauthorized: false }, // Vercel Postgres 必须 SSL
+    connectionTimeoutMillis: 5000, // 5秒连接超时
+    idleTimeoutMillis: 30000,
+  });
 
   try {
     const client = await pool.connect();
     console.log("[setup-db] Connected to database");
+
+    // 防止连接意外断开导致未处理的 error 事件
+    client.on("error", (err) => {
+      console.warn("[setup-db] Client error (non-fatal):", err.message);
+    });
 
     // ── 0. 典籍书籍表（classics_books）──────────────────────────────────────
     await client.query(`
