@@ -386,6 +386,18 @@ export async function POST(request: NextRequest) {
       rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
     }
 
+    // ── 如果名字为空，直接报错（方便调试）──
+    if (namesWithSource.length === 0) {
+      // 先检查数据库是否有康熙字典数据
+      const charCount = await prisma.kangxiDict.count();
+      const entryCount = await prisma.classicsEntry.count();
+      console.error(`[API] 名字列表为空！康熙字典=${charCount}条，典籍=${entryCount}条`);
+      return NextResponse.json(
+        { success: false, error: `名字生成失败（康熙字典${charCount}条，典籍${entryCount}条）。请检查数据库是否有初始数据。` },
+        { status: 500 }
+      );
+    }
+
     // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
     const namesWithSource = await attachSources(rawNames, expectations);
 
@@ -442,9 +454,19 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("起名 API 错误:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("起名 API 错误:", msg, error);
+
+    // 区分错误类型，给出更明确的提示
+    let userMsg = "服务器内部错误";
+    if (msg.includes("DeepSeek") || msg.includes("API")) {
+      userMsg = "AI 服务调用失败，请检查 DEEPSEEK_API_KEY 配置";
+    } else if (msg.includes("prisma") || msg.includes("connect") || msg.includes("connection")) {
+      userMsg = "数据库连接失败，请检查环境变量配置";
+    }
+
     return NextResponse.json(
-      { success: false, error: "服务器内部错误" },
+      { success: false, error: userMsg, detail: msg },
       { status: 500 }
     );
   }
