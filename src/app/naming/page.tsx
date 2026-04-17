@@ -75,6 +75,14 @@ function NamingResultContent() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [debugError, setDebugError] = useState<string>("");
 
+  // 调试：打印错误变化
+  useEffect(() => {
+    if (error) {
+      console.log("[Debug] error state changed to:", error);
+      console.log("[Debug] debugError state is:", debugError);
+    }
+  }, [error, debugError]);
+
   // 调用真实 API
   useEffect(() => {
     const fetchNames = async () => {
@@ -373,7 +381,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
             <p className="text-xs text-[#BBB] mt-4">订单号：{orderNo}</p>
           )}
           {/* 调试信息 - 加载时也显示，以便看到过程中的错误 */}
-          {debugError && (
+          {debugError.length > 0 && (
             <div className="mt-6 bg-red-100 border-2 border-red-300 rounded-xl p-4 max-w-md mx-auto text-left">
               <p className="text-red-700 font-bold text-sm mb-2">🔍 处理错误：</p>
               <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
@@ -389,7 +397,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
         <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-red-500 mb-4">{error}</p>
-          {debugError && (
+          {debugError.length > 0 && (
             <div className="bg-red-100 border-2 border-red-300 rounded-xl p-4 mb-4 text-left">
               <p className="text-red-700 font-bold text-sm mb-2">🔍 调试信息：</p>
               <pre className="text-red-600 text-xs whitespace-pre-wrap font-mono">{debugError}</pre>
