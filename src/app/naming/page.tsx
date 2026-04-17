@@ -99,8 +99,10 @@ function NamingResultContent() {
         });
 
         const result = await response.json();
-        console.log("[Naming Page] API 完整响应:", JSON.stringify(result, null, 2).slice(0, 2000));
-        console.log("[Naming Page] result.data 完整结构:", JSON.stringify(result?.data, null, 2)?.slice(0, 1500));
+        console.log("[Naming Page] API 完整响应:", JSON.stringify(result, null, 2).slice(0, 3000));
+        console.log("[Naming Page] result.data keys:", result?.data ? Object.keys(result.data) : "data is null/undefined");
+        console.log("[Naming Page] result.data.names:", JSON.stringify(result?.data?.names));
+        console.log("[Naming Page] result.data.orderDetail:", JSON.stringify(result?.data?.orderDetail));
 
         if (!result?.success) {
           console.error("[Naming Page] API 失败:", result?.error);
