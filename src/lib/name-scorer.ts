@@ -471,14 +471,39 @@ function cacheKey(fullName: string, gender?: string) {
   return `${fullName}:${gender || "any"}`;
 }
 
+/**
+ * 批量评分（带缓存 + 并发限制，防止 Prisma 连接池打爆）
+ */
 export async function computeRealScoresBatch(
   candidates: NameCandidate[],
   gender?: "M" | "F"
 ): Promise<NameCandidate[]> {
-  return Promise.all(
-    candidates.map(async (c) => {
-      const key = cacheKey(c.fullName, gender);
-      return computeRealScores(c, gender);
-    })
-  );
+  if (!candidates || candidates.length === 0) return [];
+
+  // 最多同时处理 2 个，防止连接池耗尽
+  const CONCURRENCY = 2;
+  const results: NameCandidate[] = [];
+
+  for (let i = 0; i < candidates.length; i += CONCURRENCY) {
+    const batch = candidates.slice(i, i + CONCURRENCY);
+    try {
+      const scored = await Promise.all(
+        batch.map(async (c) => {
+          try {
+            return await computeRealScores(c, gender);
+          } catch (err) {
+            console.warn(`[NameScorer] 评分失败 ${c.fullName}:`, err);
+            // 降级：返回原始候选，不更新评分
+            return { ...c, score: 70, scoreBreakdown: { ...c.scoreBreakdown } };
+          }
+        })
+      );
+      results.push(...scored);
+    } catch (batchErr) {
+      console.warn("[NameScorer] 批量评分失败，降级:", batchErr);
+      results.push(...batch);
+    }
+  }
+
+  return results;
 }

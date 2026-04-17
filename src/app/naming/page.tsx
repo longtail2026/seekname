@@ -110,21 +110,21 @@ function NamingResultContent() {
         if (result.data?.orderId) setOrderId(result.data.orderId);
         if (result.data?.wuxing) setWuxingResult(result.data.wuxing);
 
-        // 转换 API 结果为前端格式
-        const apiNames = result.data?.names || [];
+        // 转换 API 结果为前端格式（加防御性检查，防止 Error Boundary）
+        const apiNames = Array.isArray(result.data?.names) ? result.data.names : [];
         const mapped: NameItem[] = apiNames.map((n: any, idx: number) => ({
           rank: idx + 1,
-          name: n.name || n.fullName || "",
-          pinyin: n.pinyin || "",
-          wuxing: (n.wuxing || "").split("").filter(Boolean),
-          score: typeof n.score === "number" ? n.score : Math.round(70 + Math.random() * 20),
-          meaning: n.meaning || "",
-          source: n.source
-            ? `《${n.source.book}》：${n.source.text}`
+          name: n?.name || n?.fullName || "",
+          pinyin: n?.pinyin || "",
+          wuxing: (typeof n?.wuxing === "string" ? n.wuxing : "").split("").filter(Boolean),
+          score: typeof n?.score === "number" ? n.score : Math.round(70 + Math.random() * 20),
+          meaning: n?.meaning || "",
+          source: n?.source?.book
+            ? `《${n.source.book}》：${n.source.text || ""}`
             : undefined,
-          culturalScore: n.scoreBreakdown?.cultural,
-          harmonyScore: n.scoreBreakdown?.harmony,
-          uniqueness: n.uniqueness,
+          culturalScore: n?.scoreBreakdown?.cultural ?? undefined,
+          harmonyScore: n?.scoreBreakdown?.harmony ?? undefined,
+          uniqueness: n?.uniqueness || "medium",
         }));
 
         setNames(mapped.length > 0 ? mapped : []);

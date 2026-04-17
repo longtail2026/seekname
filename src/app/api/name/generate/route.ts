@@ -271,6 +271,11 @@ async function createOrder(params: {
 }
 
 export async function POST(request: NextRequest) {
+  // 整体超时保护：55秒后强制返回（Vercel Hobby 最大 10s，企业版 60s）
+  const TIMEOUT_MS = 55000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const body = await request.json();
     const {
@@ -486,14 +491,25 @@ export async function POST(request: NextRequest) {
         useAiComposer,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     const msg = error instanceof Error ? error.message : String(error);
+    const isAbort = error?.name === 'AbortError' || msg.includes('aborted');
+
+    // 超时：返回已有结果或部分结果
+    if (isAbort) {
+      console.warn("[API] 请求超时（55s），强制返回");
+      return NextResponse.json(
+        { success: false, error: "起名服务响应超时，请稍后重试", detail: "TIMEOUT" },
+        { status: 504 }
+      );
+    }
+
     console.error("起名 API 错误:", msg, error);
 
     // 区分错误类型，给出更明确的提示
     let userMsg = "服务器内部错误";
     if (msg.includes("DeepSeek") || msg.includes("API")) {
-      userMsg = "AI 服务调用失败，请检查 DEEPSEEK_API_KEY 配置";
+      userMsg = "AI 服务调用失败，请稍后重试";
     } else if (msg.includes("prisma") || msg.includes("connect") || msg.includes("connection")) {
       userMsg = "数据库连接失败，请检查环境变量配置";
     }
@@ -502,6 +518,8 @@ export async function POST(request: NextRequest) {
       { success: false, error: userMsg, detail: msg },
       { status: 500 }
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

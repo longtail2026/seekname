@@ -375,7 +375,7 @@ export async function aiCompose(
       candidate.scoreBreakdown.harmony = phonetic.overallScore;
       candidate.warnings.push(...phonetic.warnings, ...phonetic.suggestions);
 
-      // 4d. 安全检查（DeepSeek，对 Top 5 做二次检查）
+      // 4d. 安全检查（DeepSeek，对 Top 5 做二次检查；超时或失败不影响主流程）
       if (validatedCandidates.length < 5) {
         try {
           const safety = await checkSafetyWithDeepSeek(candidate.fullName, {
@@ -389,8 +389,9 @@ export async function aiCompose(
               ? 70
               : 30;
           candidate.warnings.push(...safety.warnings);
-        } catch {
-          // 安全检查失败不影响结果
+        } catch (safetyErr) {
+          // 超时或网络错误不影响主流程
+          console.warn(`[AI Composer] 安全检查跳过（${candidate.fullName}）:`, safetyErr);
           candidate.scoreBreakdown.safety = 80;
         }
       } else {

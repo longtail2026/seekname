@@ -28,7 +28,19 @@ function parseDeepSeekJson(raw: string): unknown {
   return JSON.parse(jsonStr);
 }
 
-// 调用DeepSeek API
+// 15秒超时封装（避免 Serverless 无尽等待）
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// 调用DeepSeek API（带15秒超时保护）
 async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
@@ -40,7 +52,7 @@ async function callDeepSeek(
   }
 
   try {
-    const response = await fetch(DEEPSEEK_API_URL, {
+    const response = await fetchWithTimeout(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -65,7 +77,11 @@ async function callDeepSeek(
 
     const data = await response.json();
     return data.choices[0].message.content.trim();
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+      console.warn('[DeepSeek] 请求超时（15s），跳过此次调用');
+      throw new Error('DeepSeek API 调用超时，已跳过');
+    }
     console.error('调用DeepSeek API失败:', error);
     throw error;
   }
