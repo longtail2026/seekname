@@ -121,21 +121,22 @@ function NamingResultContent() {
         console.log("[Naming Page] result.data?.orderDetail?.candidates:", JSON.stringify(result.data?.orderDetail?.candidates)?.slice(0, 300));
 
         // 转换 API 结果为前端格式
-        // 优先使用 names，然后是 candidates，最后是 orderDetail.candidates
+        // 优先使用 orderDetail.candidates（因为 names 有时在传输中会变成空数组）
         const namesData = result.data?.names;
         const candidatesData = result.data?.candidates;
         const orderDetailCandidates = result.data?.orderDetail?.candidates;
         
         let rawNames: any[] = [];
-        if (Array.isArray(namesData) && namesData.length > 0) {
+        // 优先使用 orderDetail.candidates，因为 names 有时在响应传输中会变成空数组
+        if (Array.isArray(orderDetailCandidates) && orderDetailCandidates.length > 0) {
+          rawNames = orderDetailCandidates;
+          console.log("[Naming Page] 使用 orderDetail.candidates，数量:", rawNames.length);
+        } else if (Array.isArray(namesData) && namesData.length > 0) {
           rawNames = namesData;
           console.log("[Naming Page] 使用 names，数量:", rawNames.length);
         } else if (Array.isArray(candidatesData) && candidatesData.length > 0) {
           rawNames = candidatesData;
           console.log("[Naming Page] 使用 data.candidates，数量:", rawNames.length);
-        } else if (Array.isArray(orderDetailCandidates) && orderDetailCandidates.length > 0) {
-          rawNames = orderDetailCandidates;
-          console.log("[Naming Page] 使用 orderDetail.candidates，数量:", rawNames.length);
         } else {
           console.error("[Naming Page] 所有数据源都为空");
           console.error("[Naming Page] namesData:", JSON.stringify(namesData)?.slice(0, 300));
