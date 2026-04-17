@@ -166,6 +166,7 @@ function NamingResultContent() {
         console.log("[Naming Page] 第一个有效名字:", JSON.stringify(validNames[0], null, 2));
 
         const mapped: NameItem[] = validNames.map((n: any, idx: number) => {
+          console.log(`[Naming Page] map 开始处理第 ${idx + 1} 个名字，n的类型:`, typeof n, "n:", n);
           try {
             // 确保 n 是对象
             if (!n || typeof n !== "object") {
