@@ -360,65 +360,58 @@ export async function aiCompose(
       : [];
   }
 
-    // 4. 后验：过滤 + 构建候选
-    const validatedCandidates: NameCandidate[] = [];
+  // 4. 后验：过滤 + 构建候选
+  const validatedCandidates: NameCandidate[] = [];
 
-    for (const entry of entries) {
-      // 4a. 验证每个字都在字池中存在
-      const validatedChars = entry.characters
-        .map((char) => pool.find((c) => c.character === char))
-        .filter(Boolean) as CharacterInfo[];
+  for (const entry of entries) {
+    // 4a. 验证每个字都在字池中存在
+    const validatedChars = entry.characters
+      .map((char) => pool.find((c) => c.character === char))
+      .filter(Boolean) as CharacterInfo[];
 
-      if (validatedChars.length !== entry.characters.length) {
-        console.log(`[AI Composer] 过滤无效名 ${entry.name}，部分字不在字池中`);
-        continue;
-      }
-
-      // 4b. 构建 NameCandidate
-      const candidate = buildCandidate(validatedChars, entry, intent, surname, config);
-
-      // 4c. 音律评分（用已有的 phonetic-optimizer）
-      const phonetic = PhoneticOptimizer.evaluatePhoneticQuality(validatedChars);
-      candidate.scoreBreakdown.harmony = phonetic.overallScore;
-      candidate.warnings.push(...phonetic.warnings, ...phonetic.suggestions);
-
-      // 4d. 安全分默认 85（后续并行更新 Top 2）
-      candidate.scoreBreakdown.safety = 85;
-
-      // 4e. 计算综合分（占位，computeRealScores 会覆盖）
-      candidate.score = calculateOverallScore(candidate, config.scenario);
-
-      validatedCandidates.push(candidate);
+    if (validatedChars.length !== entry.characters.length) {
+      console.log(`[AI Composer] 过滤无效名 ${entry.name}，部分字不在字池中`);
+      continue;
     }
 
-    // 4f. 安全检查已禁用（原来串行调用导致 Vercel 10s 超时，总耗时 50s+）
-    // 实际生产应考虑：1) 本地关键词黑名单 2) Vercel Pro 的更长超时
-    // 安全评分默认 90 分
+    // 4b. 构建 NameCandidate
+    const candidate = buildCandidate(validatedChars, entry, intent, surname, config);
 
-    // ============================================================
-    // 5. Sprint 4：真实评分（文化 / 常用度 / 重名风险 / 音律）
-    // ============================================================
-    const gender = intent.gender === "F" ? "F" : "M";
-    console.log(`[AI Composer] 开始真实评分，共 ${validatedCandidates.length} 个候选...`);
+    // 4c. 音律评分（用已有的 phonetic-optimizer）
+    const phonetic = PhoneticOptimizer.evaluatePhoneticQuality(validatedChars);
+    candidate.scoreBreakdown.harmony = phonetic.overallScore;
+    candidate.warnings.push(...phonetic.warnings, ...phonetic.suggestions);
 
-    const realScored = await computeRealScoresBatch(validatedCandidates, gender);
+    // 4d. 安全分默认 85（后续并行更新 Top 2）
+    candidate.scoreBreakdown.safety = 85;
 
-    // 6. 排序并返回 Top N
-    const sorted = realScored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, config.maxCandidates);
+    // 4e. 计算综合分（占位，computeRealScores 会覆盖）
+    candidate.score = calculateOverallScore(candidate, config.scenario);
 
-    console.log(
-      `[AI Composer] 最终返回 ${sorted.length} 个名字，最高分=${sorted[0]?.score}`
-    );
-    return sorted;
-  } catch (error) {
-    console.error("[AI Composer] LLM 调用失败:", error);
-    if (config.fallbackToRules) {
-      return fallbackRuleBasedCompose(pool, intent, config, surname);
-    }
-    return [];
+    validatedCandidates.push(candidate);
   }
+
+  // 4f. 安全检查已禁用（原来串行调用导致 Vercel 10s 超时，总耗时 50s+）
+  // 实际生产应考虑：1) 本地关键词黑名单 2) Vercel Pro 的更长超时
+  // 安全评分默认 90 分
+
+  // ============================================================
+  // 5. Sprint 4：真实评分（文化 / 常用度 / 重名风险 / 音律）
+  // ============================================================
+  const gender = intent.gender === "F" ? "F" : "M";
+  console.log(`[AI Composer] 开始真实评分，共 ${validatedCandidates.length} 个候选...`);
+
+  const realScored = await computeRealScoresBatch(validatedCandidates, gender);
+
+  // 6. 排序并返回 Top N
+  const sorted = realScored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, config.maxCandidates);
+
+  console.log(
+    `[AI Composer] 最终返回 ${sorted.length} 个名字，最高分=${sorted[0]?.score}`
+  );
+  return sorted;
 }
 
 // ============================================================
