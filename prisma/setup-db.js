@@ -1,9 +1,7 @@
 /**
- * Prisma 原生方式创建 character_frequency 表
- * 每次 postinstall 执行，确保表存在
+ * Vercel Build 时创建 character_frequency 表
+ * 通过原生 pg 直连，不依赖 Prisma schema
  */
-const { PrismaClient } = require("@prisma/client");
-const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg");
 
 const DATABASE_URL =
@@ -11,19 +9,25 @@ const DATABASE_URL =
   process.env.POSTGRES_URL ||
   process.env.DATABASE_URL;
 
-if (!DATABASE_URL) {
-  console.log("[setup-db] DATABASE_URL not set, skipping");
-  process.exit(0);
-}
+async function main() {
+  console.log("[setup-db] Starting at " + new Date().toISOString());
+  console.log("[setup-db] POSTGRES_PRISMA_URL:", process.env.POSTGRES_PRISMA_URL ? "set" : "NOT SET");
+  console.log("[setup-db] POSTGRES_URL:", process.env.POSTGRES_URL ? "set" : "NOT SET");
+  console.log("[setup-db] DATABASE_URL:", process.env.DATABASE_URL ? "set" : "NOT SET");
 
-async function setup() {
-  console.log("[setup-db] Starting...");
+  if (!DATABASE_URL) {
+    console.log("[setup-db] No database URL found, skipping table creation");
+    return;
+  }
 
-  // 1. 用 pg 直连创建表（绕过 Prisma schema）
   const pool = new Pool({ connectionString: DATABASE_URL });
-  const pg = await pool.connect();
+
   try {
-    await pg.query(`
+    const client = await pool.connect();
+    console.log("[setup-db] Connected to database");
+
+    // 创建表
+    await client.query(`
       CREATE TABLE IF NOT EXISTS character_frequency (
         char        VARCHAR(1)  PRIMARY KEY,
         freq        INTEGER     NOT NULL DEFAULT 0,
@@ -32,16 +36,14 @@ async function setup() {
         gender_f    INTEGER     NOT NULL DEFAULT 0
       )
     `);
-    console.log("[setup-db] Table 'character_frequency' created/verified");
+    console.log("[setup-db] Table 'character_frequency' ensured");
 
-    // 2. 检查是否有数据
-    const { rows } = await pg.query(
-      "SELECT COUNT(*) as cnt FROM character_frequency"
-    );
-    console.log(`[setup-db] Current rows: ${rows[0].cnt}`);
+    // 检查数据
+    const { rows } = await client.query("SELECT COUNT(*) as cnt FROM character_frequency");
+    console.log(`[setup-db] Existing rows: ${rows[0].cnt}`);
 
-    // 3. 如果为空，用 INSERT 批量写入
     if (parseInt(rows[0].cnt) === 0) {
+      // 字频数据（按使用频率排序）
       const chars = [
         "的","一","是","不","了","我","有","人","这","中","大","来","上","国","个",
         "到","说","时","们","为","子","和","道","也","你","她","会","可","下","过",
@@ -49,47 +51,46 @@ async function setup() {
         "之","小","学","家","十","睿","哲","浩","涵","然","博","宇","晨","轩","琪",
         "瑶","琳","欣","怡","婷","思","悦","静","雅","慧","柔","嘉","艺","霖","俊",
         "朗","毅","宁","熙","雯","鑫","尧","瑞","佑","铭","萱","颖","岚","泽","健",
-        "萱","颖","岚","霖","欣","怡","婷","嘉","艺","慧","柔","雅","静","悦","思",
-        "琳","瑶","琪","轩","晨","宇","博","然","涵","浩","哲","睿","健","泽","宁",
-        "俊","朗","毅","熙","雯","鑫","尧","瑞","佑","铭","萱","颖","岚","一","二",
-        "三","四","五","六","七","八","九","十","百","千","万","福","禄","寿","喜",
+        "三","四","五","六","七","八","九","百","千","万","福","禄","寿","喜",
         "安","康","乐","祥","和","平","明","亮","星","月","日","风","雨","雷","电",
-        "春","夏","秋","冬","东","西","南","北","山","川","河","海","天","地","人",
-        "龙","凤","虎","鹤","松","柏","竹","梅","兰","菊","桃","李","桂","枫","荷"
+        "春","夏","秋","冬","东","西","南","北","山","川","河","海","天","地","龙",
+        "凤","虎","鹤","松","柏","竹","梅","兰","菊","桃","李","桂","枫","荷","文"
       ];
-      // 去重
       const unique = [...new Set(chars)];
 
-      const values = unique.map((c, i) =>
-        `('${c}', ${Math.max(100, 15000 - i * 100)}, ${i + 1}, ${Math.floor(Math.random() * 10000)}, ${Math.floor(Math.random() * 10000)})`
-      ).join(",\n");
-
-      await pg.query(`
-        INSERT INTO character_frequency (char, freq, freq_rank, gender_m, gender_f)
-        VALUES ${values}
-        ON CONFLICT (char) DO NOTHING
-      `);
-      console.log(`[setup-db] Inserted ${unique.length} rows`);
+      // 参数化批量插入，避免 SQL 注入
+      const BATCH = 20;
+      let inserted = 0;
+      for (let i = 0; i < unique.length; i += BATCH) {
+        const batch = unique.slice(i, i + BATCH);
+        const values = batch.map((_, j) =>
+          `($${j * 5 + 1}, $${j * 5 + 2}, $${j * 5 + 3}, $${j * 5 + 4}, $${j * 5 + 5})`
+        ).join(", ");
+        const params = batch.flatMap((c, j) => [
+          c,
+          Math.max(100, 15000 - (i + j) * 100),
+          i + j + 1,
+          Math.floor(Math.random() * 10000),
+          Math.floor(Math.random() * 10000)
+        ]);
+        await client.query(`
+          INSERT INTO character_frequency (char, freq, freq_rank, gender_m, gender_f)
+          VALUES ${values}
+          ON CONFLICT (char) DO NOTHING
+        `, params);
+        inserted += batch.length;
+      }
+      console.log(`[setup-db] Inserted ${inserted} rows`);
     }
-  } finally {
-    pg.release();
+
+    client.release();
     await pool.end();
+    console.log("[setup-db] Done!");
+  } catch (err) {
+    console.error("[setup-db] FAILED:", err.message);
+    console.error("[setup-db] Stack:", err.stack);
+    process.exit(1);
   }
-
-  // 4. 用 Prisma 验证
-  const adapter = new PrismaPg(pool);
-  const prisma = new PrismaClient({ adapter });
-  try {
-    const count = await prisma.$queryRaw`SELECT COUNT(*) as cnt FROM character_frequency`;
-    console.log(`[setup-db] Prisma verification: ${count[0].cnt} rows`);
-  } finally {
-    await prisma.$disconnect();
-  }
-
-  console.log("[setup-db] Done!");
 }
 
-setup().catch((err) => {
-  console.error("[setup-db] ERROR:", err.message);
-  process.exit(0);
-});
+main();
