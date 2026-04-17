@@ -133,7 +133,7 @@ function NamingResultContent() {
             rank: idx + 1,
             name: (n?.name || n?.fullName || `名字${idx + 1}`) as string,
             pinyin: (n?.pinyin || "") as string,
-            wuxing: wuxingArray,
+            wuxing: wuxingArray[0] || "",
             score: typeof n?.score === "number" ? n.score : Math.round(70 + Math.random() * 20),
             meaning: (n?.meaning || "") as string,
             source: n?.source?.book
