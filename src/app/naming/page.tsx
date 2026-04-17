@@ -166,8 +166,9 @@ function NamingResultContent() {
         console.log("[Naming Page] 第一个有效名字:", JSON.stringify(validNames[0], null, 2));
 
         const mapped: NameItem[] = validNames.map((n: any, idx: number) => {
-          console.log(`[Naming Page] map 开始处理第 ${idx + 1} 个名字，n的类型:`, typeof n, "n:", n);
+          console.log(`[Naming Page] map 开始处理第 ${idx + 1} 个名字，n:`, JSON.stringify(n));
           try {
+            console.log(`[Naming Page] 处理名字 ${idx + 1}:`, n?.name || n?.fullName);
             // 确保 n 是对象
             if (!n || typeof n !== "object") {
               console.error(`[Naming Page] 第 ${idx + 1} 个名字不是对象:`, n);
@@ -204,8 +205,6 @@ function NamingResultContent() {
 
             const name = (n?.name || n?.fullName || `名字${idx + 1}`) as string;
             const score = typeof n?.score === "number" && n.score > 0 ? n.score : Math.round(70 + Math.random() * 20);
-            
-            console.log(`[Naming Page] 处理名字 ${idx + 1}:`, name, "wuxing:", wuxingStr, "score:", score);
 
             // 处理 source 字段（可能是对象或字符串）
             let sourceValue: string | undefined = undefined;
