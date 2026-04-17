@@ -19,6 +19,15 @@ export function isDeepSeekAvailable(): boolean {
   return !!DEEPSEEK_API_KEY && DEEPSEEK_API_KEY.length > 0;
 }
 
+// DeepSeek JSON 解析辅助函数（处理 markdown 代码块包裹）
+function parseDeepSeekJson(raw: string): unknown {
+  let jsonStr = raw.trim();
+  // 去掉可能的 ```json ... ``` 或 ``` ... ``` 包裹
+  const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (match) jsonStr = match[1].trim();
+  return JSON.parse(jsonStr);
+}
+
 // 调用DeepSeek API
 async function callDeepSeek(
   systemPrompt: string,
@@ -104,10 +113,10 @@ ${partialIntent ? `已知部分信息：${JSON.stringify(partialIntent, null, 2)
 
   try {
     const result = await callDeepSeek(systemPrompt, userPrompt, 0.1, 500);
-    
-    // 解析JSON响应
-    const parsed = JSON.parse(result) as StructuredIntent;
-    
+
+    // 解析JSON响应（安全处理 markdown 代码块包裹）
+    const parsed = parseDeepSeekJson(result) as StructuredIntent;
+
     // 验证必要字段
     if (!parsed.surname || !parsed.gender || !parsed.birthDate) {
       throw new Error('DeepSeek返回的意图缺少必要字段');
@@ -270,21 +279,25 @@ ${context.characterInfo.map(char =>
 
   try {
     const result = await callDeepSeek(systemPrompt, userPrompt, 0.5, 800);
-    
-    // 解析JSON响应
-    const parsed = JSON.parse(result);
-    
+
+    // 解析JSON响应（安全处理 markdown 代码块包裹）
+    const parsed = parseDeepSeekJson(result) as {
+      polishedMeaning?: string;
+      culturalExplanation?: string;
+      suggestedImprovements?: string[];
+    };
+
     return {
       polishedMeaning: parsed.polishedMeaning || `${givenName}，寓意美好`,
-      culturalExplanation: parsed.culturalExplanation || '源自传统文化，寓意深远',
+      culturalExplanation: parsed.culturalExplanation || "源自传统文化，寓意深远",
       suggestedImprovements: parsed.suggestedImprovements,
     };
   } catch (error) {
     console.error(`DeepSeek名字润色失败（${fullName}）:`, error);
-    
+
     return {
-      polishedMeaning: `${givenName}，寓意美好，符合${context.style.join('、')}的风格`,
-      culturalExplanation: `名字${givenName}源自中国传统文化，${context.sourcePreference.length > 0 ? `参考了${context.sourcePreference.join('、')}的意境` : '寓意深远，音韵和谐'}`,
+      polishedMeaning: `${givenName}，寓意美好，符合${context.style.join("、")}的风格`,
+      culturalExplanation: `名字${givenName}源自中国传统文化，${context.sourcePreference.length > 0 ? `参考了${context.sourcePreference.join("、")}的意境` : "寓意深远，音韵和谐"}`,
     };
   }
 }
@@ -343,13 +356,18 @@ ${context?.characters ? `单字：${context.characters.join('、')}` : ''}
 
   try {
     const result = await callDeepSeek(systemPrompt, userPrompt, 0.2, 500);
-    
-    // 解析JSON响应
-    const parsed = JSON.parse(result);
-    
+
+    // 解析JSON响应（安全处理 markdown 代码块包裹）
+    const parsed = parseDeepSeekJson(result) as {
+      isSafe?: boolean;
+      safetyLevel?: string;
+      warnings?: string[];
+      suggestions?: string[];
+    };
+
     return {
       isSafe: parsed.isSafe !== false,
-      safetyLevel: parsed.safetyLevel || 'high',
+      safetyLevel: (parsed.safetyLevel || "high") as "high" | "medium" | "low",
       warnings: parsed.warnings || [],
       suggestions: parsed.suggestions,
     };
