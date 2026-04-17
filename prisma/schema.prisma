@@ -200,15 +200,11 @@ model NameRecord {
   baziDay     String?  @map("bazi_day") @db.VarChar(20)
   baziHour    String?  @map("bazi_hour") @db.VarChar(20)
 
-  // 五行喜忌
-  wuxingLikes String[] @map("wuxing_likes")
-  wuxingAvoids String[] @map("wuxing_avoids")
-
   // 期望寓意
   expectations String? @db.VarChar(1000)
   style       String?  @db.VarChar(20)
 
-  // 生成的名字结果
+  // 生成的名字结果（JSON，存名字列表+来源+评分）
   results     Json?
 
   // 状态
@@ -216,9 +212,6 @@ model NameRecord {
 
   // 是否已支付查看
   isPaid      Boolean  @default(false) @map("is_paid")
-
-  // 引用典籍
-  citedBooks  String[] @map("cited_books")
 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

@@ -195,7 +195,7 @@ async function createOrder(params: {
   const isPaid = false; // 目前全部免费，后续接入支付后根据业务判断
 
   try {
-    // 先创建起名记录
+    // 先创建起名记录（注意：不传 String[] 字段，Prisma 7 adapter 对数组类型有 bug）
     const nameRecord = await prisma.nameRecord.create({
       data: {
         userId: params.userId ?? null,
@@ -203,11 +203,9 @@ async function createOrder(params: {
         gender: params.gender === "M" ? "male" : params.gender === "F" ? "female" : params.gender,
         birthDate: new Date(params.birthDate),
         birthTime: params.birthTime,
-        wuxingLikes: [], // 由 calculateWuxing 填充
-        wuxingAvoids: [],
         expectations: params.expectations,
         style: params.style,
-        results: params.results as any,
+        results: params.results as object, // Json 字段，不用 any
         status: "completed",
       },
     });
