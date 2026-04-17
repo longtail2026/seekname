@@ -144,9 +144,23 @@ function NamingResultContent() {
         }
 
         console.log("[Naming Page] 开始处理 rawNames，数量:", rawNames.length);
-        console.log("[Naming Page] 第一个名字的完整结构:", JSON.stringify(rawNames[0], null, 2));
+        console.log("[Naming Page] rawNames[0] 类型:", typeof rawNames[0], "值:", rawNames[0]);
+        console.log("[Naming Page] rawNames[0] 是 null?", rawNames[0] === null);
+        console.log("[Naming Page] rawNames[0] 是 undefined?", rawNames[0] === undefined);
 
-        const mapped: NameItem[] = rawNames.map((n: any, idx: number) => {
+        // 过滤掉 null 和 undefined
+        const validNames = rawNames.filter((n): n is NonNullable<typeof n> => n != null);
+        console.log("[Naming Page] 过滤后有效名字数量:", validNames.length);
+
+        if (validNames.length === 0) {
+          console.error("[Naming Page] 所有名字都是无效值");
+          setError("未找到合适的名字，请稍后重试");
+          return;
+        }
+
+        console.log("[Naming Page] 第一个有效名字:", JSON.stringify(validNames[0], null, 2));
+
+        const mapped: NameItem[] = validNames.map((n: any, idx: number) => {
           try {
             // 确保 n 是对象
             if (!n || typeof n !== "object") {
