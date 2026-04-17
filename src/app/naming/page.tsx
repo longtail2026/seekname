@@ -99,9 +99,11 @@ function NamingResultContent() {
         });
 
         const result = await response.json();
+        console.log("[Naming Page] API 响应:", JSON.stringify(result).slice(0, 500));
 
-        if (!result.success) {
-          setError(result.error || "起名失败");
+        if (!result?.success) {
+          console.error("[Naming Page] API 失败:", result?.error);
+          setError(result?.error || "起名失败");
           return;
         }
 
@@ -111,21 +113,37 @@ function NamingResultContent() {
         if (result.data?.wuxing) setWuxingResult(result.data.wuxing);
 
         // 转换 API 结果为前端格式（加防御性检查，防止 Error Boundary）
-        const apiNames = Array.isArray(result.data?.names) ? result.data.names : [];
-        const mapped: NameItem[] = apiNames.map((n: any, idx: number) => ({
-          rank: idx + 1,
-          name: n?.name || n?.fullName || "",
-          pinyin: n?.pinyin || "",
-          wuxing: (typeof n?.wuxing === "string" ? n.wuxing : "").split("").filter(Boolean),
-          score: typeof n?.score === "number" ? n.score : Math.round(70 + Math.random() * 20),
-          meaning: n?.meaning || "",
-          source: n?.source?.book
-            ? `《${n.source.book}》：${n.source.text || ""}`
-            : undefined,
-          culturalScore: n?.scoreBreakdown?.cultural ?? undefined,
-          harmonyScore: n?.scoreBreakdown?.harmony ?? undefined,
-          uniqueness: n?.uniqueness || "medium",
-        }));
+        const rawNames = result.data?.names || result.data?.candidates || [];
+        if (!Array.isArray(rawNames)) {
+          console.error("[Naming Page] names 不是数组:", typeof rawNames, rawNames);
+          setError("数据格式错误，请稍后重试");
+          return;
+        }
+
+        const mapped: NameItem[] = rawNames.map((n: any, idx: number) => {
+          const wuxingVal = n?.wuxing;
+          let wuxingArray: string[] = [];
+          if (typeof wuxingVal === "string" && wuxingVal.length > 0) {
+            wuxingArray = wuxingVal.split("").filter(Boolean);
+          } else if (Array.isArray(wuxingVal)) {
+            wuxingArray = wuxingVal.filter((c: any) => typeof c === "string" && c.length > 0);
+          }
+
+          return {
+            rank: idx + 1,
+            name: (n?.name || n?.fullName || `名字${idx + 1}`) as string,
+            pinyin: (n?.pinyin || "") as string,
+            wuxing: wuxingArray,
+            score: typeof n?.score === "number" ? n.score : Math.round(70 + Math.random() * 20),
+            meaning: (n?.meaning || "") as string,
+            source: n?.source?.book
+              ? `《${n.source.book}》：${n.source.text || ""}`
+              : undefined,
+            culturalScore: typeof n?.scoreBreakdown?.cultural === "number" ? n.scoreBreakdown.cultural : undefined,
+            harmonyScore: typeof n?.scoreBreakdown?.harmony === "number" ? n.scoreBreakdown.harmony : undefined,
+            uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
+          };
+        });
 
         setNames(mapped.length > 0 ? mapped : []);
 
