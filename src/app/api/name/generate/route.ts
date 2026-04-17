@@ -200,7 +200,7 @@ async function createOrder(params: {
       data: {
         userId: params.userId ?? null,
         surname: params.surname,
-        gender: params.gender === "M" ? "male" : params.gender === "F" ? "female" : params.gender,
+        gender: params.gender, // "M" 或 "F"，Char(1) 列
         birthDate: new Date(params.birthDate),
         birthTime: params.birthTime,
         expectations: params.expectations,
