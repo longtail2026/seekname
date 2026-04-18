@@ -335,7 +335,9 @@ export async function aiCompose(
 
   let entries: any[] = [];
   try {
-    console.log("[AI Composer] 调用 SiliconFlow DeepSeek-V3（9.5秒超时）...");
+    const provider = resolveApiProvider();
+    const config = PROVIDER_CONFIG[provider];
+    console.log(`[AI Composer] 调用 ${provider === "groq" ? "Groq" : "SiliconFlow"} ${config.model}（${config.maxTimeout / 1000}秒超时）...`);
     const rawResponse = await Promise.race([
       DeepSeekIntegration.callRaw(system, user, 0.7, 6000),
       new Promise<never>((_, reject) =>
@@ -966,6 +968,28 @@ function buildCandidateFromPair(
 // ============================================================
 
 // 为 DeepSeekIntegration 补充 callRaw 方法
+// 智能识别 API Provider：Groq（推荐，国际节点，Vercel直连）/ SiliconFlow / OpenAI
+function resolveApiProvider() {
+  const key = process.env.DEEPSEEK_API_KEY || "";
+  // Groq key 以 gsk_ 开头；SiliconFlow key 以 sk- 开头且含 siliconflow 域名
+  if (key.startsWith("gsk_")) return "groq";
+  if (key.includes("siliconflow")) return "siliconflow";
+  return "groq"; // 默认走 Groq
+}
+
+const PROVIDER_CONFIG: Record<string, { baseUrl: string; model: string; maxTimeout: number }> = {
+  groq: {
+    baseUrl: "https://api.groq.com/openai/v1",
+    model: "deepseek-ai/DeepSeek-V3-0324", // Groq 上质量最好的 DeepSeek 模型
+    maxTimeout: 12000, // 12秒，Groq 通常 <1s
+  },
+  siliconflow: {
+    baseUrl: "https://api.siliconflow.cn/v1",
+    model: "deepseek-ai/DeepSeek-V3",
+    maxTimeout: 9500,
+  },
+};
+
 async function callDeepSeekRaw(
   systemPrompt: string,
   userPrompt: string,
@@ -973,33 +997,50 @@ async function callDeepSeekRaw(
   maxTokens: number
 ): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error("SiliconFlow API 密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量");
+  if (!apiKey) throw new Error("API 密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量");
 
-  const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "deepseek-ai/DeepSeek-V3",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-      stream: false,
-    }),
-  });
+  const provider = resolveApiProvider();
+  const config = PROVIDER_CONFIG[provider];
+  const url = `${config.baseUrl}/chat/completions`;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SiliconFlow API 错误: ${response.status} - ${errorText}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), config.maxTimeout);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`${provider === "groq" ? "Groq" : "SiliconFlow"} API 错误 ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err.name === "AbortError") {
+      throw new Error(`${provider === "groq" ? "Groq" : "SiliconFlow"} API 调用超时(${config.maxTimeout / 1000}s)，已跳过`);
+    }
+    throw err;
   }
-
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
 }
 
 // 给 DeepSeekIntegration 补充 callRaw（猴子补丁方式，简单有效）
