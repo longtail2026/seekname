@@ -325,7 +325,7 @@ export async function aiCompose(
 
   console.log(`[AI Composer] 字池摘要长度=${poolSummary.length} chars`);
 
-  // 2. 调用 DeepSeek（3秒超时快速降级）
+  // 2. 调用 DeepSeek（8秒超时）
   if (!DeepSeekIntegration.isAvailable()) {
     console.warn("[AI Composer] DeepSeek 不可用，降级到规则循环");
     return config.fallbackToRules
@@ -335,11 +335,11 @@ export async function aiCompose(
 
   let entries: any[] = [];
   try {
-    console.log("[AI Composer] 调用 DeepSeek（3秒超时）...");
+    console.log("[AI Composer] 调用 DeepSeek（8秒超时）...");
     const rawResponse = await Promise.race([
-      DeepSeekIntegration.callRaw(system, user, 0.7, 1500),
+      DeepSeekIntegration.callRaw(system, user, 0.7, 6000),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("DeepSeek 超时降级")), 3000)
+        setTimeout(() => reject(new Error("DeepSeek 超时降级")), 8000)
       ),
     ]);
 
