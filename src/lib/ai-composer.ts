@@ -327,7 +327,7 @@ export async function aiCompose(
 
   // 2. 调用 DeepSeek（9.5秒超时，留 0.5s 给 Vercel 函数退出处理）
   if (!DeepSeekIntegration.isAvailable()) {
-    console.warn("[AI Composer] DeepSeek 不可用，降级到规则循环");
+    console.warn("[AI Composer] SiliconFlow API 不可用，降级到规则循环");
     return config.fallbackToRules
       ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
@@ -335,11 +335,11 @@ export async function aiCompose(
 
   let entries: any[] = [];
   try {
-    console.log("[AI Composer] 调用 DeepSeek（9.5秒超时）...");
+    console.log("[AI Composer] 调用 SiliconFlow DeepSeek-V3（9.5秒超时）...");
     const rawResponse = await Promise.race([
       DeepSeekIntegration.callRaw(system, user, 0.7, 6000),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("DeepSeek 超时降级")), 9500)
+        setTimeout(() => reject(new Error("SiliconFlow 超时降级")), 9500)
       ),
     ]);
 
@@ -347,7 +347,7 @@ export async function aiCompose(
     entries = parseLLMResponse(rawResponse as string);
     console.log(`[AI Composer] 解析出 ${entries.length} 个名字`);
   } catch (e) {
-    console.warn(`[AI Composer] DeepSeek 调用失败，降级到规则循环: ${e}`);
+    console.warn(`[AI Composer] SiliconFlow 调用失败，降级到规则循环: ${e}`);
     return config.fallbackToRules
       ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
@@ -973,16 +973,16 @@ async function callDeepSeekRaw(
   maxTokens: number
 ): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error("DeepSeek API 密钥未配置");
+  if (!apiKey) throw new Error("SiliconFlow API 密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量");
 
-  const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+  const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model: "deepseek-ai/DeepSeek-V3",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -995,7 +995,7 @@ async function callDeepSeekRaw(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`DeepSeek API 错误: ${response.status} - ${errorText}`);
+    throw new Error(`SiliconFlow API 错误: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();

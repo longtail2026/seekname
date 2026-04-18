@@ -10,9 +10,10 @@
 
 import { StructuredIntent, NamingRequest } from "./naming-engine";
 
-// DeepSeek API配置
+// SiliconFlow API配置（兼容原有DEEPSEEK_API_KEY环境变量）
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+// SiliconFlow国内节点，延迟比api.deepseek.com低很多
+const DEEPSEEK_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
 
 // 检查API密钥是否可用
 export function isDeepSeekAvailable(): boolean {
@@ -48,7 +49,7 @@ async function callDeepSeek(
   maxTokens: number = 1000
 ): Promise<string> {
   if (!isDeepSeekAvailable()) {
-    throw new Error('DeepSeek API密钥未配置');
+    throw new Error('SiliconFlow API密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量');
   }
 
   try {
@@ -59,7 +60,7 @@ async function callDeepSeek(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-ai/DeepSeek-V3',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -72,7 +73,7 @@ async function callDeepSeek(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`DeepSeek API错误: ${response.status} - ${errorText}`);
+      throw new Error(`SiliconFlow API错误: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
