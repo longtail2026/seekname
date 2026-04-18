@@ -844,6 +844,38 @@ async function fallbackRuleBasedCompose(
   }
   console.log(`[Fallback] 合并后字池: ${enrichedPool.length} 个`);
 
+  // ── 3b. 补充完整默认字池（5行×15字=75字，五行齐全）──
+  // 【关键】pool可能只有9个字（被wuxing过滤），必须补充五行齐全的默认池
+  // 否则AI生成的名字大量字不在池中导致过滤后只剩1个
+  const defaultCharsByWuxing: Record<string, string[]> = {
+    "金": ["铭","锦","钧","铮","铄","钰","锐","锋","瑞","璋","珞","瑜","铎","锡","铠"],
+    "木": ["林","森","桐","楠","梓","柏","松","桦","柳","梅","榆","槐","楷","桂","枫"],
+    "水": ["涵","泽","洋","涛","浩","清","源","沐","沛","润","澜","淳","溪","沁","瀚"],
+    "火": ["炎","煜","炜","烨","熠","灿","炅","煦","燃","烽","焕","炫","耀","辉","灵"],
+    "土": ["坤","培","基","城","垣","堂","均","圣","壤","坚","壁","堪","塘","增","墨"],
+  };
+  const allDefaultChars = Object.entries(defaultCharsByWuxing).flatMap(([wx, chars]) =>
+    chars.map((ch) => ({ character: ch, wuxing: wx }))
+  );
+  let addedDefault = 0;
+  for (const dc of allDefaultChars) {
+    if (!enrichedPool.some((c) => c.character === dc.character)) {
+      enrichedPool.push({
+        character: dc.character,
+        pinyin: "",
+        wuxing: dc.wuxing,
+        meaning: "",
+        strokeCount: 8,
+        frequency: 50,
+        source: undefined,
+        sourceText: undefined,
+        _isSupported: supportedWuxing.has(dc.wuxing),
+      } as CharacterInfo & { _isSupported?: boolean });
+      addedDefault++;
+    }
+  }
+  console.log(`[Fallback] 补充默认字池 ${addedDefault} 个（5行×15字=75字），合并后共 ${enrichedPool.length} 个`);
+
   // ── 4. 分离：优先字（支持五行）vs 补充字（其他五行）──
   // 【关键】同时保留其他五行的字，避免名字全部是同一五行（如全是火旁）
   const primaryChars = enrichedPool.filter((c) => (c as any)._isSupported !== false);
