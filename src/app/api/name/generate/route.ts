@@ -537,13 +537,10 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 两次都失败且无结果，降级到传统生成
+        // 两次都失败且无结果，降级到传统生成（不在此处调attachSources，统一在最后处理）
         if (candidates.length === 0) {
-          console.warn(`[API] AI Composer 两次都失败，降级到传统生成: ${composeError}`);
+          console.warn("[API] AI Composer 两次都失败，降级到传统生成");
           rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
-          if (rawNames.length > 0) {
-            rawNames = await attachSources(rawNames, expanded);
-          }
         } else {
           // AI Composer 成功 → 映射结果
           rawNames = candidates.map((c: any) => ({
