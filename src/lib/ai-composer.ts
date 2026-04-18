@@ -1020,6 +1020,9 @@ async function callDeepSeekRaw(
   const config = PROVIDER_CONFIG[provider];
   const url = `${config.baseUrl}/chat/completions`;
 
+  // 🔍 调试日志：确认 Vercel 实际读取到的 key 前缀和选中的 Provider
+  console.log(`[AI] 读取到 DEEPSEEK_API_KEY 前缀: ${apiKey.substring(0, 10)}... Provider: ${provider}, URL: ${url}`);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.maxTimeout);
 
@@ -1047,6 +1050,7 @@ async function callDeepSeekRaw(
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.log(`[AI] ${providerNameMap[provider] || provider} HTTP ${response.status} 响应: ${errorText}`);
       throw new Error(`${providerNameMap[provider] || provider} API 错误 ${response.status}: ${errorText}`);
     }
 
