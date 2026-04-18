@@ -888,9 +888,6 @@ async function fallbackRuleBasedCompose(
   }
 
   console.log(`[Fallback] 最终返回 ${candidates.length} 个候选`);
-  return candidates;
-}
-
   return candidates
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
