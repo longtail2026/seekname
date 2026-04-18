@@ -390,6 +390,40 @@ export async function POST(request: NextRequest) {
             };
           });
 
+        // ── 补充完整五行字池（金/木/水/火/土各20字，共100字）──
+        // 【关键】只从wuxingResult.likes构建的pool只有9字（金旁），导致AI只能生成金+金组合
+        // 补充五行齐全的字池后，AI可以从多样化的字中组合，避免单一五行
+        const FULL_POOL_CHARS: Array<{ char: string; wx: string }> = [
+          // 金
+          ...["铭","鑫","锦","钧","铮","铄","钰","锐","锋","瑞","琛","瑜","珞","铎","锡","铠","镕","钟","钱","镛"].map(c=>({char:c,wx:"金"})),
+          // 木
+          ...["林","森","桐","楠","梓","柏","松","桦","柳","梅","榆","槐","楷","桂","枫","杨","栋","梁","槿","榕"].map(c=>({char:c,wx:"木"})),
+          // 水
+          ...["涵","泽","洋","涛","浩","清","源","沐","沛","润","澜","淳","溪","沁","瀚","波","泉","滔","渺","潮"].map(c=>({char:c,wx:"水"})),
+          // 火
+          ...["炎","煜","炜","烨","熠","灿","炅","煦","燃","烽","焕","炫","耀","辉","灵","灿","暖","熙","焕","灼"].map(c=>({char:c,wx:"火"})),
+          // 土
+          ...["坤","培","基","城","垣","堂","均","圣","壤","坚","壁","堪","塘","增","墨","域","垚","型","丘","岚"].map(c=>({char:c,wx:"土"})),
+        ];
+        const poolCharSet = new Set(pool.map((p: any) => p.character));
+        const supplementalChars = FULL_POOL_CHARS
+          .filter((p) => !poolCharSet.has(p.char))
+          .slice(0, 60); // 最多加60个
+        const fullPool: typeof pool = [
+          ...pool,
+          ...supplementalChars.map((p) => ({
+            character: p.char,
+            pinyin: "",
+            wuxing: p.wx,
+            meaning: "",
+            strokeCount: 8,
+            frequency: 50,
+          })),
+        ];
+        // 覆盖 pool 为完整池（包含五行齐全的多样化字）
+        // 注意：wuxingResult.likes 的字已在 pool 中已排在前面，AI生成时会优先考虑
+        Object.assign(pool, fullPool);
+
         // 调用 AI Composer（含一次超时重试）
         // 策略：OpenRouter 国际路由慢，首次 45s 超时 → 重试一次 → 再超时则走传统生成
         console.log(`[API] aiCompose 开始，候选池=${pool.length}个字`);
