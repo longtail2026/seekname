@@ -701,29 +701,29 @@ async function fallbackRuleBasedCompose(
   const matchedStyles = new Set<string>();
   for (const kw of intent.imagery || []) {
     const k = kw.toLowerCase();
-    if (k.includes("德") || k.includes("才") || k.includes("智")) matchedStyles.add("德才");
-    if (k.includes("安") || k.includes("康") || k.includes("福")) matchedStyles.add("安康");
-    if (k.includes("自然") || k.includes("山") || k.includes("水") || k.includes("风")) matchedStyles.add("自然");
-    if (k.includes("志") || k.includes("远") || k.includes("大")) matchedStyles.add("志向");
-    if (k.includes("品") || k.includes("德") || k.includes("善")) matchedStyles.add("品德");
-    if (k.includes("女") || k.includes("柔") || k.includes("美")) matchedStyles.add("女德");
+    if (k.includes("德") || k.includes("才") || k.includes("智") || k.includes("诗") || k.includes("文")) matchedStyles.add("德才");
+    if (k.includes("安") || k.includes("康") || k.includes("福") || k.includes("静")) matchedStyles.add("安康");
+    if (k.includes("自然") || k.includes("山") || k.includes("水") || k.includes("风") || k.includes("云") || k.includes("月")) matchedStyles.add("自然");
+    if (k.includes("志") || k.includes("远") || k.includes("大") || k.includes("飞")) matchedStyles.add("志向");
+    if (k.includes("品") || k.includes("德") || k.includes("善") || k.includes("雅") || k.includes("静") || k.includes("古") || k.includes("典")) matchedStyles.add("品德");
+    if (k.includes("女") || k.includes("柔") || k.includes("美") || k.includes("婉") || k.includes("婷")) matchedStyles.add("女德");
   }
 
   // 如果 intent.style 存在也匹配
   for (const st of intent.style || []) {
     const k = st.toLowerCase();
-    if (k.includes("文") || k.includes("雅")) matchedStyles.add("德才");
+    if (k.includes("文") || k.includes("雅") || k.includes("诗") || k.includes("典") || k.includes("古")) matchedStyles.add("德才");
     if (k.includes("吉") || k.includes("祥")) matchedStyles.add("安康");
-    if (k.includes("自") || k.includes("山") || k.includes("水")) matchedStyles.add("自然");
+    if (k.includes("自") || k.includes("山") || k.includes("水") || k.includes("静")) matchedStyles.add("自然");
+    if (k.includes("品") || k.includes("德") || k.includes("善")) matchedStyles.add("品德");
+    if (k.includes("女") || k.includes("柔")) matchedStyles.add("女德");
   }
 
-  // 若无匹配，使用 intent.wuxing 决定风格
+  // 若无匹配，使用默认风格 + 按性别/五行补充
   if (matchedStyles.size === 0) {
     matchedStyles.add("default");
-    if (supportedWuxing.has("金")) matchedStyles.add("德才");
-    if (supportedWuxing.has("木")) matchedStyles.add("自然");
-    if (supportedWuxing.has("水")) matchedStyles.add("自然");
     if (intent.gender === "F") matchedStyles.add("女德");
+    if (intent.gender === "M") matchedStyles.add("志向");
   }
 
   // 查询典籍数据库获取字的拼音/笔画
@@ -821,68 +821,76 @@ async function fallbackRuleBasedCompose(
     return a;
   };
 
+  // 检查两个字是否同音（会导致名字读起来单调）
+  const isSamePinyin = (p1: string, p2: string): boolean => {
+    if (!p1 || !p2) return false;
+    return p1.split(",")[0].trim().toLowerCase() === p2.split(",")[0].trim().toLowerCase();
+  };
+
+  // 放宽音律检查：优先和谐，但也接受一般质量的（只要不是严重拗口）
+  const buildWithPhoneticCheck = (chars: CharacterInfo[], phoneticScore = 0): NameCandidate | null => {
+    // 检查同音字
+    const pinyins = chars.map((c) => c.pinyin?.split(",")[0] || "");
+    if (chars.length >= 2 && pinyins[0] === pinyins[1]) return null; // 去掉同音字
+    if (chars.length >= 3 && (pinyins[0] === pinyins[2] || pinyins[1] === pinyins[2])) return null;
+
+    const phonetic = PhoneticOptimizer.evaluatePhoneticQuality(chars);
+    // 放宽阈值：允许 0.4+ 的名字通过（原来是 0.6+）
+    if (phoneticScore < 0.4 && phonetic.overallScore < 0.4) return null;
+    const finalScore = Math.max(phoneticScore, phonetic.overallScore);
+    return buildCandidateFromPair(chars, intent, surname, config, finalScore);
+  };
+
   const primary = shuffle(primaryChars);
   const supplemental = shuffle(supplementalChars);
+  // 合并池（去除同音字优先混合）
+  const allChars = [...new Map([...primary, ...supplemental].map((c) => [c.character, c])).values()];
 
-  // 方案1：用两个支持五行的字组合
+  // 方案1：用两个字的组合（primary 内）
   if (config.wordCount === 2 && primary.length >= 2) {
-    for (let i = 0; i < primary.length - 1 && candidates.length < limit; i++) {
-      for (let j = i + 1; j < primary.length && candidates.length < limit; j++) {
-        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([primary[i], primary[j]]);
-        if (phonetic.isHarmonious) {
-          candidates.push(buildCandidateFromPair(
-            [primary[i], primary[j]], intent, surname, config, phonetic.overallScore
-          ));
-        }
-      }
-    }
-  }
-
-  // 方案2：如果支持五行的字不足，用一个支持 + 一个补充
-  if (candidates.length < limit && primary.length >= 1 && supplemental.length >= 1) {
     for (let i = 0; i < primary.length && candidates.length < limit; i++) {
-      for (let j = 0; j < supplemental.length && candidates.length < limit; j++) {
-        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([primary[i], supplemental[j]]);
-        if (phonetic.isHarmonious) {
-          candidates.push(buildCandidateFromPair(
-            [primary[i], supplemental[j]], intent, surname, config, phonetic.overallScore
-          ));
-        }
-      }
-    }
-  }
-
-  // 方案3：三字名（两个支持五行 + 一个补充）
-  if (config.wordCount === 3 && primary.length >= 2 && candidates.length < limit) {
-    for (let i = 0; i < primary.length - 1 && candidates.length < limit; i++) {
       for (let j = i + 1; j < primary.length && candidates.length < limit; j++) {
-        for (let k = 0; k < supplemental.length && candidates.length < limit; k++) {
-          const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([primary[i], primary[j], supplemental[k]]);
-          if (phonetic.isHarmonious) {
-            candidates.push(buildCandidateFromPair(
-              [primary[i], primary[j], supplemental[k]], intent, surname, config, phonetic.overallScore
-            ));
-          }
+        const cand = buildWithPhoneticCheck([primary[i], primary[j]]);
+        if (cand) candidates.push(cand);
+      }
+    }
+  }
+
+  // 方案2：全字池混合（避免只能从极小的 primary 池选）
+  if (candidates.length < limit && allChars.length >= 2) {
+    for (let i = 0; i < allChars.length && candidates.length < limit; i++) {
+      for (let j = i + 1; j < allChars.length && candidates.length < limit; j++) {
+        const cand = buildWithPhoneticCheck([allChars[i], allChars[j]]);
+        if (cand) candidates.push(cand);
+      }
+    }
+  }
+
+  // 方案3：三字名
+  if (config.wordCount === 3 && allChars.length >= 3 && candidates.length < limit) {
+    for (let i = 0; i < allChars.length - 2 && candidates.length < limit; i++) {
+      for (let j = i + 1; j < allChars.length - 1 && candidates.length < limit; j++) {
+        for (let k = j + 1; k < allChars.length && candidates.length < limit; k++) {
+          const cand = buildWithPhoneticCheck([allChars[i], allChars[j], allChars[k]]);
+          if (cand) candidates.push(cand);
         }
       }
     }
   }
 
-  // 方案4：纯典籍字组合
+  // 方案4：纯典籍字组合（扩大范围，避免只能从狭窄风格池选）
   if (candidates.length < limit && classicChars.length >= 2) {
     const classicPool = shuffle(classicChars);
-    for (let i = 0; i < classicPool.length - 1 && candidates.length < limit; i++) {
+    for (let i = 0; i < classicPool.length && candidates.length < limit; i++) {
       for (let j = i + 1; j < classicPool.length && candidates.length < limit; j++) {
         const cc1 = classicPool[i];
         const cc2 = classicPool[j];
+        // 去除同音典籍字
+        if (isSamePinyin(cc1.pinyin, cc2.pinyin)) continue;
         const c1: CharacterInfo = { character: cc1.character, pinyin: cc1.pinyin, wuxing: cc1.wuxing, meaning: cc1.meaning, strokeCount: cc1.strokeCount, frequency: cc1.frequency };
         const c2: CharacterInfo = { character: cc2.character, pinyin: cc2.pinyin, wuxing: cc2.wuxing, meaning: cc2.meaning, strokeCount: cc2.strokeCount, frequency: cc2.frequency };
-        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([c1, c2]);
-        if (phonetic.isHarmonious) {
-          candidates.push(buildCandidateFromPair(
-            [c1, c2], intent, surname, config, phonetic.overallScore
-          ));
-        }
+        const cand = buildWithPhoneticCheck([c1, c2]);
+        if (cand) candidates.push(cand);
       }
     }
   }
