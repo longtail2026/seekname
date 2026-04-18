@@ -119,40 +119,48 @@ async function generateNames(
   wuxingLikes: string[],
   expectations?: string
 ) {
-  // 从数据库查询五行匹配的字（扩大字池，避免配对耗尽）
+  // 从数据库查询五行匹配的字（扩大字池）
+  // 如果只有一个五行类型，同时查询其他类型以增加多样性
+  const queryWuxingList = wuxingLikes.length === 1
+    ? [wuxingLikes[0], "水", "木"] // 单五行时补充水和木（常用于名字组合）
+    : wuxingLikes;
+
   const allChars: Array<{ char: string; pinyin: string; wuxing: string; meaning: string; strokeCount: number }> = [];
-  for (const wx of wuxingLikes) {
+  for (const wx of queryWuxingList) {
     const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
-      `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 LIMIT 30`,
+      `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 LIMIT 25`,
       [wx]
     );
     for (const r of rows) {
       allChars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
     }
   }
-  console.log(`[generateNames] 数据库查询 wuxing=${wuxingLikes.join(",")} → ${allChars.length}字`);
 
-  if (allChars.length < 2) {
+  // 去重（同一字可能出现于多个五行查询结果）
+  const uniqueChars = allChars.filter((c, idx, arr) => arr.findIndex(x => x.char === c.char) === idx);
+  console.log(`[generateNames] 数据库查询 wuxing=${queryWuxingList.join(",")} → 去重后${uniqueChars.length}字`);
+
+  if (uniqueChars.length < 2) {
     console.warn("[generateNames] 字数不足，直接返回空");
     return [];
   }
 
-  // 全排列配对（避免只用相邻两个字配对导致耗尽）
+  // 全排列配对
   const result: any[] = [];
   const seen = new Set<string>();
-  for (let i = 0; i < allChars.length; i++) {
-    for (let j = i + 1; j < allChars.length; j++) {
-      const c1 = allChars[i];
-      const c2 = allChars[j];
+  for (let i = 0; i < uniqueChars.length; i++) {
+    for (let j = i + 1; j < uniqueChars.length; j++) {
+      const c1 = uniqueChars[i];
+      const c2 = uniqueChars[j];
 
-      // 音律过滤
+      // 音律过滤：两个字声调不能相同
       const p1 = c1.pinyin?.split(",")[0] || "";
       const p2 = c2.pinyin?.split(",")[0] || "";
       const tone1 = extractTone(p1);
       const tone2 = extractTone(p2);
       if (tone1 > 0 && tone2 > 0 && tone1 === tone2) continue;
 
-      // 五行过滤
+      // 五行过滤：两个字最好不同五行
       if (c1.wuxing && c2.wuxing && c1.wuxing === c2.wuxing) continue;
 
       const key = [c1.char, c2.char].sort().join("");
