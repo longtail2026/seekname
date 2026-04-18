@@ -849,12 +849,6 @@ async function fallbackRuleBasedCompose(
   const primaryChars = enrichedPool.filter((c) => (c as any)._isSupported !== false);
   const supplementalChars = enrichedPool.filter((c) => (c as any)._isSupported === false);
 
-  // 如果补充字太少（<10个），从 DEFAULT_CHAR_POOL 补充其他五行字
-  const allWxPool = DEFAULT_CHAR_POOL.map((c) => ({ ...c, _isSupported: supportedWuxing.has(c.wuxing) }));
-  const supplementFromPool = allWxPool
-    .filter((c) => !_isSupported && !enrichedPool.some((e) => e.character === c.character))
-    .slice(0, 20);
-
   // ── 5. 生成候选名字 ──
   // 策略：生成全组合 → 全部评估 → 按综合分排序 → 取最优
   const candidates: NameCandidate[] = [];
