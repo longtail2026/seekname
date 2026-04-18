@@ -100,6 +100,19 @@ async function queryKangxiChars(chars: string[]) {
 }
 
 // 生成名字组合
+// 音调提取（避免循环依赖，直接内联简单逻辑）
+function extractTone(pinyin: string): number {
+  if (!pinyin) return 0;
+  const t = pinyin.toLowerCase();
+  if (t.endsWith("1") || t.endsWith("一声") || t.endsWith("阴平")) return 1;
+  if (t.endsWith("2") || t.endsWith("二声") || t.endsWith("阳平")) return 2;
+  if (t.endsWith("3") || t.endsWith("三声") || t.endsWith("上声")) return 3;
+  if (t.endsWith("4") || t.endsWith("四声") || t.endsWith("去声")) return 4;
+  // 从拼音字符串末尾提取数字
+  const m = pinyin.match(/(\d)$/);
+  return m ? parseInt(m[1]) : 0;
+}
+
 async function generateNames(
   surname: string,
   gender: string,
@@ -122,12 +135,10 @@ async function generateNames(
     return !!info;
   });
 
-  const count = Math.min(
-    NAME_CONFIG.countPerSurname,
-    Math.floor(suitableChars.length / 2)
-  );
+  // 生成更多候选（最后会因音律过滤掉一部分）
+  const maxPairs = Math.min(50, Math.floor(suitableChars.length / 2));
 
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < maxPairs; i++) {
     const char1 = suitableChars[i * 2];
     const char2 = suitableChars[i * 2 + 1];
     if (!char1 || !char2) continue;
@@ -135,11 +146,23 @@ async function generateNames(
     const info1 = charMap.get(char1);
     const info2 = charMap.get(char2);
 
+    // ── 音律过滤：两个字声调不能相同 ──
+    const p1 = info1?.pinyin?.split(",")[0] || "";
+    const p2 = info2?.pinyin?.split(",")[0] || "";
+    const tone1 = extractTone(p1);
+    const tone2 = extractTone(p2);
+    if (tone1 > 0 && tone2 > 0 && tone1 === tone2) {
+      // 同声调，跳过
+      continue;
+    }
+
+    // ── 五行过滤：两个字不能同属一行 ──
+    if (info1?.wuxing && info2?.wuxing && info1.wuxing === info2.wuxing) {
+      continue;
+    }
+
     const fullName = surname + char1 + char2;
-    const pinyin = [
-      info1?.pinyin?.split(",")[0] || "",
-      info2?.pinyin?.split(",")[0] || "",
-    ].join(" ");
+    const pinyin = [p1, p2].join(" ");
     const wuxing = (info1?.wuxing || "") + (info2?.wuxing || "");
 
     names.push({
@@ -155,23 +178,19 @@ async function generateNames(
   return names;
 }
 
-// 为名字匹配典籍出处（仅补充没有 source 的名字，保留 AI 已生成的典籍）
-// keywords: 已扩展的关键词列表（来自 intent-parser）
+// 为名字匹配典籍出处
+// 用扩展关键词查询典籍库，按索引轮换分配出处
+// 注意：不再跳过已有 source 的名字，而是强制用扩展关键词重新分配
 async function attachSources(names: any[], expandedKeywords: string[] = []) {
-  // 统计已有 source 的数量
-  const withSource = names.filter((n) => n.source && n.source.book).length;
-  if (withSource === names.length) {
-    console.log(`[API] attachSources: 全部 ${withSource} 个名字已有典籍，跳过补充`);
-    return names;
-  }
+  if (!names.length) return names;
 
   const keywords = expandedKeywords.length ? expandedKeywords : ["德", "才", "智", "仁", "义"];
 
-  // 【关键】用扩展后的关键词列表逐个查询典籍并去重
+  // 用扩展后的关键词列表逐个查询典籍并去重
   const seen = new Set<string>();
   const entries: Array<{ id: string; book_name: string; ancient_text: string; modern_text: string }> = [];
   for (const kw of keywords.slice(0, 15)) {
-    const matched = await queryClassics([kw], 2);
+    const matched = await queryClassics([kw], 3);
     for (const e of matched) {
       if (!seen.has(e.id)) {
         seen.add(e.id);
@@ -179,32 +198,25 @@ async function attachSources(names: any[], expandedKeywords: string[] = []) {
       }
     }
   }
-  if (!entries.length) {
-    console.log(`[API] attachSources: 典籍库无匹配记录，跳过`);
-    return names;
-  }
 
   if (!entries.length) {
-    console.log(`[API] attachSources: 典籍库无匹配记录，跳过`);
-    return names;
+    console.log(`[API] attachSources: 典籍库无匹配记录（关键词=${keywords.slice(0, 5).join(",")}），返回无典籍`);
+    // 清空不可靠典籍
+    return names.map((n) => ({ ...n, source: undefined }));
   }
+
+  console.log(`[API] attachSources: 关键词=${keywords.slice(0, 3).join(",")}... → 查询到${entries.length}条典籍，分配给${names.length}个名字`);
 
   return names.map((name, index) => {
-    // 【关键】如果名字已有 AI 生成的典籍出处，保留不覆盖！
-    if (name.source && name.source.book) {
-      return name;
-    }
-    // 只有没有典籍出处时才补充
+    // 强制用扩展关键词重新分配典籍（不再保留旧典籍，确保每次都用扩展关键词）
     const entry = entries[index % entries.length];
     return {
       ...name,
-      source: entry
-        ? {
-            book: entry.book_name,
-            text: entry.ancient_text?.slice(0, 50) + "...",
-            fullText: entry.modern_text,
-          }
-        : name.source, // 保留原 source（即使是 undefined）
+      source: {
+        book: entry.book_name,
+        text: entry.ancient_text?.slice(0, 50) + "...",
+        fullText: entry.modern_text,
+      },
     };
   });
 }
