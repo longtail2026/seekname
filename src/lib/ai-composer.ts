@@ -767,6 +767,7 @@ async function fallbackRuleBasedCompose(
     });
   }
   console.log(`[Fallback] 典籍字池: ${classicChars.length} 个`);
+  const allClassicCharsSet = new Set(classicChars.map((c) => c.character));
 
   // ── 3. 合并字池：典籍字 + 原字池（优先典籍）──
   const wuxingList = [...supportedWuxing];
@@ -809,8 +810,10 @@ async function fallbackRuleBasedCompose(
   const supplementalChars = enrichedPool.filter((c) => (c as any)._isSupported === false);
 
   // ── 5. 生成候选名字 ──
+  // 策略：广泛采样 → 全部评估 → 按综合分排序
   const candidates: NameCandidate[] = [];
   const limit = Math.min(config.maxCandidates, 8);
+  const maxGenerate = 60; // 最多生成60个候选再排序
 
   const shuffle = <T,>(arr: T[]): T[] => {
     const a = [...arr];
@@ -821,81 +824,67 @@ async function fallbackRuleBasedCompose(
     return a;
   };
 
-  // 检查两个字是否同音（会导致名字读起来单调）
+  // 同音字检查
   const isSamePinyin = (p1: string, p2: string): boolean => {
     if (!p1 || !p2) return false;
     return p1.split(",")[0].trim().toLowerCase() === p2.split(",")[0].trim().toLowerCase();
   };
 
-  // 放宽音律检查：优先和谐，但也接受一般质量的（只要不是严重拗口）
-  const buildWithPhoneticCheck = (chars: CharacterInfo[], phoneticScore = 0): NameCandidate | null => {
-    // 检查同音字
-    const pinyins = chars.map((c) => c.pinyin?.split(",")[0] || "");
-    if (chars.length >= 2 && pinyins[0] === pinyins[1]) return null; // 去掉同音字
-    if (chars.length >= 3 && (pinyins[0] === pinyins[2] || pinyins[1] === pinyins[2])) return null;
-
+  // 构建候选（不去除任何组合，只记录音律分用于排序）
+  const buildCandidateRecord = (chars: CharacterInfo[]): NameCandidate | null => {
+    // 去除同音字（同音太单调）
+    const pinyins = chars.map((c) => c.pinyin?.split(",")[0]?.trim().toLowerCase() || "");
+    for (let i = 0; i < chars.length; i++) {
+      for (let j = i + 1; j < chars.length; j++) {
+        if (pinyins[i] === pinyins[j]) return null;
+      }
+    }
     const phonetic = PhoneticOptimizer.evaluatePhoneticQuality(chars);
-    // 放宽阈值：允许 0.4+ 的名字通过（原来是 0.6+）
-    if (phoneticScore < 0.4 && phonetic.overallScore < 0.4) return null;
-    const finalScore = Math.max(phoneticScore, phonetic.overallScore);
-    return buildCandidateFromPair(chars, intent, surname, config, finalScore);
+    // 音律分 0-100 → 归一化到 0-1 再乘以权重
+    return buildCandidateFromPair(chars, intent, surname, config, phonetic.overallScore);
   };
 
-  const primary = shuffle(primaryChars);
-  const supplemental = shuffle(supplementalChars);
-  // 合并池（去除同音字优先混合）
-  const allChars = [...new Map([...primary, ...supplemental].map((c) => [c.character, c])).values()];
+  // 构建全字池：典籍字 + 数据库字，优先多样性
+  const allClassicChars = [
+    ...classicChars,
+    ...Object.values(CLASSIC_CHARS_BY_STYLE).flat().filter(
+      (e) => !allClassicCharsSet.has(e.character)
+    ),
+  ];
 
-  // 方案1：用两个字的组合（primary 内）
-  if (config.wordCount === 2 && primary.length >= 2) {
-    for (let i = 0; i < primary.length && candidates.length < limit; i++) {
-      for (let j = i + 1; j < primary.length && candidates.length < limit; j++) {
-        const cand = buildWithPhoneticCheck([primary[i], primary[j]]);
-        if (cand) candidates.push(cand);
+  const allPool = shuffle([
+    ...new Map(
+      [...primaryChars, ...supplementalChars, ...allClassicChars].map((c) => [c.character, c])
+    ).values(),
+  ]);
+
+  console.log(`[Fallback] 全字池大小: ${allPool.length}，primary:${primaryChars.length} supplemental:${supplementalChars.length} classic:${allClassicChars.length}`);
+
+  // 广泛生成：两层循环，最多60个
+  let generated = 0;
+  for (let i = 0; i < allPool.length && generated < maxGenerate; i++) {
+    for (let j = i + 1; j < allPool.length && generated < maxGenerate; j++) {
+      const cand = buildCandidateRecord([allPool[i], allPool[j]]);
+      if (cand) {
+        candidates.push(cand);
+        generated++;
       }
     }
   }
 
-  // 方案2：全字池混合（避免只能从极小的 primary 池选）
-  if (candidates.length < limit && allChars.length >= 2) {
-    for (let i = 0; i < allChars.length && candidates.length < limit; i++) {
-      for (let j = i + 1; j < allChars.length && candidates.length < limit; j++) {
-        const cand = buildWithPhoneticCheck([allChars[i], allChars[j]]);
-        if (cand) candidates.push(cand);
-      }
-    }
-  }
-
-  // 方案3：三字名
-  if (config.wordCount === 3 && allChars.length >= 3 && candidates.length < limit) {
-    for (let i = 0; i < allChars.length - 2 && candidates.length < limit; i++) {
-      for (let j = i + 1; j < allChars.length - 1 && candidates.length < limit; j++) {
-        for (let k = j + 1; k < allChars.length && candidates.length < limit; k++) {
-          const cand = buildWithPhoneticCheck([allChars[i], allChars[j], allChars[k]]);
+  // 三字名
+  if (config.wordCount === 3) {
+    for (let i = 0; i < allPool.length - 2 && candidates.length < maxGenerate; i++) {
+      for (let j = i + 1; j < allPool.length - 1 && candidates.length < maxGenerate; j++) {
+        for (let k = j + 1; k < allPool.length && candidates.length < maxGenerate; k++) {
+          const cand = buildCandidateRecord([allPool[i], allPool[j], allPool[k]]);
           if (cand) candidates.push(cand);
         }
       }
     }
   }
 
-  // 方案4：纯典籍字组合（扩大范围，避免只能从狭窄风格池选）
-  if (candidates.length < limit && classicChars.length >= 2) {
-    const classicPool = shuffle(classicChars);
-    for (let i = 0; i < classicPool.length && candidates.length < limit; i++) {
-      for (let j = i + 1; j < classicPool.length && candidates.length < limit; j++) {
-        const cc1 = classicPool[i];
-        const cc2 = classicPool[j];
-        // 去除同音典籍字
-        if (isSamePinyin(cc1.pinyin, cc2.pinyin)) continue;
-        const c1: CharacterInfo = { character: cc1.character, pinyin: cc1.pinyin, wuxing: cc1.wuxing, meaning: cc1.meaning, strokeCount: cc1.strokeCount, frequency: cc1.frequency };
-        const c2: CharacterInfo = { character: cc2.character, pinyin: cc2.pinyin, wuxing: cc2.wuxing, meaning: cc2.meaning, strokeCount: cc2.strokeCount, frequency: cc2.frequency };
-        const cand = buildWithPhoneticCheck([c1, c2]);
-        if (cand) candidates.push(cand);
-      }
-    }
-  }
-
-  console.log(`[Fallback] 最终返回 ${candidates.length} 个候选`);
+  console.log(`[Fallback] 生成 ${candidates.length} 个候选，最高分=${candidates[0]?.score}`);
   return candidates
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
