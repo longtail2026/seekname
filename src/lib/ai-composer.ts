@@ -565,6 +565,7 @@ function fallbackRuleBasedCompose(
 ): NameCandidate[] {
   console.log("[AI Composer] 使用 Fallback 规则循环组合...");
 
+  // 按字频排序后打乱，保证每次结果不同
   const sortedChars = [...pool]
     .filter((char) => {
       if (intent.wuxing && intent.wuxing.length > 0) {
@@ -576,23 +577,30 @@ function fallbackRuleBasedCompose(
       }
       return true;
     })
-    .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
-    .slice(0, 25);
+    .sort((a, b) => (b.frequency || 0) - (a.frequency || 0));
+
+  // Fisher-Yates 随机打乱，避免每次生成相同结果
+  for (let i = sortedChars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sortedChars[i], sortedChars[j]] = [sortedChars[j], sortedChars[i]];
+  }
+
+  const chars = sortedChars.slice(0, 25);
 
   const candidates: NameCandidate[] = [];
   const limit = Math.min(config.maxCandidates, 8);
 
-  if (config.wordCount === 2 && sortedChars.length >= 2) {
-    for (let i = 0; i < sortedChars.length - 1 && candidates.length < limit; i++) {
-      for (let j = i + 1; j < sortedChars.length && candidates.length < limit; j++) {
+  if (config.wordCount === 2 && chars.length >= 2) {
+    for (let i = 0; i < chars.length - 1 && candidates.length < limit; i++) {
+      for (let j = i + 1; j < chars.length && candidates.length < limit; j++) {
         const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([
-          sortedChars[i],
-          sortedChars[j],
+          chars[i],
+          chars[j],
         ]);
         if (phonetic.isHarmonious) {
           candidates.push(
             buildCandidateFromPair(
-              [sortedChars[i], sortedChars[j]],
+              [chars[i], chars[j]],
               intent,
               surname,
               config,
@@ -602,19 +610,19 @@ function fallbackRuleBasedCompose(
         }
       }
     }
-  } else if (config.wordCount === 3 && sortedChars.length >= 3) {
-    for (let i = 0; i < sortedChars.length - 2 && candidates.length < limit; i++) {
-      for (let j = i + 1; j < sortedChars.length - 1 && candidates.length < limit; j++) {
-        for (let k = j + 1; k < sortedChars.length && candidates.length < limit; k++) {
+  } else if (config.wordCount === 3 && chars.length >= 3) {
+    for (let i = 0; i < chars.length - 2 && candidates.length < limit; i++) {
+      for (let j = i + 1; j < chars.length - 1 && candidates.length < limit; j++) {
+        for (let k = j + 1; k < chars.length && candidates.length < limit; k++) {
           const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([
-            sortedChars[i],
-            sortedChars[j],
-            sortedChars[k],
+            chars[i],
+            chars[j],
+            chars[k],
           ]);
           if (phonetic.isHarmonious) {
             candidates.push(
               buildCandidateFromPair(
-                [sortedChars[i], sortedChars[j], sortedChars[k]],
+                [chars[i], chars[j], chars[k]],
                 intent,
                 surname,
                 config,
