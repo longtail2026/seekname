@@ -1065,17 +1065,10 @@ async function callDeepSeekRaw(
   }
 }
 
-// 给 DeepSeekIntegration 补充 callRaw（猴子补丁方式，简单有效）
-// 注意：如果 deepseek-integration.ts 中已有 callRaw 则不需要
-try {
-  // @ts-ignore
-  if (!DeepSeekIntegration.callRaw) {
-    // @ts-ignore
-    DeepSeekIntegration.callRaw = callDeepSeekRaw;
-  }
-} catch {
-  // ignore
-}
+// 猴子补丁：强制让 DeepSeekIntegration.callRaw 使用 OpenRouter/Groq 等 Provider
+// 注意：deepseek-integration.ts 里的 callRaw 是旧的 SiliconFlow 实现，必须覆盖！
+// @ts-ignore
+DeepSeekIntegration.callRaw = callDeepSeekRaw;
 
 // 统一导出
 export const AIComposer = {
