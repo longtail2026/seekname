@@ -327,7 +327,8 @@ export async function aiCompose(
 
   // 2. 调用 DeepSeek（9.5秒超时，留 0.5s 给 Vercel 函数退出处理）
   if (!DeepSeekIntegration.isAvailable()) {
-    console.warn("[AI Composer] SiliconFlow API 不可用，降级到规则循环");
+    const p = resolveApiProvider();
+    console.warn(`[AI Composer] ${providerNameMap[p] || p} API 不可用，降级到规则循环`);
     return config.fallbackToRules
       ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
@@ -336,12 +337,12 @@ export async function aiCompose(
   let entries: any[] = [];
   try {
     const provider = resolveApiProvider();
-    const config = PROVIDER_CONFIG[provider];
-    console.log(`[AI Composer] 调用 ${provider === "groq" ? "Groq" : "SiliconFlow"} ${config.model}（${config.maxTimeout / 1000}秒超时）...`);
+    const pConfig = PROVIDER_CONFIG[provider];
+    console.log(`[AI Composer] 调用 ${providerNameMap[provider]} ${pConfig.model}（${pConfig.maxTimeout / 1000}秒超时）...`);
     const rawResponse = await Promise.race([
       DeepSeekIntegration.callRaw(system, user, 0.7, 6000),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("SiliconFlow 超时降级")), 9500)
+        setTimeout(() => reject(new Error(`${providerNameMap[provider]} 超时降级`)), pConfig.maxTimeout)
       ),
     ]);
 
@@ -349,7 +350,8 @@ export async function aiCompose(
     entries = parseLLMResponse(rawResponse as string);
     console.log(`[AI Composer] 解析出 ${entries.length} 个名字`);
   } catch (e) {
-    console.warn(`[AI Composer] SiliconFlow 调用失败，降级到规则循环: ${e}`);
+    const p2 = resolveApiProvider();
+    console.warn(`[AI Composer] ${providerNameMap[p2] || p2} 调用失败，降级到规则循环: ${e}`);
     return config.fallbackToRules
       ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
@@ -971,17 +973,32 @@ function buildCandidateFromPair(
 // 智能识别 API Provider：Groq（推荐，国际节点，Vercel直连）/ SiliconFlow / OpenAI
 function resolveApiProvider() {
   const key = process.env.DEEPSEEK_API_KEY || "";
-  // Groq key 以 gsk_ 开头；SiliconFlow key 以 sk- 开头且含 siliconflow 域名
   if (key.startsWith("gsk_")) return "groq";
+  if (key.startsWith("sk-or-v1-")) return "openrouter";
   if (key.includes("siliconflow")) return "siliconflow";
-  return "groq"; // 默认走 Groq
+  return "openrouter"; // 默认走 OpenRouter（国际通用）
 }
 
-const PROVIDER_CONFIG: Record<string, { baseUrl: string; model: string; maxTimeout: number }> = {
+const providerNameMap: Record<string, string> = {
+  groq: "Groq",
+  openrouter: "OpenRouter",
+  siliconflow: "SiliconFlow",
+};
+
+const PROVIDER_CONFIG: Record<string, { baseUrl: string; model: string; maxTimeout: number; extraHeaders?: Record<string, string> }> = {
+  openrouter: {
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "meta-llama/llama-3-8b-instruct", // OpenRouter 免费额度充足，DeepInfra 节点极速 <1s
+    maxTimeout: 15000, // 15秒，留余量
+    extraHeaders: {
+      "HTTP-Referer": "https://seekname.cn",
+      "X-Title": "seekname",
+    },
+  },
   groq: {
     baseUrl: "https://api.groq.com/openai/v1",
-    model: "deepseek-ai/DeepSeek-V3-0324", // Groq 上质量最好的 DeepSeek 模型
-    maxTimeout: 12000, // 12秒，Groq 通常 <1s
+    model: "deepseek-ai/DeepSeek-V3-0324",
+    maxTimeout: 12000,
   },
   siliconflow: {
     baseUrl: "https://api.siliconflow.cn/v1",
@@ -1012,6 +1029,7 @@ async function callDeepSeekRaw(
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        ...(config.extraHeaders || {}),
       },
       body: JSON.stringify({
         model: config.model,
@@ -1029,7 +1047,7 @@ async function callDeepSeekRaw(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`${provider === "groq" ? "Groq" : "SiliconFlow"} API 错误 ${response.status}: ${errorText}`);
+      throw new Error(`${providerNameMap[provider] || provider} API 错误 ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
@@ -1037,7 +1055,7 @@ async function callDeepSeekRaw(
   } catch (err: any) {
     clearTimeout(timer);
     if (err.name === "AbortError") {
-      throw new Error(`${provider === "groq" ? "Groq" : "SiliconFlow"} API 调用超时(${config.maxTimeout / 1000}s)，已跳过`);
+      throw new Error(`${providerNameMap[provider] || provider} API 调用超时(${config.maxTimeout / 1000}s)，已跳过`);
     }
     throw err;
   }
