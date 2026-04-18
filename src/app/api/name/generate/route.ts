@@ -126,17 +126,21 @@ async function generateNames(
       NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars];
     if (chars) preferredChars.push(...chars);
   }
+  console.log(`[generateNames] wuxingLikes=${wuxingLikes.join(",")}，preferredChars=${preferredChars.join(",")}，共${preferredChars.length}字`);
 
   const charInfo = await queryKangxiChars(preferredChars.slice(0, 20));
+  console.log(`[generateNames] queryKangxiChars 返回${charInfo.length}条`);
   const charMap = new Map(charInfo.map((c) => [c.character, { ...c, strokeCount: c.stroke_count }]));
 
   const suitableChars = preferredChars.filter((char) => {
     const info = charMap.get(char);
     return !!info;
   });
+  console.log(`[generateNames] suitableChars=${suitableChars.join(",")}，共${suitableChars.length}字`);
 
   // 生成更多候选（最后会因音律过滤掉一部分）
   const maxPairs = Math.min(50, Math.floor(suitableChars.length / 2));
+  console.log(`[generateNames] maxPairs=${maxPairs}`);
 
   for (let i = 0; i < maxPairs; i++) {
     const char1 = suitableChars[i * 2];
@@ -174,6 +178,7 @@ async function generateNames(
       strokeCount: (info1?.strokeCount || 0) + (info2?.strokeCount || 0),
     });
   }
+  console.log(`[generateNames] 完成，返回${names.length}个名字`);
 
   return names;
 }
