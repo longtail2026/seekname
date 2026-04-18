@@ -119,68 +119,59 @@ async function generateNames(
   wuxingLikes: string[],
   expectations?: string
 ) {
-  const names = [];
-  const preferredChars: string[] = [];
+  // 从数据库查询五行匹配的字（扩大字池，避免配对耗尽）
+  const allChars: Array<{ char: string; pinyin: string; wuxing: string; meaning: string; strokeCount: number }> = [];
   for (const wx of wuxingLikes) {
-    const chars =
-      NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars];
-    if (chars) preferredChars.push(...chars);
-  }
-  console.log(`[generateNames] wuxingLikes=${wuxingLikes.join(",")}，preferredChars=${preferredChars.join(",")}，共${preferredChars.length}字`);
-
-  const charInfo = await queryKangxiChars(preferredChars.slice(0, 20));
-  console.log(`[generateNames] queryKangxiChars 返回${charInfo.length}条`);
-  const charMap = new Map(charInfo.map((c) => [c.character, { ...c, strokeCount: c.stroke_count }]));
-
-  const suitableChars = preferredChars.filter((char) => {
-    const info = charMap.get(char);
-    return !!info;
-  });
-  console.log(`[generateNames] suitableChars=${suitableChars.join(",")}，共${suitableChars.length}字`);
-
-  // 生成更多候选（最后会因音律过滤掉一部分）
-  const maxPairs = Math.min(50, Math.floor(suitableChars.length / 2));
-  console.log(`[generateNames] maxPairs=${maxPairs}`);
-
-  for (let i = 0; i < maxPairs; i++) {
-    const char1 = suitableChars[i * 2];
-    const char2 = suitableChars[i * 2 + 1];
-    if (!char1 || !char2) continue;
-
-    const info1 = charMap.get(char1);
-    const info2 = charMap.get(char2);
-
-    // ── 音律过滤：两个字声调不能相同 ──
-    const p1 = info1?.pinyin?.split(",")[0] || "";
-    const p2 = info2?.pinyin?.split(",")[0] || "";
-    const tone1 = extractTone(p1);
-    const tone2 = extractTone(p2);
-    if (tone1 > 0 && tone2 > 0 && tone1 === tone2) {
-      // 同声调，跳过
-      continue;
+    const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
+      `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 LIMIT 30`,
+      [wx]
+    );
+    for (const r of rows) {
+      allChars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
     }
-
-    // ── 五行过滤：两个字不能同属一行 ──
-    if (info1?.wuxing && info2?.wuxing && info1.wuxing === info2.wuxing) {
-      continue;
-    }
-
-    const fullName = surname + char1 + char2;
-    const pinyin = [p1, p2].join(" ");
-    const wuxing = (info1?.wuxing || "") + (info2?.wuxing || "");
-
-    names.push({
-      name: fullName,
-      givenName: char1 + char2,
-      pinyin: pinyin.trim(),
-      wuxing: wuxing || "未知",
-      meaning: `${info1?.meaning || ""}；${info2?.meaning || ""}`,
-      strokeCount: (info1?.strokeCount || 0) + (info2?.strokeCount || 0),
-    });
   }
-  console.log(`[generateNames] 完成，返回${names.length}个名字`);
+  console.log(`[generateNames] 数据库查询 wuxing=${wuxingLikes.join(",")} → ${allChars.length}字`);
 
-  return names;
+  if (allChars.length < 2) {
+    console.warn("[generateNames] 字数不足，直接返回空");
+    return [];
+  }
+
+  // 全排列配对（避免只用相邻两个字配对导致耗尽）
+  const result: any[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < allChars.length; i++) {
+    for (let j = i + 1; j < allChars.length; j++) {
+      const c1 = allChars[i];
+      const c2 = allChars[j];
+
+      // 音律过滤
+      const p1 = c1.pinyin?.split(",")[0] || "";
+      const p2 = c2.pinyin?.split(",")[0] || "";
+      const tone1 = extractTone(p1);
+      const tone2 = extractTone(p2);
+      if (tone1 > 0 && tone2 > 0 && tone1 === tone2) continue;
+
+      // 五行过滤
+      if (c1.wuxing && c2.wuxing && c1.wuxing === c2.wuxing) continue;
+
+      const key = [c1.char, c2.char].sort().join("");
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      result.push({
+        name: surname + c1.char + c2.char,
+        givenName: c1.char + c2.char,
+        pinyin: [p1, p2].join(" "),
+        wuxing: c1.wuxing + c2.wuxing,
+        meaning: `${c1.meaning}；${c2.meaning}`,
+        strokeCount: c1.strokeCount + c2.strokeCount,
+      });
+    }
+  }
+
+  console.log(`[generateNames] 全排列配对 → ${result.length}个候选`);
+  return result;
 }
 
 // 为名字匹配典籍出处
