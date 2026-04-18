@@ -10,14 +10,41 @@
 
 import { StructuredIntent, NamingRequest } from "./naming-engine";
 
-// SiliconFlow API配置（兼容原有DEEPSEEK_API_KEY环境变量）
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-// SiliconFlow国内节点，延迟比api.deepseek.com低很多
-const DEEPSEEK_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+// API Provider 检测：自动识别 key 类型选择最优端点
+function getApiConfig() {
+  const key = process.env.DEEPSEEK_API_KEY || '';
+  if (key.startsWith("sk-or-v1-")) {
+    // OpenRouter（国际节点，Vercel直连快）
+    return {
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      model: "meta-llama/llama-3-8b-instruct",
+      timeout: 15000,
+      extraHeaders: { "HTTP-Referer": "https://seekname.cn", "X-Title": "seekname" },
+      name: "OpenRouter",
+    };
+  }
+  if (key.startsWith("gsk_")) {
+    // Groq（国际节点）
+    return {
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      model: "deepseek-ai/DeepSeek-V3-0324",
+      timeout: 12000,
+      name: "Groq",
+    };
+  }
+  // 默认：SiliconFlow（国内节点）
+  return {
+    url: "https://api.siliconflow.cn/v1/chat/completions",
+    model: "deepseek-ai/DeepSeek-V3",
+    timeout: 9500,
+    name: "SiliconFlow",
+  };
+}
 
 // 检查API密钥是否可用
 export function isDeepSeekAvailable(): boolean {
-  return !!DEEPSEEK_API_KEY && DEEPSEEK_API_KEY.length > 0;
+  const key = process.env.DEEPSEEK_API_KEY || '';
+  return key.length > 0;
 }
 
 // DeepSeek JSON 解析辅助函数（处理 markdown 代码块包裹）
@@ -41,7 +68,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 9
   }
 }
 
-// 调用DeepSeek API（带15秒超时保护）
+// 调用DeepSeek API（带超时保护）
 async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
@@ -49,18 +76,25 @@ async function callDeepSeek(
   maxTokens: number = 1000
 ): Promise<string> {
   if (!isDeepSeekAvailable()) {
-    throw new Error('SiliconFlow API密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量');
+    throw new Error('API密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量');
   }
 
+  const cfg = getApiConfig();
+
   try {
-    const response = await fetchWithTimeout(DEEPSEEK_API_URL, {
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      'Content-Type': 'application/json',
+    };
+    if (cfg.extraHeaders) {
+      Object.assign(headers, cfg.extraHeaders);
+    }
+
+    const response = await fetchWithTimeout(cfg.url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
-        model: 'deepseek-ai/DeepSeek-V3',
+        model: cfg.model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -69,21 +103,21 @@ async function callDeepSeek(
         max_tokens: maxTokens,
         stream: false,
       }),
-    });
+    }, cfg.timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`SiliconFlow API错误: ${response.status} - ${errorText}`);
+      throw new Error(`${cfg.name} API错误 ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
     return data.choices[0].message.content.trim();
   } catch (error: any) {
     if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-      console.warn('[DeepSeek] 请求超时（15s），跳过此次调用');
-      throw new Error('DeepSeek API 调用超时，已跳过');
+      console.warn(`[${cfg.name}] 请求超时（${cfg.timeout / 1000}s），跳过此次调用`);
+      throw new Error(`${cfg.name} API 调用超时，已跳过`);
     }
-    console.error('调用DeepSeek API失败:', error);
+    console.error(`调用${cfg.name} API失败:`, error);
     throw error;
   }
 }
