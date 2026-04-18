@@ -28,8 +28,8 @@ function parseDeepSeekJson(raw: string): unknown {
   return JSON.parse(jsonStr);
 }
 
-// 8秒超时封装（Vercel Hobby 最大 10s，留 2s 余量）
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 8000): Promise<Response> {
+// 9.5秒超时封装（Vercel 最大 10s 硬超时，留 0.5s 余量给响应处理）
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 9500): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {

@@ -325,7 +325,7 @@ export async function aiCompose(
 
   console.log(`[AI Composer] 字池摘要长度=${poolSummary.length} chars`);
 
-  // 2. 调用 DeepSeek（8秒超时）
+  // 2. 调用 DeepSeek（9.5秒超时，留 0.5s 给 Vercel 函数退出处理）
   if (!DeepSeekIntegration.isAvailable()) {
     console.warn("[AI Composer] DeepSeek 不可用，降级到规则循环");
     return config.fallbackToRules
@@ -335,11 +335,11 @@ export async function aiCompose(
 
   let entries: any[] = [];
   try {
-    console.log("[AI Composer] 调用 DeepSeek（8秒超时）...");
+    console.log("[AI Composer] 调用 DeepSeek（9.5秒超时）...");
     const rawResponse = await Promise.race([
       DeepSeekIntegration.callRaw(system, user, 0.7, 6000),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("DeepSeek 超时降级")), 8000)
+        setTimeout(() => reject(new Error("DeepSeek 超时降级")), 9500)
       ),
     ]);
 
@@ -660,6 +660,34 @@ const CLASSIC_CHARS_BY_STYLE: Record<string, Array<{ character: string; wx: stri
   ],
 };
 
+// 典籍字拼音字典（CLASSIC_CHARS_BY_STYLE 中所有字的拼音）
+const CLASSIC_PINYIN_MAP: Record<string, string> = {
+  德:"de2", 才:"cai2", 仁:"ren2", 智:"zhi4", 慧:"hui4", 文:"wen2", 思:"si1", 贤:"xian2",
+  安:"an1", 宁:"ning2", 康:"kang1", 福:"fu2", 祥:"xiang2", 顺:"shun4", 吉:"ji2",
+  山:"shan1", 川:"chuan1", 林:"lin2", 松:"song1", 月:"yue4", 星:"xing1", 风:"feng1",
+  云:"yun2", 海:"hai3", 天:"tian1", 玉:"yu4", 泉:"quan2", 泽:"ze2",
+  志:"zhi4", 远:"yuan3", 宏:"hong2", 鹏:"peng2", 飞:"fei1", 扬:"yang2", 翔:"xiang2",
+  诚:"cheng2", 义:"yi4", 礼:"li3", 忠:"zhong1", 孝:"xiao4", 雅:"ya3", 静:"jing4", 纯:"chun2",
+  婉:"wan3", 柔:"rou2", 娟:"juan1", 婷:"ting2", 秀:"xiu4", 妍:"yan2", 洁:"jie2",
+  欣:"xin1", 瑶:"yao2",
+  嘉:"jia1", 懿:"yi4", 昭:"zhao1", 清:"qing1", 华:"hua4", 宜:"yi2",
+  言:"yan2", 予:"yu3", 维:"wei2", 永:"yong3", 家:"jia1", 乐:"le4", 心:"xin1", 明:"ming2",
+};
+
+// 典籍字笔画字典
+const CLASSIC_STROKE_MAP: Record<string, number> = {
+  德:15, 才:3,  仁:4,  智:12, 慧:15, 文:4,  思:9,  贤:15,
+  安:6,  宁:5,  康:11, 福:13, 祥:11, 顺:9,  吉:6,
+  山:3,  川:3,  林:8,  松:8,  月:4,  星:9,  风:4,
+  云:4,  海:10, 天:4,  玉:5,  泉:9,  泽:8,
+  志:7,  远:7,  宏:7,  鹏:13, 飞:9,  扬:6,  翔:12,
+  诚:8,  义:3,  礼:5,  忠:8,  孝:7,  雅:12, 静:14, 纯:7,
+  婉:11, 柔:9,  娟:10, 婷:12, 秀:7,  妍:7,  洁:9,
+  欣:8,  瑶:14,
+  嘉:14, 懿:22, 昭:9,  清:11, 华:10, 宜:8,
+  言:7,  予:4,  维:14, 永:5,  家:10, 乐:5,  心:4,  明:8,
+};
+
 /**
  * Fallback：当 LLM 不可用或失败时，使用典籍启发式规则组合
  * 相比旧版：
@@ -767,7 +795,6 @@ async function fallbackRuleBasedCompose(
     });
   }
   console.log(`[Fallback] 典籍字池: ${classicChars.length} 个`);
-  const allClassicCharsSet = new Set(classicChars.map((c) => c.character));
 
   // ── 3. 合并字池：典籍字 + 原字池（优先典籍）──
   const wuxingList = [...supportedWuxing];
@@ -844,21 +871,27 @@ async function fallbackRuleBasedCompose(
     return buildCandidateFromPair(chars, intent, surname, config, phonetic.overallScore);
   };
 
-  // 构建全字池：典籍字 + 数据库字，优先多样性
-  const allClassicChars = [
-    ...classicChars,
-    ...Object.values(CLASSIC_CHARS_BY_STYLE).flat().filter(
-      (e) => !allClassicCharsSet.has(e.character)
-    ),
-  ];
+// 典籍字完整信息补充（pinyin + strokeCount），使 allClassicChars 类型一致
+  const CLASSIC_CHAR_POOL: CharacterInfo[] = Object.values(CLASSIC_CHARS_BY_STYLE)
+    .flat()
+    .map((e) => ({
+      character: e.character,
+      pinyin: CLASSIC_PINYIN_MAP[e.character] || e.character,
+      wuxing: e.wx,
+      meaning: e.meaning,
+      strokeCount: CLASSIC_STROKE_MAP[e.character] || 8,
+      source: e.source,
+      sourceText: e.sourceText,
+    }));
 
+  // 构建全字池：数据库字 + 典籍补充字（去重，以数据库为准）
   const allPool = shuffle([
     ...new Map(
-      [...primaryChars, ...supplementalChars, ...allClassicChars].map((c) => [c.character, c])
+      [...primaryChars, ...supplementalChars, ...CLASSIC_CHAR_POOL].map((c) => [c.character, c])
     ).values(),
   ]);
 
-  console.log(`[Fallback] 全字池大小: ${allPool.length}，primary:${primaryChars.length} supplemental:${supplementalChars.length} classic:${allClassicChars.length}`);
+  console.log(`[Fallback] 全字池大小: ${allPool.length}，primary:${primaryChars.length} supplemental:${supplementalChars.length} classic:${CLASSIC_CHAR_POOL.length}`);
 
   // 广泛生成：两层循环，最多60个
   let generated = 0;
