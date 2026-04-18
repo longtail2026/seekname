@@ -49,11 +49,11 @@ export async function GET() {
       ok: response.ok,
       status: response.status,
       latencyMs: Date.now() - testStart,
-    };
+    } as Record<string, unknown>;
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '无法读取错误响应');
-      results.step2_connectivity.errorBody = errorText.slice(0, 300);
+      (results.step2_connectivity as Record<string, unknown>).errorBody = errorText.slice(0, 300);
       return NextResponse.json(results);
     }
 
