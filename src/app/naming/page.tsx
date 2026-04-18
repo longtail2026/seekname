@@ -602,7 +602,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
         )}
 
         {/* 选中名字的操作区 */}
-        {names[selectedIdx] && !showPaywall || (unlocked || !showPaywall) && names[selectedIdx] ? (
+        {names[selectedIdx] && (!showPaywall || unlocked) ? (
           <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-[#E5DDD3]">
             <div className="text-center mb-4">
               <div
@@ -630,12 +630,17 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
               </button>
               <Link
                 href={(() => {
-                  const n = names[selectedIdx];
-                  if (!n) return "#";
-                  const fullName = surname + n.name;
-                  const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
-                  const data = stored ? encodeURIComponent(btoa(stored)) : "";
-                  return `/naming/${encodeURIComponent(fullName)}?surname=${encodeURIComponent(surname)}&gender=${encodeURIComponent(gender)}&birthDate=${encodeURIComponent(birthDate)}&data=${data}`;
+                  try {
+                    const n = names[selectedIdx];
+                    if (!n) return "#";
+                    const fullName = surname + n.name;
+                    const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
+                    // btoa 不支持中文，需先 encodeURIComponent 再 btoa
+                    const data = stored ? btoa(encodeURIComponent(stored)) : "";
+                    return `/naming/${encodeURIComponent(fullName)}?surname=${encodeURIComponent(surname)}&gender=${encodeURIComponent(gender)}&birthDate=${encodeURIComponent(birthDate)}&data=${data}`;
+                  } catch {
+                    return "#";
+                  }
                 })()}
                 className="flex items-center gap-2 px-5 py-2 bg-[#C84A2A] text-white rounded-lg hover:bg-[#A83A1F] transition-colors text-sm"
               >

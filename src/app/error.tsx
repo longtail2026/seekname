@@ -92,22 +92,27 @@ export default function Error({
         请稍后重试，或联系 support@seekname.cn
       </p>
 
-      {/* Digest（调试用，可选显示） */}
-      {process.env.NODE_ENV === "development" && error.digest && (
-        <div
-          style={{
-            fontSize: 11,
-            color: "#C0A080",
-            marginBottom: 24,
-            padding: "6px 16px",
-            background: "rgba(200,180,140,0.15)",
-            borderRadius: 6,
-            fontFamily: "monospace",
-          }}
-        >
-          Error ID: {error.digest}
-        </div>
-      )}
+      {/* 调试信息（临时开启，方便排查生产问题） */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "#fff",
+          marginBottom: 24,
+          padding: "12px 16px",
+          background: "#c0392b",
+          borderRadius: 8,
+          fontFamily: "monospace",
+          maxWidth: 480,
+          textAlign: "left",
+          wordBreak: "break-all",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        <div style={{ fontWeight: "bold", marginBottom: 6 }}>🔧 错误详情（临时调试）:</div>
+        <div>message: {error.message || "(空)"}</div>
+        {error.digest && <div>digest: {error.digest}</div>}
+        <div>stack: {error.stack?.slice(0, 600) || "(空)"}</div>
+      </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
         <button
