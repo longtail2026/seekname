@@ -737,7 +737,7 @@ async function fallbackRuleBasedCompose(
   }
 
   // 查询 kangxi_dict 获取拼音和笔画
-  const uniqueClassicChars = [...new Set(allClassicEntries.map((e) => e.char))];
+  const uniqueClassicChars = [...new Set(allClassicEntries.map((e) => e.character))];
   let charDetails: Map<string, { pinyin: string; strokeCount: number }> = new Map();
   try {
     const dbChars = await prisma.kangxiDict.findMany({
@@ -754,10 +754,10 @@ async function fallbackRuleBasedCompose(
 
   // 构建典籍字列表（按支持的五行过滤）
   for (const entry of allClassicEntries) {
-    const detail = charDetails.get(entry.char);
+    const detail = charDetails.get(entry.character);
     classicChars.push({
-      character: entry.char,
-      pinyin: detail?.pinyin || entry.char,
+      character: entry.character,
+      pinyin: detail?.pinyin || entry.character,
       wuxing: entry.wx,
       meaning: entry.meaning,
       strokeCount: detail?.strokeCount || 8,
