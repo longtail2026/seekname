@@ -12,6 +12,7 @@
 import { prisma } from "./prisma";
 import { DeepSeekIntegration } from "./deepseek-integration";
 import { PhoneticOptimizer } from "./phonetic-optimizer";
+import { FEMALE_TABOO_CHARS, MALE_TABOO_CHARS, UNIVERSAL_TABOO_CHARS } from "./constants";
 
 // 类型定义
 export interface NamingRequest {
@@ -416,14 +417,15 @@ export async function applyNameCompliance(
 }
 
 /**
- * 4. 安全过滤层 - 敏感词检测
+ * 4. 安全过滤层 - 敏感词检测 + 忌用字过滤
  */
 export async function applySafetyFilter(
   characters: CharacterInfo[],
-  surname: string
+  surname: string,
+  gender?: "M" | "F"
 ): Promise<CharacterInfo[]> {
   const safeChars: CharacterInfo[] = [];
-  
+
   // 1. 查询敏感词库
   const sensitiveWords = await prisma.sensitiveWord.findMany({
     where: {
@@ -433,7 +435,7 @@ export async function applySafetyFilter(
     },
     take: 100,
   });
-  
+
   // 2. 构建敏感字集合
   const sensitiveChars = new Set<string>();
   for (const word of sensitiveWords) {
@@ -441,23 +443,35 @@ export async function applySafetyFilter(
       sensitiveChars.add(char);
     }
   }
-  
-  // 3. 过滤敏感字
-  for (const char of characters) {
-    if (!sensitiveChars.has(char.character)) {
-      safeChars.push(char);
-    }
+
+  // 3. 合并所有忌用字（通用 + 性别相关）
+  const allTabooChars = new Set(UNIVERSAL_TABOO_CHARS);
+  if (gender === "F") {
+    for (const c of FEMALE_TABOO_CHARS) allTabooChars.add(c);
+  } else if (gender === "M") {
+    for (const c of MALE_TABOO_CHARS) allTabooChars.add(c);
   }
-  
-  // 4. 谐音检测（简化版）
-  // 实际应该使用更复杂的谐音检测算法
+
+  // 4. 过滤敏感字 + 忌用字
+  for (const char of characters) {
+    if (sensitiveChars.has(char.character)) {
+      continue; // 敏感字过滤
+    }
+    if (allTabooChars.has(char.character)) {
+      console.log(`[安全过滤] 过滤忌用字: ${char.character}${gender ? ` (${gender === "F" ? "女" : "男"})` : ""}`);
+      continue; // 忌用字过滤
+    }
+    safeChars.push(char);
+  }
+
+  // 5. 谐音检测（简化版）
   const homophoneFiltered = safeChars.filter(char => {
     const pinyin = char.pinyin.toLowerCase();
     // 避免不吉利的谐音
     const badHomophones = ["si", "wang", "bai", "po", "can"];
     return !badHomophones.some(bad => pinyin.includes(bad));
   });
-  
+
   return homophoneFiltered;
 }
 
@@ -605,7 +619,7 @@ export async function generateNames(request: NamingRequest): Promise<NamingResul
     const compliantChars = await applyNameCompliance(matchedChars, intent);
     
     // 4. 安全过滤
-    const safeChars = await applySafetyFilter(compliantChars, intent.surname);
+    const safeChars = await applySafetyFilter(compliantChars, intent.surname, intent.gender);
     
     // 5. AI组合与润色
     const candidates = await generateAndPolishNames(safeChars, intent);

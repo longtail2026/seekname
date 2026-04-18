@@ -48,6 +48,8 @@ export interface AiComposerConfig {
   maxCandidates: number;
   /** 目标字数 */
   wordCount: 2 | 3;
+  /** 从典籍库匹配的条目（按期望词检索），传给 AI 参考真实出处 */
+  classicalEntries?: Array<{ book: string; ancient_text: string; modern_text: string }>;
 }
 
 // LLM 返回的单个名字结构（对应 JSON 输出格式）
@@ -75,15 +77,18 @@ function buildCompositionPrompt(
   intent: StructuredIntent,
   poolSummary: string
 ): { system: string; user: string } {
-  const { scenario, wordCount } = config;
+  const { scenario, wordCount, classicalEntries } = config;
 
   const scenarios: Record<NamingScenario, { system: string; userBase: string }> = {
     baby: {
       system: `你是一位博古通今的起名大师，擅长从古典典籍中汲取灵感，为宝宝起一个好名字。
 
 你的命名哲学：
-1. 名字要有出处有典故，不能凭空臆造
+1. 名字要有出处有典故，从【真实典籍出处参考】中选择
 2. 音律要和谐流畅，平仄相间，避免拗口
+   - 禁止：两个字同声调（平平、仄仄、上上、去去）
+   - 禁止：两个字都是三声（第三声）—— 上声连读会变调
+   - 推荐：平仄平、仄平平、平平仄（如"涵韵""思远""瑶琳"）
 3. 寓意要积极美好，有文化内涵
 4. 组合后的名字要有整体意境，而非字义的简单堆叠
 
@@ -101,10 +106,16 @@ function buildCompositionPrompt(
       userBase: `请为姓氏"${intent.surname}"的${intent.gender === "F" ? "女孩" : "男孩"}起${wordCount}字名。
 
 【硬性约束 - 必须全部满足】
-1. 性别合适：${intent.gender === "F" ? "女孩名，禁用刚强/男性化字（如铮/锐/钧/锋/鑫/钧/烈/炎/烽），必须用柔美/灵秀字（如涵/瑶/琳/汐/桐/岚/晴/婷/雅/婉）" : "男孩名，用大气/稳重字，禁用过于阴柔字"}
+1. 性别合适：${intent.gender === "F" ? "女孩名，禁用刚强/男性化字（如铮/锐/钧/锋/鑫/烈/炎/烽），必须用柔美/灵秀字（如涵/瑶/琳/汐/桐/岚/晴/婷/雅/婉）" : "男孩名，用大气/稳重字，禁用过于阴柔字"}
 2. 意象契合：${intent.imagery?.length ? `名字要体现「${intent.imagery.join("、")}」的意境，如用户说"温柔"则名字要给人柔美感觉，用户说"聪慧"则名字要有灵气` : "名字要朗朗上口，有美好寓意"}
-3. 五行平衡：${intent.wuxing?.join("、") || "无特定"}（两个字不要全是同五行，鼓励金木/金水/木水/水火等组合）
+3. 五行平衡：${intent.wuxing?.join("、") || "无特定"}——严禁两个字同属一行！第一个字若带"金"旁，第二个字必须选"木/水/火/土"旁的字；第一个字若带"木"旁，第二个字选"金/水/火/土"；依此类推。五行齐全的名字更有气场。
 4. 避免同部首：两个字不要同偏旁（如金金、火火、木木结构）
+
+【起名忌用字 - 绝对禁止使用以下任何字】
+${intent.gender === "F" ? "女性忌用：伶、婵、娥、晓、花、芬、洁、珍、娟、洪、永、德、雯、云、川、棋、菲、梅、娜、涵、枝、英、萍、秋、霜、丹、贞、素、瑶、馨、雪、彤、秀、君、霞、慧、莉、婉、静、兰、仪、黛、蔓、雁、屏、眉、彩、艳、华、璧、真、卿、若、雅、燕、玲、丽、艺、如、姗、卉、瑷、姝、宸、懿等（这些字不利婚姻或对运势有负面影响）" : ""}
+${intent.gender === "M" ? "男性忌用：言、源、庆、华、忠、新、墨、厚、建、伟、哲、益、阳、岩、旭、勇、兴、家、刚、德、世、斌、彬、波、国、利、康、彦、成、瑞、毅、增、超、宪、灿、武、胜、虎、帝、梓、义、镔、晟、谕、葳、聪、星、译、杰等" : ""}
+男女皆忌：尧、舜、禹（古圣名，用之易出意外）、孤、寡、悲、哀、愁、苦、惨、凄、阴、暗、霉、败、邪、凶、死、亡、鬼、妖、魔、怪、病、疯、残、杀、绝、独、寂、寞、殇、波、文、晋等。
+⚠️ 名字中的每一个字都不得出现在上述忌用字列表中！
 
 用户补充期望：${intent.notes || "无"}
 忌讳：${intent.avoidances?.join("、") || "无"}
@@ -116,8 +127,14 @@ ${poolSummary}
 【硬性约束 - 必须全部满足】
 1. 性别合适：${intent.gender === "F" ? "女孩名，禁用刚强/男性化字，必须用柔美/灵秀字" : "男孩名，用大气/稳重字"}
 2. 两个字必须部首不同！绝对不能出现两个金字旁（如"铭鑫""锐钧"）、两个木旁、两个水旁等。
-3. 五行搭配要求：两个字不要全是同五行，鼓励金木/金水/木水/水火等组合。
+3. 五行搭配要求：两个字严禁同属一行！第1字若五行是"金"，第2字必须选"木/水/火/土"；第1字若五行是"木"，第2字选"金/水/火/土"。五行相生相克才更有气场。
 4. 意象契合：${intent.imagery?.length ? `名字要体现「${intent.imagery.join("、")}」的意境` : "名字要朗朗上口，有美好寓意"}
+5. ⚠️【最高优先级】绝对不能使用任何忌用字！每个字都要检查不在忌用列表中。
+${classicalEntries?.length ? `
+【真实典籍出处参考 - 请优先使用以下典籍】
+请从以下真实典籍中为名字选择出处，不要编造典籍名称！
+${classicalEntries.slice(0, 8).map((e, i) => `${i + 1}. 《${e.book}》原文："${e.ancient_text?.slice(0, 40)}..." → 释义："${e.modern_text?.slice(0, 40)}..."`).join('\n')}
+` : ''}
 【加分项】有典籍出处、名字有诗意有画面感、音律好听。
 输出严格 JSON 数组，不要输出其他内容。`,
     },
@@ -153,7 +170,7 @@ ${poolSummary}
 
 【硬性约束】
 1. 两个字必须部首不同，禁止两个金字旁/两个木旁/两个水旁/两个火旁/两个土旁。
-2. 五行搭配尽量多样化：两个字不要同属一行（如金+金、木+木），五行平衡的名字更有气场。
+2. 五行严禁同属一行！第1字若五行是"金"，第2字必须选"木/水/火/土"；第1字若五行是"木"，第2字选"金/水/火/土"。
 输出严格 JSON 数组，不要输出其他内容。`,
     },
 
@@ -319,7 +336,11 @@ export async function aiCompose(
   pool: CharacterInfo[],
   intent: StructuredIntent,
   config: AiComposerConfig,
-  surname?: string
+  surname?: string,
+  /** 从典籍库按意象关键词匹配的真实典籍条目 */
+  classicalEntries?: Array<{ book: string; ancient_text: string; modern_text: string }>,
+  /** 备用参数，兼容两种传参方式 */
+  _fallbackEntries?: Array<{ book: string; ancient_text: string; modern_text: string }>
 ): Promise<NameCandidate[]> {
   console.log(`[AI Composer] 开始，场景=${config.scenario}，字池大小=${pool.length}`);
 
@@ -331,9 +352,13 @@ export async function aiCompose(
       : [];
   }
 
-  // 1. 构建 Prompt
+  // 1. 构建 Prompt（合并典籍条目）
   const poolSummary = buildPoolSummary(pool);
-  const { system, user } = buildCompositionPrompt(config, intent, poolSummary);
+  const promptConfig: AiComposerConfig = {
+    ...config,
+    classicalEntries: classicalEntries || config.classicalEntries,
+  };
+  const { system, user } = buildCompositionPrompt(promptConfig, intent, poolSummary);
 
   console.log(`[AI Composer] 字池摘要长度=${poolSummary.length} chars`);
 
@@ -378,6 +403,10 @@ export async function aiCompose(
 
   // 4. 后验：过滤 + 构建候选
   const validatedCandidates: NameCandidate[] = [];
+  // 典籍库：优先用第6参数（route.ts查询的真实典籍），其次用 config 兜底
+  const entries4source = classicalEntries || config.classicalEntries || [];
+  // 过滤统计
+  const filteredCount = { tone: 0, wuxing: 0, pool: 0, taboo: 0 };
 
   for (const entry of entries) {
     // 4a. 验证每个字都在字池中存在
@@ -398,10 +427,57 @@ export async function aiCompose(
     candidate.scoreBreakdown.harmony = phonetic.overallScore;
     candidate.warnings.push(...phonetic.warnings, ...phonetic.suggestions);
 
-    // 4d. 安全分默认 85（后续并行更新 Top 2）
+    // 【强制过滤】音律不佳的名字（平仄不和谐/同声调/同韵）：直接丢弃
+    // evaluatePhoneticQuality 产生的警告关键词包括："平仄搭配不够和谐"
+    const badTone = phonetic.warnings.find(
+      (w: string) => w.includes("平仄搭配不够和谐") || w.includes("韵母不和谐") || w.includes("同声母")
+    );
+    if (badTone) {
+      filteredCount.tone++;
+      continue;
+    }
+
+    // 【强制过滤】五行同属一行（如"金金"、"木木"）：直接丢弃
+    if (validatedChars.length >= 2) {
+      const wx1 = (validatedChars[0]?.wuxing || "").trim();
+      const wx2 = (validatedChars[1]?.wuxing || "").trim();
+      if (wx1 && wx2 && wx1 === wx2) {
+        console.log(`[AI Composer] 五行重复过滤：${entry.name}（${wx1}＋${wx2}），丢弃`);
+        filteredCount.wuxing++;
+        continue;
+      }
+    }
+
+    // 4d. 【强制分配真实典籍出处】不管 AI 有没有提供 source，都必须确保有真实典籍
+    if (entries4source.length > 0) {
+      if (candidate.sources.length > 0) {
+        // AI 提供了典籍 → 验证是否是真实典籍
+        const aiBook = candidate.sources[0].book;
+        const normalizedBook = aiBook.replace(/[《》]/g, "");
+        const isReal = entries4source.some(
+          (e) => e.book.replace(/[《》]/g, "").includes(normalizedBook) || normalizedBook.includes(e.book.replace(/[《》]/g, ""))
+        );
+        if (!isReal) {
+          // AI 编造了典籍！用真实典籍替换
+          const entryIdx = validatedCandidates.length % entries4source.length;
+          const realEntry = entries4source[entryIdx];
+          candidate.sources = [{ book: realEntry.book, text: realEntry.ancient_text?.slice(0, 50) }];
+          candidate.warnings.push(`⚠️ AI 典籍"${aiBook}"为编造，已替换为真实典籍《${realEntry.book}》`);
+          console.log(`[AI Composer] 典籍替换：${entry.name} 的"${aiBook}" → 《${realEntry.book}》`);
+        }
+      } else {
+        // AI 没提供典籍 → 直接分配真实典籍（按索引轮换，避免重复）
+        const entryIdx = validatedCandidates.length % entries4source.length;
+        const realEntry = entries4source[entryIdx];
+        candidate.sources = [{ book: realEntry.book, text: realEntry.ancient_text?.slice(0, 50) }];
+        console.log(`[AI Composer] 分配典籍：${entry.name} → 《${realEntry.book}》`);
+      }
+    }
+
+    // 4e. 安全分默认 85（后续并行更新 Top 2）
     candidate.scoreBreakdown.safety = 85;
 
-    // 4e. 计算综合分（占位，computeRealScores 会覆盖）
+    // 4f. 计算综合分（占位，computeRealScores 会覆盖）
     candidate.score = calculateOverallScore(candidate, config.scenario);
 
     validatedCandidates.push(candidate);
@@ -425,7 +501,7 @@ export async function aiCompose(
     .slice(0, config.maxCandidates);
 
   console.log(
-    `[AI Composer] 最终返回 ${sorted.length} 个名字，最高分=${sorted[0]?.score}`
+    `[AI Composer] 最终返回 ${sorted.length} 个名字（音律过滤${filteredCount.tone}个，五行过滤${filteredCount.wuxing}个，字池过滤${filteredCount.pool}个），最高分=${sorted[0]?.score}`
   );
   return sorted;
 }

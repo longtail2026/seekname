@@ -19,6 +19,7 @@ import { queryRaw, executeRaw } from "@/lib/prisma";
 import { generateOrderNo, generateAnonymousName } from "@/lib/order";
 import { verifyToken } from "@/lib/auth";
 import { aiCompose } from "@/lib/ai-composer";
+import { parseIntent } from "@/lib/intent-parser";
 import type { NamingScenario } from "@/lib/ai-composer";
 
 // ─── 起名配置 ───
@@ -154,15 +155,46 @@ async function generateNames(
   return names;
 }
 
-// 为名字匹配典籍出处
-async function attachSources(names: any[], expectations?: string) {
-  const keywords = expectations
-    ? expectations.split(/[,，\s]+/).filter(Boolean)
-    : ["德", "才", "智", "仁", "义"];
+// 为名字匹配典籍出处（仅补充没有 source 的名字，保留 AI 已生成的典籍）
+// keywords: 已扩展的关键词列表（来自 intent-parser）
+async function attachSources(names: any[], expandedKeywords: string[] = []) {
+  // 统计已有 source 的数量
+  const withSource = names.filter((n) => n.source && n.source.book).length;
+  if (withSource === names.length) {
+    console.log(`[API] attachSources: 全部 ${withSource} 个名字已有典籍，跳过补充`);
+    return names;
+  }
 
-  const entries = await queryClassics(keywords, 5);
+  const keywords = expandedKeywords.length ? expandedKeywords : ["德", "才", "智", "仁", "义"];
+
+  // 【关键】用扩展后的关键词列表逐个查询典籍并去重
+  const seen = new Set<string>();
+  const entries: Array<{ id: string; book_name: string; ancient_text: string; modern_text: string }> = [];
+  for (const kw of keywords.slice(0, 15)) {
+    const matched = await queryClassics([kw], 2);
+    for (const e of matched) {
+      if (!seen.has(e.id)) {
+        seen.add(e.id);
+        entries.push(e);
+      }
+    }
+  }
+  if (!entries.length) {
+    console.log(`[API] attachSources: 典籍库无匹配记录，跳过`);
+    return names;
+  }
+
+  if (!entries.length) {
+    console.log(`[API] attachSources: 典籍库无匹配记录，跳过`);
+    return names;
+  }
 
   return names.map((name, index) => {
+    // 【关键】如果名字已有 AI 生成的典籍出处，保留不覆盖！
+    if (name.source && name.source.book) {
+      return name;
+    }
+    // 只有没有典籍出处时才补充
     const entry = entries[index % entries.length];
     return {
       ...name,
@@ -172,7 +204,7 @@ async function attachSources(names: any[], expectations?: string) {
             text: entry.ancient_text?.slice(0, 50) + "...",
             fullText: entry.modern_text,
           }
-        : undefined,
+        : name.source, // 保留原 source（即使是 undefined）
     };
   });
 }
@@ -335,6 +367,9 @@ export async function POST(request: NextRequest) {
       : "baby";
     const useAiComposer = body.useAiComposer !== false; // 默认开启
 
+    // ── 解析用户意图（分词+同义词扩展），所有分支都需要 ──
+    const { keywords: _, expanded } = parseIntent(expectations);
+
     let rawNames: any[] = [];
 
     if (useAiComposer) {
@@ -342,24 +377,9 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`[API] 使用 AI Composer，场景=${scenario}`);
 
-        // 构建 StructuredIntent（与 naming-engine.ts 兼容的格式）
-        const intent = {
-          surname,
-          gender: gender as "M" | "F",
-          birthDate,
-          birthTime,
-          style: style ? [style] : [],
-          wordCount: 2 as const,
-          wuxing: wuxingResult.likes,
-          avoidances: [] as string[],
-          imagery: expectations
-            ? expectations.split(/[,，\s]+/).filter(Boolean)
-            : [],
-          sourcePreference: [],
-          notes: expectations,
-        };
+        console.log(`[API] 意图解析：原始=${expectations || "无"} → 扩展=${expanded.slice(0, 15).join(",")}...`);
 
-        // 构建候选字池（从五行字库中取）
+        // ── 构建候选字池（从五行字库中取）──
         const poolChars: Array<{ char: string; wx: string }> = [];
         for (const wx of wuxingResult.likes) {
           const chars = NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars] || [];
@@ -391,38 +411,28 @@ export async function POST(request: NextRequest) {
           });
 
         // ── 补充完整五行字池（金/木/水/火/土各20字，共100字）──
-        // 【关键】只从wuxingResult.likes构建的pool只有9字（金旁），导致AI只能生成金+金组合
-        // 补充五行齐全的字池后，AI可以从多样化的字中组合，避免单一五行
-        // 注意：按性别过滤——女孩名只用女性倾向字，男孩名只用男性/中性字
         const isFemale = gender === "F";
         const FULL_POOL_CHARS: Array<{ char: string; wx: string }> = [
-          // 金（按性别倾向细分）
           ...(isFemale
-            ? ["铭","锦","钰","瑞","瑜","珞","琛","琦","瑶","珂","琳","钥","锦"].map(c=>({char:c,wx:"金"}))
-            : ["铭","鑫","钧","铮","锐","锋","瑞","铎","锡","铠","镕","钟","钱","镛","锡","钧","锐","锋"].map(c=>({char:c,wx:"金"}))
+            ? ["铭","锦","钰","瑞","瑜","珞","琛","琦","瑶","珂","琳","钥"].map(c=>({char:c,wx:"金"}))
+            : ["铭","鑫","钧","铮","锐","锋","瑞","铎","锡","铠","镕","钟"].map(c=>({char:c,wx:"金"}))
           ),
-          // 木（按性别倾向细分）
           ...(isFemale
-            ? ["桐","楠","梅","桦","榆","桂","枫","樱","槿","榕","杨","柳","竹","苹","荔","萱","兰","蓉","萧"].map(c=>({char:c,wx:"木"}))
-            : ["林","森","梓","柏","松","槐","楷","栋","梁","桐","楠","榆","枫","杨","桉","楷","桦","柏"].map(c=>({char:c,wx:"木"}))
+            ? ["桐","楠","梅","桦","榆","桂","枫","樱","槿","榕","杨","柳"].map(c=>({char:c,wx:"木"}))
+            : ["林","森","梓","柏","松","槐","楷","栋","梁","桐","楠","榆"].map(c=>({char:c,wx:"木"}))
           ),
-          // 水（男女皆宜，侧重不同）
           ...(isFemale
-            ? ["涵","泽","洋","沛","润","澜","淳","沁","瀚","波","泉","汐","洁","湄","潞","滢","潼","沂"].map(c=>({char:c,wx:"水"}))
-            : ["泽","浩","清","源","涛","润","澜","瀚","波","泉","滔","潮","沐","沛","溪","泓","涛","润"].map(c=>({char:c,wx:"水"}))
+            ? ["涵","泽","洋","沛","润","澜","淳","沁","瀚","波","泉","汐"].map(c=>({char:c,wx:"水"}))
+            : ["泽","浩","清","源","涛","润","澜","瀚","波","泉","滔","潮"].map(c=>({char:c,wx:"水"}))
           ),
-          // 火（女孩用柔火，男孩用旺火）
           ...(isFemale
-            ? ["炅","煦","焕","灵","晴","晓","晗","昱","晃","曼","晶","熹","暖","旻","晚","暄"].map(c=>({char:c,wx:"火"}))
-            : ["炎","煜","炜","烨","熠","灿","燃","烽","炫","耀","辉","炽","炀","烜","煌","炬","熔"].map(c=>({char:c,wx:"火"}))
+            ? ["炅","煦","焕","灵","晴","晓","晗","昱","晃","曼","晶","熹"].map(c=>({char:c,wx:"火"}))
+            : ["炎","煜","炜","烨","熠","灿","燃","烽","炫","耀","辉","炽"].map(c=>({char:c,wx:"火"}))
           ),
-          // 土（男女皆宜）
-          ...["坤","培","基","城","均","堂","圣","坚","墨","域","垚","均","安","悠","均","安","永","允","依"].map(c=>({char:c,wx:"土"})),
+          ...["坤","培","基","城","均","堂","圣","坚","墨","域","垚","安"].map(c=>({char:c,wx:"土"})),
         ];
         const poolCharSet = new Set(pool.map((p: any) => p.character));
-        const supplementalChars = FULL_POOL_CHARS
-          .filter((p) => !poolCharSet.has(p.char))
-          .slice(0, 60); // 最多加60个
+        const supplementalChars = FULL_POOL_CHARS.filter((p) => !poolCharSet.has(p.char)).slice(0, 60);
         const fullPool: typeof pool = [
           ...pool,
           ...supplementalChars.map((p) => ({
@@ -434,35 +444,65 @@ export async function POST(request: NextRequest) {
             frequency: 50,
           })),
         ];
-        // 覆盖 pool 为完整池（包含五行齐全的多样化字）
-        // 注意：wuxingResult.likes 的字已在 pool 中已排在前面，AI生成时会优先考虑
         Object.assign(pool, fullPool);
 
+        // ── 用扩展后的关键词查询典籍库，传给 AI Composer ──
+        let classicalEntries: Array<{ id: string; book_name: string; ancient_text: string; modern_text: string }> = [];
+        const seen = new Set<string>();
+        for (const kw of expanded.slice(0, 15)) {
+          const entries = await queryClassics([kw], 3);
+          for (const e of entries) {
+            if (!seen.has(e.id)) { seen.add(e.id); classicalEntries.push(e); }
+          }
+        }
+        classicalEntries = classicalEntries.slice(0, 30);
+        console.log(`[API] 典籍查询：去重后=${classicalEntries.length}条`);
+
+        // ── 构建 StructuredIntent（imagery 用扩展后的关键词）──
+        const intent = {
+          surname,
+          gender: gender as "M" | "F",
+          birthDate,
+          birthTime,
+          style: style ? [style] : [],
+          wordCount: 2 as const,
+          wuxing: wuxingResult.likes,
+          avoidances: [] as string[],
+          imagery: expanded.slice(0, 12),
+          sourcePreference: [],
+          notes: expectations,
+        };
+
         // 调用 AI Composer（含一次超时重试）
-        // 策略：OpenRouter 国际路由慢，首次 45s 超时 → 重试一次 → 再超时则走传统生成
         console.log(`[API] aiCompose 开始，候选池=${pool.length}个字`);
         let candidates: any[] = [];
         let composeError: Error | null = null;
-        // 共享结果 holder：aiCompose 完成时写入，timeout reject 时读取
         let resultHolder: any[] | null = null;
 
         for (let attempt = 1; attempt <= 2; attempt++) {
-          resultHolder = null; // 每次重试清空
+          resultHolder = null;
           const timeout = attempt === 1 ? 45000 : 40000;
           console.log(`[API] AI Composer 第 ${attempt} 次尝试，超时=${timeout / 1000}s...`);
 
-          // aiCompose 完成时写入 holder
           const aiPromise = aiCompose(pool, intent, {
             scenario,
             fallbackToRules: true,
             maxCandidates: 6,
             wordCount: 2,
-          }, surname).then((result) => {
+            classicalEntries: classicalEntries.map((e) => ({
+              book: e.book_name,
+              ancient_text: e.ancient_text,
+              modern_text: e.modern_text,
+            })),
+          }, surname, classicalEntries.map((e) => ({
+            book: e.book_name,
+            ancient_text: e.ancient_text,
+            modern_text: e.modern_text,
+          }))).then((result) => {
             resultHolder = result;
             return result;
           });
 
-          // timeout
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`AI Composer 超时(${attempt})`)), timeout)
           );
@@ -473,10 +513,9 @@ export async function POST(request: NextRequest) {
             break;
           } catch (err) {
             composeError = err as Error;
-            // timeout 触发时 aiCompose 可能已有结果，优先用它
             if (resultHolder !== null) {
               candidates = resultHolder;
-              console.log(`[API] AI Composer 第 ${attempt} 次 timeout 但有 ${candidates.length} 个结果，放弃 fallback`);
+              console.log(`[API] AI Composer 第 ${attempt} 次 timeout 但有 ${candidates.length} 个结果`);
               break;
             }
             console.warn(`[API] AI Composer 第 ${attempt} 次失败: ${composeError.message}`);
@@ -491,7 +530,7 @@ export async function POST(request: NextRequest) {
           console.warn(`[API] AI Composer 两次都失败，降级到传统生成: ${composeError}`);
           rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
           if (rawNames.length > 0) {
-            rawNames = await attachSources(rawNames, expectations);
+            rawNames = await attachSources(rawNames, expanded);
           }
         } else {
           // AI Composer 成功 → 映射结果
@@ -519,7 +558,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
-    const namesWithSource = await attachSources(rawNames, expectations);
+    const namesWithSource = await attachSources(rawNames, expanded);
     console.log(`[API] attachSources 完成，namesWithSource=${namesWithSource.length}个`);
 
     // ── 如果名字为空，直接报错（方便调试）──
