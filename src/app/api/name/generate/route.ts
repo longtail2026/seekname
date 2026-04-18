@@ -526,6 +526,7 @@ export async function POST(request: NextRequest) {
             wuxing: n.wuxing,
             meaning: n.meaning,
             source: n.source,
+            score: n.score, // 必须传递 score，否则前端随机生成分数导致乱序
           })),
         }
       : null;
