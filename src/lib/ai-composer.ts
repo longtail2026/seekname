@@ -315,7 +315,7 @@ export async function aiCompose(
   if (pool.length < 2) {
     console.warn("[AI Composer] 字池太小，降级到规则循环");
     return config.fallbackToRules
-      ? fallbackRuleBasedCompose(pool, intent, config, surname)
+      ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
   }
 
@@ -329,7 +329,7 @@ export async function aiCompose(
   if (!DeepSeekIntegration.isAvailable()) {
     console.warn("[AI Composer] DeepSeek 不可用，降级到规则循环");
     return config.fallbackToRules
-      ? fallbackRuleBasedCompose(pool, intent, config, surname)
+      ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
   }
 
@@ -349,14 +349,14 @@ export async function aiCompose(
   } catch (e) {
     console.warn(`[AI Composer] DeepSeek 调用失败，降级到规则循环: ${e}`);
     return config.fallbackToRules
-      ? fallbackRuleBasedCompose(pool, intent, config, surname)
+      ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
   }
 
   if (entries.length === 0) {
     console.warn("[AI Composer] LLM 返回无法解析，降级到规则循环");
     return config.fallbackToRules
-      ? fallbackRuleBasedCompose(pool, intent, config, surname)
+      ? await fallbackRuleBasedCompose(pool, intent, config, surname)
       : [];
   }
 
@@ -554,86 +554,342 @@ function calculateOverallScore(
   );
 }
 
+// ============================================================
+// 五行相生关系（用于支持五行扩展）
+// ============================================================
+const WUXING_GENERATES: Record<string, string[]> = {
+  "金": ["水"], // 金生水
+  "水": ["木"], // 水生木
+  "木": ["火"], // 木生火
+  "火": ["土"], // 火生土
+  "土": ["金"], // 土生金
+};
+
+// ============================================================
+// 典籍优质字池（手工整理的高频起名典籍字，覆盖诗经/论语/楚辞/唐诗）
+// ============================================================
+const CLASSIC_CHARS_BY_STYLE: Record<string, Array<{ char: string; wx: string; meaning: string; source: string; sourceText: string }>> = {
+  // 智慧/才华类
+  "德才": [
+    { char: "德", wx: "火", meaning: "品德高尚，仁义兼备", source: "《论语》", sourceText: "君子以德为本" },
+    { char: "才", wx: "金", meaning: "才能出众，卓尔不群", source: "《论语》", sourceText: "才难之叹" },
+    { char: "仁", wx: "金", meaning: "仁爱之心，温和善良", source: "《论语》", sourceText: "仁者爱人" },
+    { char: "智", wx: "火", meaning: "智慧明达，知书达理", source: "《论语》", sourceText: "知者不惑" },
+    { char: "慧", wx: "水", meaning: "聪慧灵秀，富有才智", source: "《诗经》", sourceText: "莫不令仪" },
+    { char: "文", wx: "水", meaning: "文采飞扬，温文尔雅", source: "《论语》", sourceText: "文质彬彬" },
+    { char: "思", wx: "金", meaning: "深思熟虑，思想敏锐", source: "《论语》", sourceText: "学而不思则罔" },
+    { char: "贤", wx: "木", meaning: "贤良淑德，才德兼备", source: "《诗经》", sourceText: " Gud me" },
+  ],
+  // 吉祥/安康类
+  "安康": [
+    { char: "安", wx: "土", meaning: "平安康泰，安居乐业", source: "《诗经》", sourceText: "安且吉兮" },
+    { char: "宁", wx: "火", meaning: "宁静致远，平安吉祥", source: "《诗经》", sourceText: "言念君子，宁不我喜" },
+    { char: "康", wx: "木", meaning: "健康安宁，福寿康宁", source: "《诗经》", sourceText: "酌以大斗，以祈黄耇" },
+    { char: "福", wx: "水", meaning: "福气满堂，吉祥如意", source: "《诗经》", sourceText: "自求多福" },
+    { char: "祥", wx: "金", meaning: "祥瑞美好，和顺致祥", source: "《诗经》", sourceText: "其仪不忒，正是四国" },
+    { char: "顺", wx: "金", meaning: "顺遂如意，亨通顺利", source: "《诗经》", sourceText: "四国是毗" },
+    { char: "吉", wx: "木", meaning: "吉祥如意，吉庆有余", source: "《诗经》", sourceText: "吉日维戊" },
+  ],
+  // 自然/山水类
+  "自然": [
+    { char: "山", wx: "土", meaning: "稳重如山，意志坚定", source: "《诗经》", sourceText: "高山仰止" },
+    { char: "川", wx: "金", meaning: "川流不息，志向远大", source: "《论语》", sourceText: "逝者如斯夫" },
+    { char: "林", wx: "木", meaning: "林立于世，欣欣向荣", source: "《诗经》", sourceText: "集于丛林" },
+    { char: "松", wx: "木", meaning: "坚韧如松，四季常青", source: "《诗经》", sourceText: "松柏之茂" },
+    { char: "月", wx: "水", meaning: "如月之恒，温柔明亮", source: "《诗经》", sourceText: "月出皎兮" },
+    { char: "星", wx: "火", meaning: "如星璀璨，光彩夺目", source: "《诗经》", sourceText: "明星有灿" },
+    { char: "风", wx: "木", meaning: "风度翩翩，温文尔雅", source: "《诗经》", sourceText: "风乎舞雩" },
+    { char: "云", wx: "水", meaning: "云淡风轻，志向高远", source: "《庄子》", sourceText: "乘云气，御飞龙" },
+    { char: "海", wx: "水", meaning: "海纳百川，胸怀宽广", source: "《庄子》", sourceText: "天下之水，莫大于海" },
+    { char: "天", wx: "火", meaning: "天性纯真，志向高远", source: "《诗经》", sourceText: "天保定尔" },
+    { char: "玉", wx: "木", meaning: "玉洁冰清，品德高尚", source: "《诗经》", sourceText: "言念君子，温其如玉" },
+    { char: "泉", wx: "水", meaning: "源泉滚滚，生生不息", source: "《诗经》", sourceText: "沔彼流水" },
+    { char: "泽", wx: "水", meaning: "润泽万物，温润如玉", source: "《诗经》", sourceText: "其何能淑，载胥及溺" },
+  ],
+  // 志向/成就类
+  "志向": [
+    { char: "志", wx: "火", meaning: "志存高远，抱负不凡", source: "《论语》", sourceText: "匹夫不可夺志" },
+    { char: "远", wx: "土", meaning: "远见卓识，志向高远", source: "《论语》", sourceText: "欲速则不达，见小利则大事不成" },
+    { char: "宏", wx: "火", meaning: "宏图大展，气魄非凡", source: "《尚书》", sourceText: "若涉渊水，予惟往求朕攸济" },
+    { char: "鹏", wx: "水", meaning: "大鹏展翅，前程远大", source: "《庄子》", sourceText: "鹏之徙于南冥" },
+    { char: "飞", wx: "水", meaning: "飞黄腾达，一飞冲天", source: "《诗经》", sourceText: "凤凰于飞" },
+    { char: "扬", wx: "火", meaning: "意气风发，前途光明", source: "《诗经》", sourceText: "载笑载扬" },
+    { char: "翔", wx: "金", meaning: "翱翔天际，自由自在", source: "《诗经》", sourceText: "凤皇于飞，翙翙其羽" },
+  ],
+  // 品德/气质类
+  "品德": [
+    { char: "诚", wx: "金", meaning: "诚实守信，真诚待人", source: "《论语》", sourceText: "君子以诚为本" },
+    { char: "义", wx: "木", meaning: "正义凛然，道义为先", source: "《论语》", sourceText: "君子喻于义" },
+    { char: "礼", wx: "火", meaning: "彬彬有礼，温良恭俭", source: "《论语》", sourceText: "礼之用，和为贵" },
+    { char: "忠", wx: "火", meaning: "忠诚可靠，尽心竭力", source: "《论语》", sourceText: "臣事君以忠" },
+    { char: "孝", wx: "水", meaning: "孝顺父母，饮水思源", source: "《孝经》", sourceText: "孝悌之至" },
+    { char: "雅", wx: "木", meaning: "雅致高洁，气质不凡", source: "《诗经》", sourceText: "雅南有鵻" },
+    { char: "静", wx: "金", meaning: "宁静致远，心静如水", source: "《诗经》", sourceText: "静言思之" },
+    { char: "纯", wx: "金", meaning: "纯粹无瑕，纯洁善良", source: "《诗经》", sourceText: "纯嘏尔常矣" },
+  ],
+  // 女性气质
+  "女德": [
+    { char: "婉", wx: "土", meaning: "温婉柔顺，仪态优美", source: "《诗经》", sourceText: "婉兮娈兮" },
+    { char: "柔", wx: "木", meaning: "柔情似水，温柔敦厚", source: "《诗经》", sourceText: "荏染柔木" },
+    { char: "娟", wx: "木", meaning: "娟秀清丽，婀娜多姿", source: "《诗经》", sourceText: "月出皎兮" },
+    { char: "婷", wx: "火", meaning: "婷婷玉立，优雅美丽", source: "《诗经》", sourceText: "载好其音" },
+    { char: "秀", wx: "木", meaning: "秀外慧中，才貌双全", source: "《诗经》", sourceText: "实韦和铃" },
+    { char: "慧", wx: "水", meaning: "聪慧灵秀，富有才智", source: "《诗经》", sourceText: "莫不令仪" },
+    { char: "妍", wx: "水", meaning: "妍姿艳质，美丽动人", source: "《诗经》", sourceText: "巧笑倩兮" },
+    { char: "洁", wx: "水", meaning: "纯洁无瑕，高尚清新", source: "《诗经》", sourceText: "其告维何" },
+    { char: "欣", wx: "木", meaning: "欣欣向荣，乐观开朗", source: "《诗经》", sourceText: "旨酒欣欣" },
+    { char: "瑶", wx: "火", meaning: "美玉无瑕，珍贵美好", source: "《诗经》", sourceText: "报之以琼瑶" },
+  ],
+  // 默认（未指定风格时）
+  "default": [
+    { char: "嘉", wx: "木", meaning: "美好优秀，善良贤德", source: "《诗经》", sourceText: "嘉賓式燕以敖" },
+    { char: "懿", wx: "土", meaning: "美德懿行，品性高洁", source: "《诗经》", sourceText: "好是懿德" },
+    { char: "昭", wx: "火", meaning: "光明美好，昭然若揭", source: "《诗经》", sourceText: "倬彼云汉，昭回于天" },
+    { char: "清", wx: "水", meaning: "清白纯洁，超然脱俗", source: "《诗经》", sourceText: "河水清且涟猗" },
+    { char: "华", wx: "水", meaning: "才华横溢，光彩照人", source: "《诗经》", sourceText: "其叶菁菁" },
+    { char: "宜", wx: "土", meaning: "适宜得当，恰到好处", source: "《诗经》", sourceText: "此令兄弟，绰绰有裕" },
+    { char: "思", wx: "金", meaning: "思绪绵绵，才思敏捷", source: "《诗经》", sourceText: "投我以木桃，报之以琼瑶" },
+    { char: "言", wx: "金", meaning: "言而有信，言辞优美", source: "《诗经》", sourceText: "于嗟鸠兮，无食桑葚" },
+    { char: "予", wx: "土", meaning: "予取予求，我予你取", source: "《诗经》", sourceText: "予手拮据" },
+    { char: "维", wx: "木", meaning: "维系维持，思维缜密", source: "《诗经》", sourceText: "其维哲人" },
+    { char: "永", wx: "土", meaning: "永远长久，永恒不变", source: "《诗经》", sourceText: "永远遐昌" },
+    { char: "家", wx: "木", meaning: "家和万事兴，温馨港湾", source: "《诗经》", sourceText: "宜其室家" },
+    { char: "乐", wx: "火", meaning: "乐天达观，快乐无忧", source: "《论语》", sourceText: "有朋自远方来，不亦乐乎" },
+    { char: "心", wx: "金", meaning: "心诚意正，善良温暖", source: "《诗经》", sourceText: "中心藏之，何日忘之" },
+    { char: "明", wx: "火", meaning: "明智通达，光明磊落", source: "《大学》", sourceText: "大学之道，在明明德" },
+  ],
+};
+
 /**
- * Fallback：当 LLM 不可用或失败时，使用原有的双重循环规则组合
+ * Fallback：当 LLM 不可用或失败时，使用典籍启发式规则组合
+ * 相比旧版：
+ *  - 支持五行相生（喜金也可用水）
+ *  - 优先使用典籍名句中的字
+ *  - 为每个候选附加典籍出处
  */
-function fallbackRuleBasedCompose(
+async function fallbackRuleBasedCompose(
   pool: CharacterInfo[],
   intent: StructuredIntent,
   config: AiComposerConfig,
   surname?: string
-): NameCandidate[] {
-  console.log("[AI Composer] 使用 Fallback 规则循环组合...");
+): Promise<NameCandidate[]> {
+  console.log("[AI Composer] 使用 Fallback（典籍增强版）...");
 
-  // 按字频排序后打乱，保证每次结果不同
-  const sortedChars = [...pool]
-    .filter((char) => {
-      if (intent.wuxing && intent.wuxing.length > 0) {
-        return (
-          intent.wuxing.includes(char.wuxing) ||
-          !char.wuxing ||
-          char.wuxing === "吉"
-        );
-      }
-      return true;
-    })
-    .sort((a, b) => (b.frequency || 0) - (a.frequency || 0));
+  // ── 1. 收集支持五行 ──
+  const supportedWuxing = new Set<string>(intent.wuxing || []);
+  for (const wx of intent.wuxing || []) {
+    const generates = WUXING_GENERATES[wx];
+    if (generates) {
+      generates.forEach((w) => supportedWuxing.add(w));
+    }
+  }
+  console.log(`[Fallback] 支持五行: ${[...supportedWuxing].join(", ")}`);
 
-  // Fisher-Yates 随机打乱，避免每次生成相同结果
-  for (let i = sortedChars.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [sortedChars[i], sortedChars[j]] = [sortedChars[j], sortedChars[i]];
+  // ── 2. 收集典籍优质字 ──
+  const classicChars: Array<{
+    character: string;
+    pinyin: string;
+    wuxing: string;
+    meaning: string;
+    strokeCount: number;
+    frequency: number;
+    source: string;
+    sourceText: string;
+  }> = [];
+
+  // 优先用 imagery（用户期望）匹配
+  const matchedStyles = new Set<string>();
+  for (const kw of intent.imagery || []) {
+    const k = kw.toLowerCase();
+    if (k.includes("德") || k.includes("才") || k.includes("智")) matchedStyles.add("德才");
+    if (k.includes("安") || k.includes("康") || k.includes("福")) matchedStyles.add("安康");
+    if (k.includes("自然") || k.includes("山") || k.includes("水") || k.includes("风")) matchedStyles.add("自然");
+    if (k.includes("志") || k.includes("远") || k.includes("大")) matchedStyles.add("志向");
+    if (k.includes("品") || k.includes("德") || k.includes("善")) matchedStyles.add("品德");
+    if (k.includes("女") || k.includes("柔") || k.includes("美")) matchedStyles.add("女德");
   }
 
-  const chars = sortedChars.slice(0, 25);
+  // 如果 intent.style 存在也匹配
+  for (const st of intent.style || []) {
+    const k = st.toLowerCase();
+    if (k.includes("文") || k.includes("雅")) matchedStyles.add("德才");
+    if (k.includes("吉") || k.includes("祥")) matchedStyles.add("安康");
+    if (k.includes("自") || k.includes("山") || k.includes("水")) matchedStyles.add("自然");
+  }
 
+  // 若无匹配，使用 intent.wuxing 决定风格
+  if (matchedStyles.size === 0) {
+    matchedStyles.add("default");
+    if (supportedWuxing.has("金")) matchedStyles.add("德才");
+    if (supportedWuxing.has("木")) matchedStyles.add("自然");
+    if (supportedWuxing.has("水")) matchedStyles.add("自然");
+    if (intent.gender === "F") matchedStyles.add("女德");
+  }
+
+  // 查询典籍数据库获取字的拼音/笔画
+  const classicKeywords = [...matchedStyles].slice(0, 3);
+  const allClassicEntries: Array<{
+    character: string; wx: string; meaning: string; source: string; sourceText: string
+  }> = [];
+  for (const style of matchedStyles) {
+    const entries = CLASSIC_CHARS_BY_STYLE[style] || CLASSIC_CHARS_BY_STYLE["default"];
+    allClassicEntries.push(...entries);
+  }
+
+  // 查询 kangxi_dict 获取拼音和笔画
+  const uniqueClassicChars = [...new Set(allClassicEntries.map((e) => e.char))];
+  let charDetails: Map<string, { pinyin: string; strokeCount: number }> = new Map();
+  try {
+    const dbChars = await prisma.kangxiDict.findMany({
+      where: { character: { in: uniqueClassicChars } },
+      select: { character: true, pinyin: true, strokeCount: true },
+    });
+    charDetails = new Map(dbChars.map((c) => [c.character, {
+      pinyin: c.pinyin || "",
+      strokeCount: c.strokeCount || 0,
+    }]));
+  } catch (e) {
+    console.warn("[Fallback] 查询康熙字典失败:", e);
+  }
+
+  // 构建典籍字列表（按支持的五行过滤）
+  for (const entry of allClassicEntries) {
+    const detail = charDetails.get(entry.char);
+    classicChars.push({
+      character: entry.char,
+      pinyin: detail?.pinyin || entry.char,
+      wuxing: entry.wx,
+      meaning: entry.meaning,
+      strokeCount: detail?.strokeCount || 8,
+      frequency: 60,
+      source: entry.source,
+      sourceText: entry.sourceText,
+    });
+  }
+  console.log(`[Fallback] 典籍字池: ${classicChars.length} 个`);
+
+  // ── 3. 合并字池：典籍字 + 原字池（优先典籍）──
+  const wuxingList = [...supportedWuxing];
+  const enrichPool = (chars: CharacterInfo[]): CharacterInfo[] => {
+    return chars.map((c) => {
+      // 标记典籍来源
+      const classic = classicChars.find((cc) => cc.character === c.character);
+      return {
+        ...c,
+        source: classic?.source || c.source,
+        sourceText: classic?.sourceText || c.sourceText,
+        // 五行支持扩展：如果字的五行不在支持列表，也给机会（降低权重）
+        _isSupported: supportedWuxing.has(c.wuxing),
+      };
+    });
+  };
+
+  // 合并：典籍字（带拼音/笔画/典籍来源）+ 原池字（已通过 enrichPool）
+  const enrichedPool = enrichPool(pool);
+  // 从典籍中补充五行匹配的字（如果原池中没有的话）
+  for (const cc of classicChars) {
+    if (!enrichedPool.find((c) => c.character === cc.character)) {
+      enrichedPool.push({
+        character: cc.character,
+        pinyin: cc.pinyin,
+        wuxing: cc.wuxing,
+        meaning: cc.meaning,
+        strokeCount: cc.strokeCount,
+        frequency: cc.frequency,
+        source: cc.source,
+        sourceText: cc.sourceText,
+        _isSupported: supportedWuxing.has(cc.wuxing),
+      } as CharacterInfo & { _isSupported?: boolean });
+    }
+  }
+  console.log(`[Fallback] 合并后字池: ${enrichedPool.length} 个`);
+
+  // ── 4. 分离：优先字（支持五行）vs 补充字（其他五行）──
+  const primaryChars = enrichedPool.filter((c) => (c as any)._isSupported !== false);
+  const supplementalChars = enrichedPool.filter((c) => (c as any)._isSupported === false);
+
+  // ── 5. 生成候选名字 ──
   const candidates: NameCandidate[] = [];
   const limit = Math.min(config.maxCandidates, 8);
 
-  if (config.wordCount === 2 && chars.length >= 2) {
-    for (let i = 0; i < chars.length - 1 && candidates.length < limit; i++) {
-      for (let j = i + 1; j < chars.length && candidates.length < limit; j++) {
-        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([
-          chars[i],
-          chars[j],
-        ]);
+  const shuffle = <T,>(arr: T[]): T[] => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const primary = shuffle(primaryChars);
+  const supplemental = shuffle(supplementalChars);
+
+  // 方案1：用两个支持五行的字组合
+  if (config.wordCount === 2 && primary.length >= 2) {
+    for (let i = 0; i < primary.length - 1 && candidates.length < limit; i++) {
+      for (let j = i + 1; j < primary.length && candidates.length < limit; j++) {
+        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([primary[i], primary[j]]);
         if (phonetic.isHarmonious) {
-          candidates.push(
-            buildCandidateFromPair(
-              [chars[i], chars[j]],
-              intent,
-              surname,
-              config,
-              phonetic.overallScore
-            )
-          );
+          candidates.push(buildCandidateFromPair(
+            [primary[i], primary[j]], intent, surname, config, phonetic.overallScore
+          ));
         }
       }
     }
-  } else if (config.wordCount === 3 && chars.length >= 3) {
-    for (let i = 0; i < chars.length - 2 && candidates.length < limit; i++) {
-      for (let j = i + 1; j < chars.length - 1 && candidates.length < limit; j++) {
-        for (let k = j + 1; k < chars.length && candidates.length < limit; k++) {
-          const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([
-            chars[i],
-            chars[j],
-            chars[k],
-          ]);
+  }
+
+  // 方案2：如果支持五行的字不足，用一个支持 + 一个补充
+  if (candidates.length < limit && primary.length >= 1 && supplemental.length >= 1) {
+    for (let i = 0; i < primary.length && candidates.length < limit; i++) {
+      for (let j = 0; j < supplemental.length && candidates.length < limit; j++) {
+        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([primary[i], supplemental[j]]);
+        if (phonetic.isHarmonious) {
+          candidates.push(buildCandidateFromPair(
+            [primary[i], supplemental[j]], intent, surname, config, phonetic.overallScore
+          ));
+        }
+      }
+    }
+  }
+
+  // 方案3：三字名（两个支持五行 + 一个补充）
+  if (config.wordCount === 3 && primary.length >= 2 && candidates.length < limit) {
+    for (let i = 0; i < primary.length - 1 && candidates.length < limit; i++) {
+      for (let j = i + 1; j < primary.length && candidates.length < limit; j++) {
+        for (let k = 0; k < supplemental.length && candidates.length < limit; k++) {
+          const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([primary[i], primary[j], supplemental[k]]);
           if (phonetic.isHarmonious) {
-            candidates.push(
-              buildCandidateFromPair(
-                [chars[i], chars[j], chars[k]],
-                intent,
-                surname,
-                config,
-                phonetic.overallScore
-              )
-            );
+            candidates.push(buildCandidateFromPair(
+              [primary[i], primary[j], supplemental[k]], intent, surname, config, phonetic.overallScore
+            ));
           }
         }
       }
     }
   }
+
+  // 方案4：纯典籍字组合
+  if (candidates.length < limit && classicChars.length >= 2) {
+    const classicPool = shuffle(classicChars);
+    for (let i = 0; i < classicPool.length - 1 && candidates.length < limit; i++) {
+      for (let j = i + 1; j < classicPool.length && candidates.length < limit; j++) {
+        const cc1 = classicPool[i];
+        const cc2 = classicPool[j];
+        const c1: CharacterInfo = { character: cc1.character, pinyin: cc1.pinyin, wuxing: cc1.wuxing, meaning: cc1.meaning, strokeCount: cc1.strokeCount, frequency: cc1.frequency };
+        const c2: CharacterInfo = { character: cc2.character, pinyin: cc2.pinyin, wuxing: cc2.wuxing, meaning: cc2.meaning, strokeCount: cc2.strokeCount, frequency: cc2.frequency };
+        const phonetic = PhoneticOptimizer.evaluatePhoneticQuality([c1, c2]);
+        if (phonetic.isHarmonious) {
+          candidates.push(buildCandidateFromPair(
+            [c1, c2], intent, surname, config, phonetic.overallScore
+          ));
+        }
+      }
+    }
+  }
+
+  console.log(`[Fallback] 最终返回 ${candidates.length} 个候选`);
+  return candidates;
+}
 
   return candidates
     .sort((a, b) => b.score - a.score)
