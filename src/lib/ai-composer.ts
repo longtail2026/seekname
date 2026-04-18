@@ -1065,11 +1065,6 @@ async function callDeepSeekRaw(
   }
 }
 
-// 猴子补丁：强制让 DeepSeekIntegration.callRaw 使用 OpenRouter/Groq 等 Provider
-// 注意：deepseek-integration.ts 里的 callRaw 是旧的 SiliconFlow 实现，必须覆盖！
-// @ts-ignore
-DeepSeekIntegration.callRaw = callDeepSeekRaw;
-
 // 统一导出
 export const AIComposer = {
   compose: aiCompose,

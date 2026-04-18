@@ -56,10 +56,10 @@ function parseDeepSeekJson(raw: string): unknown {
   return JSON.parse(jsonStr);
 }
 
-// 9.5秒超时封装（Vercel 最大 10s 硬超时，留 0.5s 余量给响应处理）
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 9500): Promise<Response> {
+// 15秒超时封装（适应 OpenRouter / Groq 国际 API 延迟）
+async function fetchWithTimeout15(url: string, options: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return response;
@@ -68,7 +68,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 9
   }
 }
 
-// 调用DeepSeek API（带超时保护）
+// 调用 LLM API（内部根据 key 前缀自动选择 OpenRouter / Groq / SiliconFlow）
 async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
@@ -90,7 +90,7 @@ async function callDeepSeek(
       Object.assign(headers, cfg.extraHeaders);
     }
 
-    const response = await fetchWithTimeout(cfg.url, {
+    const response = await fetchWithTimeout15(cfg.url, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -103,7 +103,7 @@ async function callDeepSeek(
         max_tokens: maxTokens,
         stream: false,
       }),
-    }, cfg.timeout);
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -114,7 +114,7 @@ async function callDeepSeek(
     return data.choices[0].message.content.trim();
   } catch (error: any) {
     if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-      console.warn(`[${cfg.name}] 请求超时（${cfg.timeout / 1000}s），跳过此次调用`);
+      console.warn(`[${cfg.name}] 请求超时（15s），跳过此次调用`);
       throw new Error(`${cfg.name} API 调用超时，已跳过`);
     }
     console.error(`调用${cfg.name} API失败:`, error);
