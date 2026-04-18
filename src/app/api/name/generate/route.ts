@@ -395,36 +395,50 @@ export async function POST(request: NextRequest) {
         console.log(`[API] aiCompose 开始，候选池=${pool.length}个字`);
         let candidates: any[] = [];
         let composeError: Error | null = null;
+        // 共享结果 holder：aiCompose 完成时写入，timeout reject 时读取
+        let resultHolder: any[] | null = null;
 
         for (let attempt = 1; attempt <= 2; attempt++) {
+          resultHolder = null; // 每次重试清空
+          const timeout = attempt === 1 ? 45000 : 40000;
+          console.log(`[API] AI Composer 第 ${attempt} 次尝试，超时=${timeout / 1000}s...`);
+
+          // aiCompose 完成时写入 holder
+          const aiPromise = aiCompose(pool, intent, {
+            scenario,
+            fallbackToRules: true,
+            maxCandidates: 6,
+            wordCount: 2,
+          }, surname).then((result) => {
+            resultHolder = result;
+            return result;
+          });
+
+          // timeout
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`AI Composer 超时(${attempt})`)), timeout)
+          );
+
           try {
-            console.log(`[API] AI Composer 第 ${attempt} 次尝试...`);
-            // OpenRouter 国际路由慢，首、次均给足时间
-            const timeout = attempt === 1 ? 45000 : 40000;
-            candidates = await Promise.race([
-              aiCompose(pool, intent, {
-                scenario,
-                fallbackToRules: true,
-                maxCandidates: 6, // 6个：前3名付费解锁，后3名免费显示
-                wordCount: 2,
-              }, surname),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error(`AI Composer 超时(${attempt})`)), timeout)
-              ),
-            ]);
+            candidates = await Promise.race([aiPromise, timeoutPromise]);
             console.log(`[API] AI Composer 第 ${attempt} 次成功，返回 ${candidates.length} 个`);
-            break; // 成功，跳出重试循环
+            break;
           } catch (err) {
             composeError = err as Error;
+            // timeout 触发时 aiCompose 可能已有结果，优先用它
+            if (resultHolder !== null) {
+              candidates = resultHolder;
+              console.log(`[API] AI Composer 第 ${attempt} 次 timeout 但有 ${candidates.length} 个结果，放弃 fallback`);
+              break;
+            }
             console.warn(`[API] AI Composer 第 ${attempt} 次失败: ${composeError.message}`);
             if (attempt === 1) {
-              // 首次超时，等函数 warm 后重试（Vercel 冷启动通常 3-5s）
               await new Promise((r) => setTimeout(r, 500));
             }
           }
         }
 
-        // 两次都失败，降级到传统生成
+        // 两次都失败且无结果，降级到传统生成
         if (candidates.length === 0) {
           console.warn(`[API] AI Composer 两次都失败，降级到传统生成: ${composeError}`);
           rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
