@@ -391,7 +391,7 @@ export async function POST(request: NextRequest) {
           });
 
         // 调用 AI Composer（含一次超时重试）
-        // 策略：Groq 国际节点直连，首次 12s 超时 → 重试一次 → 再超时则走传统生成
+        // 策略：OpenRouter 国际路由慢，首次 45s 超时 → 重试一次 → 再超时则走传统生成
         console.log(`[API] aiCompose 开始，候选池=${pool.length}个字`);
         let candidates: any[] = [];
         let composeError: Error | null = null;
@@ -399,8 +399,8 @@ export async function POST(request: NextRequest) {
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             console.log(`[API] AI Composer 第 ${attempt} 次尝试...`);
-            // Groq 通常 <1s，极端情况 8s；第二次缩短给后续处理留余量
-            const timeout = attempt === 1 ? 12000 : 10000;
+            // OpenRouter 国际路由慢，首、次均给足时间
+            const timeout = attempt === 1 ? 45000 : 40000;
             candidates = await Promise.race([
               aiCompose(pool, intent, {
                 scenario,
