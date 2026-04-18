@@ -274,19 +274,23 @@ export async function matchClassics(intent: StructuredIntent): Promise<Character
     }
     
     // 6. 如果还是没有足够的字，使用默认的五行字
+    // 【关键】必须包含所有五行的字，避免名字全是同一五行（如全是火旁）
     if (characters.length < 10) {
       console.log(`典籍匹配层: 字符仍然不足 (${characters.length})，使用默认字`);
-      
-      // 默认的五行常用字（扩大2倍，丰富多样性）
+
+      // 默认字池：每行15字×5行=75字，五行齐全
       const defaultCharsByWuxing: Record<string, string[]> = {
-        "金": ["铭", "锦", "钧", "铮", "铄", "钰", "鑫", "锐", "锋", "钧", "铭", "瑞", "璋", "珞", "瑜", "铎", "锡", "铠", "镕", "铖"],
-        "木": ["林", "森", "桐", "楠", "梓", "柏", "松", "桦", "柳", "梅", "桐", "榆", "槐", "楷", "桂", "桉", "杉", "枫", "樱", "桃"],
-        "水": ["涵", "泽", "洋", "涛", "浩", "清", "源", "沐", "沛", "沅", "润", "澜", "淳", "浚", "溪", "汝", "沁", "湛", "漩", "瀚"],
-        "火": ["炎", "煜", "煊", "炜", "烨", "熠", "灿", "炅", "煦", "炀", "炜", "焜", "熠", "燃", "烽", "焕", "炫", "耀", "辉", "灵"],
-        "土": ["坤", "垚", "培", "基", "城", "垣", "堂", "墨", "均", "圣", "培", "壤", "墨", "坚", "壁", "垣", "堪", "塘", "增", "墨"],
+        "金": ["铭", "锦", "钧", "铮", "铄", "钰", "锐", "锋", "瑞", "璋", "珞", "瑜", "铎", "锡", "铠"],
+        "木": ["林", "森", "桐", "楠", "梓", "柏", "松", "桦", "柳", "梅", "榆", "槐", "楷", "桂", "枫"],
+        "水": ["涵", "泽", "洋", "涛", "浩", "清", "源", "沐", "沛", "润", "澜", "淳", "溪", "沁", "瀚"],
+        "火": ["炎", "煜", "炜", "烨", "熠", "灿", "炅", "煦", "燃", "烽", "焕", "炫", "耀", "辉", "灵"],
+        "土": ["坤", "培", "基", "城", "垣", "堂", "均", "圣", "壤", "坚", "壁", "堪", "塘", "增", "墨"],
       };
-      
-      for (const wx of intent.wuxing) {
+
+      // 先补充所有五行（确保多样性），再加重喜用的五行
+      const allWuxing = ["金", "木", "水", "火", "土"];
+
+      for (const wx of allWuxing) {
         const defaultChars = defaultCharsByWuxing[wx] || [];
         for (const char of defaultChars) {
           if (!characters.some(c => c.character === char)) {
@@ -475,20 +479,30 @@ export async function generateAndPolishNames(
   console.log(`AI组合层: 姓氏=${surname}, 字数=${nameLength}, 五行需求=${intent.wuxing.join(',')}`);
   
   // 2. 筛选合适的字（按五行、频率等排序）
+  // 【关键】五字过滤：只过滤掉明确与喜用相克的字，保留其他所有字
+  // 喜金则水生金/土生金，金木水火土都用；不要求每个字都匹配五行
+  const allWuxing = ["金", "木", "水", "火", "土"];
+  const compatibleWuxing = new Set<string>();
+  for (const wx of intent.wuxing) {
+    compatibleWuxing.add(wx); // 自身
+    if (wx === "金") { compatibleWuxing.add("土"); compatibleWuxing.add("水"); } // 土生金，水生金
+    if (wx === "木") { compatibleWuxing.add("水"); compatibleWuxing.add("火"); } // 水生木，木生火
+    if (wx === "水") { compatibleWuxing.add("金"); compatibleWuxing.add("木"); } // 金生水，水生木
+    if (wx === "火") { compatibleWuxing.add("木"); compatibleWuxing.add("土"); } // 木生火，火生土
+    if (wx === "土") { compatibleWuxing.add("火"); compatibleWuxing.add("金"); } // 火生土，土生金
+  }
+
   const sortedChars = [...characters]
     .filter(char => {
-      // 放宽五行过滤：如果字符没有五行信息，或者五行不是标准值，也接受
-      const hasWuxing = intent.wuxing.length === 0 || 
-                       intent.wuxing.includes(char.wuxing) ||
-                       !char.wuxing || 
-                       char.wuxing === "" ||
-                       char.wuxing === "吉" ||
-                       char.wuxing === "None";
-      
-      if (!hasWuxing) {
-        console.log(`AI组合层: 过滤掉字符 ${char.character}，五行 ${char.wuxing} 不符合需求 ${intent.wuxing}`);
-      }
-      return hasWuxing;
+      // 接受：没有五行 / 五行在兼容列表 / 五行为空或"吉"
+      const isCompatible = intent.wuxing.length === 0 ||
+                           compatibleWuxing.has(char.wuxing) ||
+                           !char.wuxing ||
+                           char.wuxing === "" ||
+                           char.wuxing === "吉" ||
+                           char.wuxing === "None" ||
+                           !allWuxing.includes(char.wuxing); // 非标准五行也接受
+      return isCompatible;
     })
     .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
     .slice(0, 30);

@@ -110,10 +110,11 @@ function buildCompositionPrompt(
 ${poolSummary}
 
 请生成 ${config.maxCandidates} 个符合要求的名字，每个字必须来自候选字池。
-注意：
-1. 避免两个字的偏旁部首完全相同（如"铭鑫"都是金字旁，"铄轩"都是金部）
-2. 五行优先但允许变化（如喜金时可选一个金旁字+一个木/水旁字，平衡且有意境）
-3. 优先选择有典籍出处的组合
+【硬性约束】
+1. 两个字必须部首不同！绝对不能出现两个金字旁（如"铭鑫""锐钧"）、两个木旁、两个水旁等。如候选字池中金字旁字多，必须搭配木/水/火/土旁字形成对比。
+2. 五行搭配要求：喜金时搭配木/水/火/土旁字；喜火时搭配金/土/水/木旁字；喜水时搭配火/金/木旁字；喜木时搭配土/火/金旁字；喜土时搭配木/金/火旁字。两个字五行相同（如金+金）会显得机械生硬，尽量避免。
+3. 优先选择有典籍出处的组合，典籍不同的组合优先。
+【加分项】名字有诗意、有画面感、音律好听。
 输出严格 JSON 数组，不要输出其他内容。`,
     },
 
@@ -146,7 +147,10 @@ ${poolSummary}
 候选字池：
 ${poolSummary}
 
-请生成 ${config.maxCandidates} 个名字，输出严格 JSON 数组。`,
+【硬性约束】
+1. 两个字必须部首不同，禁止两个金字旁/两个木旁/两个水旁/两个火旁/两个土旁。
+2. 五行搭配尽量多样化：两个字不要同属一行（如金+金、木+木），五行平衡的名字更有气场。
+输出严格 JSON 数组，不要输出其他内容。`,
     },
 
     company: {
@@ -841,8 +845,15 @@ async function fallbackRuleBasedCompose(
   console.log(`[Fallback] 合并后字池: ${enrichedPool.length} 个`);
 
   // ── 4. 分离：优先字（支持五行）vs 补充字（其他五行）──
+  // 【关键】同时保留其他五行的字，避免名字全部是同一五行（如全是火旁）
   const primaryChars = enrichedPool.filter((c) => (c as any)._isSupported !== false);
   const supplementalChars = enrichedPool.filter((c) => (c as any)._isSupported === false);
+
+  // 如果补充字太少（<10个），从 DEFAULT_CHAR_POOL 补充其他五行字
+  const allWxPool = DEFAULT_CHAR_POOL.map((c) => ({ ...c, _isSupported: supportedWuxing.has(c.wuxing) }));
+  const supplementFromPool = allWxPool
+    .filter((c) => !_isSupported && !enrichedPool.some((e) => e.character === c.character))
+    .slice(0, 20);
 
   // ── 5. 生成候选名字 ──
   // 策略：生成全组合 → 全部评估 → 按综合分排序 → 取最优
