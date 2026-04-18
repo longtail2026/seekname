@@ -989,7 +989,7 @@ const PROVIDER_CONFIG: Record<string, { baseUrl: string; model: string; maxTimeo
   openrouter: {
     baseUrl: "https://openrouter.ai/api/v1",
     model: "meta-llama/llama-3-8b-instruct", // OpenRouter 免费额度充足，DeepInfra 节点极速 <1s
-    maxTimeout: 15000, // 15秒，留余量
+    maxTimeout: 30000, // 30秒，OpenRouter 国际路由较慢
     extraHeaders: {
       "HTTP-Referer": "https://seekname.cn",
       "X-Title": "seekname",

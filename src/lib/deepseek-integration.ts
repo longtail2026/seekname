@@ -56,10 +56,10 @@ function parseDeepSeekJson(raw: string): unknown {
   return JSON.parse(jsonStr);
 }
 
-// 15秒超时封装（适应 OpenRouter / Groq 国际 API 延迟）
+// 30秒超时封装（适应 OpenRouter / Groq 国际 API 延迟）
 async function fetchWithTimeout15(url: string, options: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return response;
