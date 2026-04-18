@@ -168,15 +168,17 @@ export async function parseIntent(request: NamingRequest): Promise<StructuredInt
 
 /**
  * 2. 典籍匹配层 - 根据意图检索古籍库
+ * 核心优化：扩大检索 + 来源多样化（避免被单一典籍垄断）
  */
 export async function matchClassics(intent: StructuredIntent): Promise<CharacterInfo[]> {
   const characters: CharacterInfo[] = [];
-  
+
   try {
-    // 1. 根据意象关键词查询典籍条目
+    // 1. 根据意象关键词查询典籍条目（扩大范围）
     const keywords = [...intent.imagery, ...intent.style];
     console.log(`典籍匹配层: 搜索关键词: ${keywords.join(', ')}`);
-    
+
+    // 扩大检索：50→200，增加多样性
     const entries = await prisma.classicsEntry.findMany({
       where: {
         OR: [
@@ -184,18 +186,17 @@ export async function matchClassics(intent: StructuredIntent): Promise<Character
           { ancientText: { contains: keywords[0] || "" } },
         ],
       },
-      take: 50,
+      take: 200,
       include: {
         book: true,
       },
     });
-    
+
     console.log(`典籍匹配层: 找到 ${entries.length} 个典籍条目`);
-    
+
     // 2. 从典籍文本中提取候选字
     const extractedChars = new Set<string>();
     for (const entry of entries) {
-      // 从古文中提取单字
       const text = entry.ancientText;
       for (const char of text) {
         if (isChineseCharacter(char) && !extractedChars.has(char)) {
@@ -203,49 +204,58 @@ export async function matchClassics(intent: StructuredIntent): Promise<Character
         }
       }
     }
-    
+
     console.log(`典籍匹配层: 从典籍中提取 ${extractedChars.size} 个候选字`);
-    
+
     // 3. 查询康熙字典获取字的详细信息
     const charArray = Array.from(extractedChars);
     if (charArray.length > 0) {
+      // 扩大：100→200
       const dictEntries = await prisma.kangxiDict.findMany({
         where: {
           character: { in: charArray },
         },
-        take: 100,
+        take: 200,
       });
-      
+
       console.log(`典籍匹配层: 从康熙字典找到 ${dictEntries.length} 个字的信息`);
-      
-      // 4. 转换为CharacterInfo格式
+
+      // 4. 转换为CharacterInfo格式，同时建立「字→来源」映射（取不同典籍）
+      const charSourceMap = new Map<string, { book: string; text: string }>();
+      for (const entry of entries) {
+        for (const char of entry.ancientText) {
+          if (isChineseCharacter(char) && !charSourceMap.has(char)) {
+            charSourceMap.set(char, {
+              book: entry.bookName || "",
+              text: entry.ancientText?.slice(0, 30) || "",
+            });
+          }
+        }
+      }
+
       for (const dict of dictEntries) {
-        // 查找这个字在哪些典籍中出现过
-        const sourceEntries = entries.filter(e => 
-          e.ancientText.includes(dict.character)
-        ).slice(0, 2); // 最多取2个出处
-        
-      characters.push({
-        character: dict.character,
-        pinyin: dict.pinyin || "",
-        wuxing: dict.wuxing || "",
-        meaning: dict.meaning || "",
-        strokeCount: dict.strokeCount || 0,
-        source: sourceEntries[0]?.bookName || undefined,
-        sourceText: sourceEntries[0]?.ancientText?.slice(0, 30) + "..." || undefined,
-      });
+        const src = charSourceMap.get(dict.character);
+        characters.push({
+          character: dict.character,
+          pinyin: dict.pinyin || "",
+          wuxing: dict.wuxing || "",
+          meaning: dict.meaning || "",
+          strokeCount: dict.strokeCount || 0,
+          source: src?.book || undefined,
+          sourceText: src?.text ? src.text + "..." : undefined,
+        });
       }
     }
     
-    // 5. 如果没有找到足够的字，从五行字库补充
-    if (characters.length < 20) {
+    // 5. 如果没有找到足够的字，从五行字库大量补充
+    if (characters.length < 50) {
       console.log(`典籍匹配层: 字符不足 (${characters.length})，从五行字库补充`);
-      
+
       const wuxingChars = await prisma.wuxingCharacter.findMany({
         where: {
           wuxing: { in: intent.wuxing },
         },
-        take: 30,
+        take: 60,
       });
       
       console.log(`典籍匹配层: 从五行字库找到 ${wuxingChars.length} 个字`);
@@ -267,13 +277,13 @@ export async function matchClassics(intent: StructuredIntent): Promise<Character
     if (characters.length < 10) {
       console.log(`典籍匹配层: 字符仍然不足 (${characters.length})，使用默认字`);
       
-      // 默认的五行常用字
+      // 默认的五行常用字（扩大2倍，丰富多样性）
       const defaultCharsByWuxing: Record<string, string[]> = {
-        "金": ["铭", "锦", "钧", "铮", "铄", "钰", "鑫", "锐", "锋", "铭"],
-        "木": ["林", "森", "桐", "楠", "梓", "柏", "松", "桦", "柳", "梅"],
-        "水": ["涵", "泽", "洋", "涛", "浩", "清", "源", "沐", "沛", "沅"],
-        "火": ["炎", "煜", "煊", "炜", "烨", "熠", "灿", "炅", "炅", "煦"],
-        "土": ["坤", "垚", "培", "基", "城", "垣", "堂", "墨", "均", "圣"],
+        "金": ["铭", "锦", "钧", "铮", "铄", "钰", "鑫", "锐", "锋", "钧", "铭", "瑞", "璋", "珞", "瑜", "铎", "锡", "铠", "镕", "铖"],
+        "木": ["林", "森", "桐", "楠", "梓", "柏", "松", "桦", "柳", "梅", "桐", "榆", "槐", "楷", "桂", "桉", "杉", "枫", "樱", "桃"],
+        "水": ["涵", "泽", "洋", "涛", "浩", "清", "源", "沐", "沛", "沅", "润", "澜", "淳", "浚", "溪", "汝", "沁", "湛", "漩", "瀚"],
+        "火": ["炎", "煜", "煊", "炜", "烨", "熠", "灿", "炅", "煦", "炀", "炜", "焜", "熠", "燃", "烽", "焕", "炫", "耀", "辉", "灵"],
+        "土": ["坤", "垚", "培", "基", "城", "垣", "堂", "墨", "均", "圣", "培", "壤", "墨", "坚", "壁", "垣", "堪", "塘", "增", "墨"],
       };
       
       for (const wx of intent.wuxing) {
