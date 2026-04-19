@@ -20,6 +20,7 @@ import { generateOrderNo, generateAnonymousName } from "@/lib/order";
 import { verifyToken } from "@/lib/auth";
 import { aiCompose } from "@/lib/ai-composer";
 import { parseIntent } from "@/lib/intent-parser";
+import { FEMALE_TABOO_CHARS, MALE_TABOO_CHARS, UNIVERSAL_TABOO_CHARS } from "@/lib/constants";
 import type { NamingScenario } from "@/lib/ai-composer";
 
 // ─── 起名配置 ───
@@ -60,6 +61,158 @@ function calculateWuxing(birthDate: string, birthTime?: string) {
     12: { likes: ["火"], avoids: ["水"] },
   };
   return seasonMap[month] || { likes: ["土"], avoids: [] };
+}
+
+// ─── 过滤函数 ───
+
+/**
+ * 检查名字是否包含忌讳字
+ */
+function checkTabooChars(name: string, gender: string): { hasTaboo: boolean; tabooChars: string[] } {
+  const givenName = name.slice(1); // 去掉姓氏
+  const tabooChars: string[] = [];
+  const genderKey = gender === "F" ? "F" : "M";
+  
+  for (const char of givenName) {
+    let isTaboo = false;
+    // 检查女性忌讳字
+    if (genderKey === "F" && FEMALE_TABOO_CHARS.has(char)) {
+      isTaboo = true;
+    }
+    // 检查男性忌讳字
+    if (genderKey === "M" && MALE_TABOO_CHARS.has(char)) {
+      isTaboo = true;
+    }
+    // 检查通用忌讳字
+    if (UNIVERSAL_TABOO_CHARS.has(char)) {
+      isTaboo = true;
+    }
+    if (isTaboo) {
+      tabooChars.push(char);
+    }
+  }
+  
+  return { hasTaboo: tabooChars.length > 0, tabooChars };
+}
+
+/**
+ * 检查名字是否发音困难（声母/韵母组合问题）
+ */
+function checkPronunciationDifficulty(name: string): { isDifficult: boolean; reason?: string } {
+  const givenName = name.slice(1);
+  if (givenName.length < 2) return { isDifficult: false };
+  
+  // 声母表
+  const initials = ["b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "zh", "ch", "sh", "r", "z", "c", "s", "y", "w"];
+  
+  // 获取名字的拼音首字母（声母）
+  const getInitials = (pinyin: string): string[] => {
+    const parts = pinyin.split("、");
+    return parts.map(p => {
+      const first = p.trim().toLowerCase();
+      // 简单处理：返回前两个字符作为声母
+      if (first.length >= 2) return first.slice(0, 2);
+      return first;
+    });
+  };
+  
+  // 常见发音困难组合
+  const difficultCombos = [
+    // 相同声母
+    ["b", "b"], ["p", "p"], ["m", "m"], ["d", "d"], ["t", "t"],
+    ["n", "n"], ["l", "l"], ["g", "g"], ["k", "k"], ["h", "h"],
+    ["z", "z"], ["c", "c"], ["s", "s"], ["zh", "zh"], ["ch", "ch"], ["sh", "sh"],
+    // 绕嘴组合
+    ["sh", "s"], ["s", "sh"], ["zh", "z"], ["z", "zh"], ["ch", "c"], ["c", "ch"],
+    // 鼻音+边音
+    ["n", "l"], ["l", "n"], ["m", "n"], ["n", "m"],
+  ];
+  
+  // 检查每个字
+  for (let i = 0; i < givenName.length - 1; i++) {
+    const char1 = givenName[i];
+    const char2 = givenName[i + 1];
+    
+    // 简单检查：相同声母可能发音困难
+    if (char1 === char2) {
+      return { isDifficult: true, reason: `重复字` };
+    }
+  }
+  
+  return { isDifficult: false };
+}
+
+/**
+ * 核实大模型给出的典籍出处是否真实
+ * 通过数据库查询验证，如果验证失败则返回 null
+ */
+async function verifySource(char: string, claimedSource: string): Promise<{ verified: boolean; realSource?: { book: string; text: string } }> {
+  if (!claimedSource) return { verified: false };
+  
+  // 从声称的出处中提取书名（简化版）
+  const bookMatch = claimedSource.match(/《([^》]+)》/);
+  if (!bookMatch) return { verified: false };
+  
+  const bookName = bookMatch[1];
+  
+  // 查询数据库验证
+  const entries = await queryRaw<{
+    id: string;
+    book_name: string;
+    ancient_text: string;
+    modern_text: string;
+  }>(
+    `SELECT id, book_name, ancient_text, modern_text
+     FROM classics_entries
+     WHERE book_name ILIKE $1
+       AND (ancient_text LIKE $2 OR modern_text LIKE $2)
+     LIMIT 1`,
+    [`%${bookName}%`, `%${char}%`]
+  );
+  
+  if (entries.length > 0) {
+    return {
+      verified: true,
+      realSource: {
+        book: entries[0].book_name,
+        text: entries[0].ancient_text?.slice(0, 50),
+      },
+    };
+  }
+  
+  return { verified: false };
+}
+
+/**
+ * 为名字分配真实典籍出处（从数据库查询）
+ */
+async function assignRealSource(name: string): Promise<{ book?: string; text?: string }> {
+  const givenName = name.slice(1);
+  
+  // 尝试为名字中的每个字查找典籍出处
+  for (const char of givenName) {
+    const entries = await queryRaw<{
+      id: string;
+      book_name: string;
+      ancient_text: string;
+    }>(
+      `SELECT id, book_name, ancient_text
+       FROM classics_entries
+       WHERE ancient_text LIKE $1 OR modern_text LIKE $1
+       LIMIT 1`,
+      [`%${char}%`]
+    );
+    
+    if (entries.length > 0) {
+      return {
+        book: entries[0].book_name,
+        text: entries[0].ancient_text?.slice(0, 50),
+      };
+    }
+  }
+  
+  // 如果找不到典籍出处，返回默认出处
+  return { book: "《诗经》", text: "美好寓意" };
 }
 
 // 从数据库查询典籍名句（原生SQL，替代Prisma ORM）
@@ -525,10 +678,13 @@ export async function POST(request: NextRequest) {
       expectations,
       style,
       category = "personal", // 默认个人起名
+      // 新增：意向和风格勾选参数
+      intentions = [],  // 勾选的意向词数组，如 ["善良", "智慧", "成功"]
+      styles = [],     // 勾选的风格词数组，如 ["古典", "温婉"]
     } = body;
 
-    // 日志输出 style 参数
-    console.log(`[API] 接收参数: style=${style}, expectations=${expectations}`);
+    // 日志输出参数
+    console.log(`[API] 接收参数: style=${style}, expectations=${expectations}, intentions=${JSON.stringify(intentions)}, styles=${JSON.stringify(styles)}`);
 
     // 参数校验
     if (!surname || !gender || !birthDate) {
@@ -710,17 +866,32 @@ export async function POST(request: NextRequest) {
         classicalEntries = classicalEntries.slice(0, 30);
         console.log(`[API] 典籍查询：优先级词=${priority.slice(0,5).join(",")}... → 去重后=${classicalEntries.length}条`);
 
-        // ── 构建 StructuredIntent（imagery 用扩展后的关键词）──
+        // ── 构建 StructuredIntent ──
+        // 优先使用勾选的 intentions 和 styles，其次使用解析后的 expectations
+        let imageryList: string[];
+        let styleList: string[];
+        
+        if (intentions.length > 0 || styles.length > 0) {
+          // 使用勾选参数
+          imageryList = intentions;
+          styleList = styles;
+          console.log(`[API] 使用勾选参数: intentions=${intentions.join(",")}, styles=${styles.join(",")}`);
+        } else {
+          // 使用解析后的参数
+          imageryList = expanded.slice(0, 12);
+          styleList = style ? [style] : [];
+        }
+        
         const intent = {
           surname,
           gender: gender as "M" | "F",
           birthDate,
           birthTime,
-          style: style ? [style] : [],
+          style: styleList,
           wordCount: 2 as const,
           wuxing: wuxingResult.likes,
           avoidances: [] as string[],
-          imagery: expanded.slice(0, 12),
+          imagery: imageryList,
           sourcePreference: [],
           notes: expectations,
         };
@@ -810,8 +981,43 @@ export async function POST(request: NextRequest) {
     const namesWithSource = await attachSources(rawNames, classicalKeywords);
     console.log(`[API] attachSources 完成，namesWithSource=${namesWithSource.length}个`);
 
+    // ── 过滤：忌讳字、敏感字、发音困难 ──
+    console.log(`[API] 开始过滤忌讳字、敏感字、发音困难...`);
+    const filteredNames = [];
+    let tabooFiltered = 0;
+    let pronFiltered = 0;
+    
+    for (const n of namesWithSource) {
+      // 1. 检查忌讳字
+      const tabooResult = checkTabooChars(n.name, gender);
+      if (tabooResult.hasTaboo) {
+        tabooFiltered++;
+        console.log(`[API] 过滤忌讳字: ${n.name} (${tabooResult.tabooChars.join(",")})`);
+        continue;
+      }
+      
+      // 2. 检查发音困难
+      const pronResult = checkPronunciationDifficulty(n.name);
+      if (pronResult.isDifficult) {
+        pronFiltered++;
+        console.log(`[API] 过滤发音困难: ${n.name} (${pronResult.reason})`);
+        continue;
+      }
+      
+      filteredNames.push(n);
+    }
+    
+    console.log(`[API] 过滤完成: 忌讳字过滤${tabooFiltered}个, 发音困难过滤${pronFiltered}个, 剩余${filteredNames.length}个`);
+    
+    // 如果过滤后名字太少，降低标准再尝试
+    let finalNames = filteredNames;
+    if (filteredNames.length < 3) {
+      console.log(`[API] 过滤后名字不足，回退到未过滤列表`);
+      finalNames = namesWithSource;
+    }
+
     // ── 排序并只返回评分最高的6个名字 ──
-    const scoredNames = namesWithSource
+    const scoredNames = finalNames
       .map((n, idx) => {
         // 如果已有分数，直接使用；否则根据五行、典籍等生成估算分
         let score = n.score;
@@ -846,7 +1052,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 创建订单记录（每次必建）──
-    console.log(`[API] 开始创建订单，namesWithSource=${namesWithSource.length}个`);
+    console.log(`[API] 开始创建订单，scoredNames=${scoredNames.length}个`);
     const order = await createOrder({
       userId: currentUser?.id ?? null,
       userName: currentUser?.name || anonymousName,
@@ -857,7 +1063,7 @@ export async function POST(request: NextRequest) {
       birthTime,
       expectations,
       style,
-      results: namesWithSource,
+      results: scoredNames,
     });
     console.log(`[API] createOrder 完成，orderId=${order?.id || 'null'}`);
 

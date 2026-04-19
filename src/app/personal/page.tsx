@@ -6,7 +6,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, User, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Loader2, Check } from "lucide-react";
+
+// 意向词库（可多选）
+const INTENTION_TAGS = [
+  { category: "品格", tags: ["善良", "正直", "诚信", "勇敢", "坚强", "谦虚", "宽容"] },
+  { category: "才华", tags: ["智慧", "学识", "文采", "艺术", "诗意", "音乐"] },
+  { category: "事业", tags: ["成功", "财富", "进取", "成就", "辉煌"] },
+  { category: "情感", tags: ["快乐", "幸福", "和谐", "温暖", "乐观", "积极"] },
+  { category: "健康", tags: ["健康", "平安", "长寿", "活力", "阳光"] },
+  { category: "美好", tags: ["美好", "吉祥", "如意", "福气"] },
+];
+
+// 风格词库（可多选）
+const STYLE_TAGS = [
+  { category: "古典", tags: ["雅致", "古风", "儒雅", "书卷气"] },
+  { category: "现代", tags: ["简洁", "大气", "时尚", "国际"] },
+  { category: "温婉", tags: ["柔美", "清新", "灵动", "秀气"] },
+  { category: "力量", tags: ["刚毅", "豪迈", "威武", "雄壮"] },
+  { category: "自然", tags: ["清新", "山水", "云霞", "草木"] },
+];
 
 export default function PersonalFormPage() {
   const [surname, setSurname] = useState("");
@@ -14,8 +33,36 @@ export default function PersonalFormPage() {
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
   const [expectations, setExpectations] = useState("");
+  const [selectedIntentions, setSelectedIntentions] = useState<string[]>([]);
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
+
+  // 切换意向标签
+  const toggleIntention = (tag: string) => {
+    setSelectedIntentions(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  // 切换风格标签
+  const toggleStyle = (tag: string) => {
+    setSelectedStyles(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  // 构建 AI 提示词（从勾选组合）
+  const buildAiPrompt = () => {
+    const parts: string[] = [];
+    if (selectedIntentions.length > 0) parts.push(selectedIntentions.join("、"));
+    if (selectedStyles.length > 0) parts.push(selectedStyles.join("、"));
+    return parts.join("，");
+  };
 
   // 处理姓氏输入：拼音输入时不限制，确认后只保留中文（最多2个汉字）
   const handleSurnameChange = (val: string) => {
@@ -32,6 +79,10 @@ export default function PersonalFormPage() {
     if (!surname.trim() || !birthDate) return;
     setIsLoading(true);
 
+    // 优先使用勾选词构建 expectations（更精准）
+    const aiPrompt = buildAiPrompt();
+    const finalExpectations = aiPrompt || expectations.trim();
+
     const params = new URLSearchParams({
       surname: surname.trim(),
       gender: gender === "男" ? "M" : "F",
@@ -39,7 +90,9 @@ export default function PersonalFormPage() {
       category: "personal",
     });
     if (birthTime) params.set("birthTime", birthTime);
-    if (expectations.trim()) params.set("expectations", expectations.trim());
+    if (finalExpectations) params.set("expectations", finalExpectations);
+    if (selectedIntentions.length > 0) params.set("intentions", JSON.stringify(selectedIntentions));
+    if (selectedStyles.length > 0) params.set("styles", JSON.stringify(selectedStyles));
 
     window.location.href = `/naming?${params.toString()}`;
   };
@@ -138,10 +191,10 @@ export default function PersonalFormPage() {
             />
           </div>
 
-          {/* 期望寓意 */}
+          {/* 期望寓意 - 自由输入 */}
           <div>
             <label className="block text-sm font-medium text-[#5C4A42] mb-1">
-              期望寓意 <span className="text-[#AAA] text-xs">(可选)</span>
+              期望寓意 <span className="text-[#AAA] text-xs">(可选，或从下方勾选)</span>
             </label>
             <input
               type="text"
@@ -151,6 +204,70 @@ export default function PersonalFormPage() {
               className="w-full px-4 py-3 rounded-xl text-[#2C1810]"
               style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid #DDD0C0', outline: 'none' }}
             />
+          </div>
+
+          {/* 意向勾选 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-2">
+              期望类型 <span className="text-[#AAA] text-xs">(可多选)</span>
+            </label>
+            <div className="space-y-2">
+              {INTENTION_TAGS.map(group => (
+                <div key={group.category}>
+                  <span className="text-xs text-[#AAA] mr-2">{group.category}：</span>
+                  <div className="inline-flex flex-wrap gap-1">
+                    {group.tags.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleIntention(tag)}
+                        className="px-2 py-1 text-xs rounded-full transition-all flex items-center gap-1"
+                        style={{
+                          background: selectedIntentions.includes(tag) ? '#C84A2A' : 'rgba(255,255,255,0.8)',
+                          color: selectedIntentions.includes(tag) ? '#fff' : '#5C4A42',
+                          border: '1px solid #DDD0C0',
+                        }}
+                      >
+                        {selectedIntentions.includes(tag) && <Check className="w-3 h-3" />}
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 风格勾选 */}
+          <div>
+            <label className="block text-sm font-medium text-[#5C4A42] mb-2">
+              风格偏好 <span className="text-[#AAA] text-xs">(可多选)</span>
+            </label>
+            <div className="space-y-2">
+              {STYLE_TAGS.map(group => (
+                <div key={group.category}>
+                  <span className="text-xs text-[#AAA] mr-2">{group.category}：</span>
+                  <div className="inline-flex flex-wrap gap-1">
+                    {group.tags.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleStyle(tag)}
+                        className="px-2 py-1 text-xs rounded-full transition-all flex items-center gap-1"
+                        style={{
+                          background: selectedStyles.includes(tag) ? '#4A90D9' : 'rgba(255,255,255,0.8)',
+                          color: selectedStyles.includes(tag) ? '#fff' : '#5C4A42',
+                          border: '1px solid #DDD0C0',
+                        }}
+                      >
+                        {selectedStyles.includes(tag) && <Check className="w-3 h-3" />}
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* 提交 */}
