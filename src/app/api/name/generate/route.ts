@@ -64,9 +64,16 @@ function calculateWuxing(birthDate: string, birthTime?: string) {
 
 // 从数据库查询典籍名句（原生SQL，替代Prisma ORM）
 async function queryClassics(keywords: string[], limit: number = 3) {
-  // 修复：优先在 keywords 数组字段中搜索，其次在 modern_text 中搜索
-  // keywords 是预置的意象标签（如"才华"、"诗意"、"品德"），比在古文中模糊匹配更精准
-  const keyword = (keywords[0] || "德").slice(0, 10);
+  // 去除常见前缀，提取核心关键词（如"有才华"→"才华"，"诗意"保持不变）
+  const prefixes = ["有", "希望", "想要", "要", "喜欢", "期望"];
+  let keyword = keywords[0] || "德";
+  for (const p of prefixes) {
+    if (keyword.startsWith(p)) {
+      keyword = keyword.slice(p.length);
+      break;
+    }
+  }
+  keyword = keyword.slice(0, 10); // 限制长度
   
   const entries = await queryRaw<{
     id: string;
@@ -472,6 +479,9 @@ export async function POST(request: NextRequest) {
       style,
       category = "personal", // 默认个人起名
     } = body;
+
+    // 日志输出 style 参数
+    console.log(`[API] 接收参数: style=${style}, expectations=${expectations}`);
 
     // 参数校验
     if (!surname || !gender || !birthDate) {
