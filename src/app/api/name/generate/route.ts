@@ -83,14 +83,19 @@ async function queryClassics(keywords: string[], limit: number = 3) {
   }>(
     `SELECT id, book_name, ancient_text, modern_text
      FROM classics_entries
-     WHERE keywords && ARRAY[$1]  -- 数组包含搜索词（使用 GIN 索引）
+     WHERE keywords && ARRAY[$1]::text[]  -- 数组包含搜索词（使用 GIN 索引）
         OR modern_text ILIKE $1  -- 现代文翻译匹配
      ORDER BY 
-       CASE WHEN keywords && ARRAY[$1] THEN 0 ELSE 1 END,  -- keywords 匹配优先
+       CASE WHEN keywords && ARRAY[$1]::text[] THEN 0 ELSE 1 END,  -- keywords 匹配优先
        id
      LIMIT $2`,
     [keyword, limit]
   );
+  // 调试日志
+  console.log(`[API] queryClassics: keyword="${keyword}", limit=${limit}, 结果数=${entries.length}`);
+  if (entries.length > 0) {
+    console.log(`[API] queryClassics 首条: book=${entries[0].book_name}, ancient=${entries[0].ancient_text?.slice(0,20)}`);
+  }
   return entries;
 }
 
@@ -149,8 +154,32 @@ async function generateNames(
   surname: string,
   gender: string,
   wuxingLikes: string[],
-  expectations?: string
+  expectations?: string,
+  style?: string  // 新增：风格偏好
 ) {
+  // ── 风格关键字映射：用户输入的风格 → 相关关键字 ──
+  const STYLE_KEYWORDS: Record<string, string[]> = {
+    "古典": ["雅", "韵", "诗", "书", "典", "贤", "德", "玉", "兰", "芳"],
+    "诗意": ["诗", "书", "雅", "韵", "意", "境", "梦", "影", "香", "云"],
+    "优雅": ["雅", "美", "秀", "婉", "丽", "婷", "芸", "兰", "芳", "素"],
+    "大气": ["宏", "博", "伟", "雄", "豪", "壮", "阔", "宇", "坤", "乾"],
+    "阳光": ["阳", "光", "明", "朗", "旭", "晨", "辉", "耀", "曦", "辉"],
+    "温柔": ["柔", "温", "婉", "静", "淑", "雅", "宁", "和", "柔", "美"],
+    "可爱": ["萌", "甜", "小", " cute", "乖", "巧", "灵", "秀", "珀", "妮"],
+    "聪明": ["聪", "慧", "智", "明", "睿", "灵", "颖", "悟", "博", "学"],
+  };
+  
+  // 从 style 提取关键字（简单模糊匹配）
+  const styleKeywords: string[] = [];
+  if (style) {
+    const lowerStyle = style.toLowerCase();
+    for (const [key, words] of Object.entries(STYLE_KEYWORDS)) {
+      if (lowerStyle.includes(key.toLowerCase())) {
+        styleKeywords.push(...words);
+      }
+    }
+  }
+
   // ── 策略：用喜用五行字做"主字"，用相生五行字做"配字"，确保跨五行配对 ──
   // 喜用五行（每种最多20字）
   const mainWx = wuxingLikes.length > 0 ? wuxingLikes : ["水", "木"];
@@ -319,6 +348,23 @@ async function fetchChars(wxList: string[], limitEach: number, gender: string): 
   }
 
   console.log(`[generateNames] 全排列配对完成 → ${result.length}个候选`);
+
+  // ── 风格偏好加权：如果指定了风格，包含风格关键字的名字评分+5 ──
+  if (styleKeywords.length > 0) {
+    for (const name of result) {
+      const nameChars = name.givenName || "";
+      for (const kw of styleKeywords) {
+        if (nameChars.includes(kw)) {
+          name.score = (name.score || 0) + 5;
+          break; // 每个名字最多加一次
+        }
+      }
+    }
+    // 按评分重新排序
+    result.sort((a, b) => (b.score || 0) - (a.score || 0));
+    console.log(`[generateNames] 风格加权后 TOP3: ${result.slice(0,3).map(n => n.givenName).join(", ")}`);
+  }
+
   return result;
 }
 
@@ -722,7 +768,7 @@ export async function POST(request: NextRequest) {
         // 两次都失败且无结果，降级到传统生成（不在此处调attachSources，统一在最后处理）
         if (candidates.length === 0) {
           console.warn("[API] AI Composer 两次都失败，降级到传统生成");
-          rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
+          rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations, style);
         } else {
           // AI Composer 成功 → 映射结果
           rawNames = candidates.map((c: any) => ({
@@ -741,11 +787,11 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         console.error("[API] AI Composer 意外失败，降级到传统生成:", err);
-        rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
+        rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations, style);
       }
     } else {
       // ── 使用传统规则生成 ──
-      rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations);
+      rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations, style);
     }
 
     // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
