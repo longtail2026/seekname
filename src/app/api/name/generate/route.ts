@@ -64,7 +64,10 @@ function calculateWuxing(birthDate: string, birthTime?: string) {
 
 // 从数据库查询典籍名句（原生SQL，替代Prisma ORM）
 async function queryClassics(keywords: string[], limit: number = 3) {
-  const keyword = (keywords[0] || "德").slice(0, 10); // 限制长度防止SQL注入
+  // 修复：优先在 keywords 数组字段中搜索，其次在 modern_text 中搜索
+  // keywords 是预置的意象标签（如"才华"、"诗意"、"品德"），比在古文中模糊匹配更精准
+  const keyword = (keywords[0] || "德").slice(0, 10);
+  
   const entries = await queryRaw<{
     id: string;
     book_name: string;
@@ -73,9 +76,13 @@ async function queryClassics(keywords: string[], limit: number = 3) {
   }>(
     `SELECT id, book_name, ancient_text, modern_text
      FROM classics_entries
-     WHERE ancient_text LIKE $1
+     WHERE keywords && $1  -- 数组包含搜索词（使用 GIN 索引）
+        OR modern_text ILIKE $1  -- 现代文翻译匹配
+     ORDER BY 
+       CASE WHEN keywords && $1 THEN 0 ELSE 1 END,  -- keywords 匹配优先
+       id
      LIMIT $2`,
-    [`%${keyword}%`, limit]
+    [`{${keyword}}`, limit]
   );
   return entries;
 }

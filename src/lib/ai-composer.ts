@@ -301,11 +301,11 @@ ${poolSummary}
 
 /**
  * 将候选字池转换为摘要字符串（给 LLM 看）
- * 只取 Top N，太多 token 浪费
+ * 增大到 80 个字符，确保 AI 有足够选择，减少生成不在字池中的字
  */
 function buildPoolSummary(
   pool: CharacterInfo[],
-  maxChars: number = 40
+  maxChars: number = 80
 ): string {
   const topChars = pool.slice(0, maxChars);
   return topChars
