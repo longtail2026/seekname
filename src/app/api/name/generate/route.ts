@@ -341,7 +341,7 @@ async function attachSources(names: any[], expandedKeywords: string[] = []) {
   // 用名字的hash值来分配典籍，避免相邻名字分到同一典籍
   return names.map((name) => {
     // 用名字内容生成稳定的hash
-    const hash = name.givenName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const hash = name.givenName.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
     const entry = entries[hash % entries.length];
     return {
       ...name,
