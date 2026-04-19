@@ -1171,7 +1171,7 @@ const PROVIDER_CONFIG: Record<string, { baseUrl: string; model: string; maxTimeo
   siliconflow: {
     baseUrl: "https://api.siliconflow.cn/v1",
     model: "deepseek-ai/DeepSeek-V3",
-    maxTimeout: 9500,
+    maxTimeout: 15000, // 15秒，国内节点稳定，不需要那么保守
   },
 };
 
