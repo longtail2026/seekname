@@ -99,17 +99,30 @@ async function queryKangxiChars(chars: string[]) {
   return dict;
 }
 
-// 生成名字组合
-// 音调提取（避免循环依赖，直接内联简单逻辑）
-function extractTone(pinyin: string): number {
+
+
+
+// 五行相生关系：每个五行的相生五行
+const WUXING_SHENG: Record<string, string[]> = {
+  "金": ["水", "土"],   // 金生水，土生金
+  "木": ["火", "水"],   // 木生火，水生木
+  "水": ["木", "金"],   // 水生木，金生水
+  "火": ["土", "木"],   // 火生土，木生火
+  "土": ["金", "火"],   // 土生金，火生土
+};
+
+// 从带声调符号的拼音提取声调（支持 Unicode 声调字符）
+function extractToneFromPinyin(pinyin: string): number {
   if (!pinyin) return 0;
-  const t = pinyin.toLowerCase();
-  if (t.endsWith("1") || t.endsWith("一声") || t.endsWith("阴平")) return 1;
-  if (t.endsWith("2") || t.endsWith("二声") || t.endsWith("阳平")) return 2;
-  if (t.endsWith("3") || t.endsWith("三声") || t.endsWith("上声")) return 3;
-  if (t.endsWith("4") || t.endsWith("四声") || t.endsWith("去声")) return 4;
-  // 从拼音字符串末尾提取数字
-  const m = pinyin.match(/(\d)$/);
+  const first = pinyin.split("、")[0].trim();
+  for (const ch of first) {
+    if ("āēīōūǖĀĒĪŌŪǕ".includes(ch)) return 1;
+    if ("áéíóúǘÁÉÍÓÚǗ".includes(ch)) return 2;
+    if ("ǎěǐǒǔǚǍĚǏǑǓǙ".includes(ch)) return 3;
+    if ("àèìòùǜÀÈÌÒÙǛ".includes(ch)) return 4;
+  }
+  // 兼容旧版数字声调格式
+  const m = first.match(/(\d)$/);
   return m ? parseInt(m[1]) : 0;
 }
 
@@ -119,48 +132,70 @@ async function generateNames(
   wuxingLikes: string[],
   expectations?: string
 ) {
-  // 从数据库查询五行匹配的字（扩大字池）
-  // 如果只有一个五行类型，同时查询其他类型以增加多样性
-  const queryWuxingList = wuxingLikes.length === 1
-    ? [wuxingLikes[0], "水", "木"] // 单五行时补充水和木（常用于名字组合）
-    : wuxingLikes;
+  // ── 策略：用喜用五行字做"主字"，用相生五行字做"配字"，确保跨五行配对 ──
+  // 喜用五行（每种最多20字）
+  const mainWx = wuxingLikes.length > 0 ? wuxingLikes : ["水", "木"];
+  // 相生五行（补充配对字池）
+  const compWxSet = new Set<string>();
+  for (const wx of mainWx) {
+    for (const s of (WUXING_SHENG[wx] || [])) compWxSet.add(s);
+  }
+  // 排除和喜用五行重叠的
+  for (const wx of mainWx) compWxSet.delete(wx);
+  const compWx = Array.from(compWxSet).slice(0, 2); // 最多取2种配字五行
 
-  const allChars: Array<{ char: string; pinyin: string; wuxing: string; meaning: string; strokeCount: number }> = [];
-  for (const wx of queryWuxingList) {
-    const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
-      `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 LIMIT 25`,
-      [wx]
-    );
-    for (const r of rows) {
-      allChars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
+  type CharInfo = { char: string; pinyin: string; wuxing: string; meaning: string; strokeCount: number };
+
+  async function fetchChars(wxList: string[], limitEach: number): Promise<CharInfo[]> {
+    const chars: CharInfo[] = [];
+    for (const wx of wxList) {
+      const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
+        `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 AND meaning != 'None' ORDER BY stroke_count ASC LIMIT $2`,
+        [wx, limitEach]
+      );
+      for (const r of rows) {
+        chars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
+      }
     }
+    return chars;
   }
 
-  // 去重（同一字可能出现于多个五行查询结果）
-  const uniqueChars = allChars.filter((c, idx, arr) => arr.findIndex(x => x.char === c.char) === idx);
-  console.log(`[generateNames] 数据库查询 wuxing=${queryWuxingList.join(",")} → 去重后${uniqueChars.length}字`);
+  const mainChars = await fetchChars(mainWx, 20);
+  const compChars = await fetchChars(compWx, 15);
 
-  if (uniqueChars.length < 2) {
-    console.warn("[generateNames] 字数不足，直接返回空");
+  // 去重
+  const allCharMap = new Map<string, CharInfo>();
+  for (const c of [...mainChars, ...compChars]) allCharMap.set(c.char, c);
+  const mainSet = new Set(mainChars.map(c => c.char));
+
+  console.log(`[generateNames] 主字(${mainWx.join(",")})=${mainChars.length}个，配字(${compWx.join(",")})=${compChars.length}个`);
+
+  if (mainChars.length === 0) {
+    console.warn("[generateNames] 主字池为空，无法配对");
     return [];
   }
 
-  // 全排列配对
+  // 全排列配对：主字 × 所有字（主字+配字），确保至少一个字是喜用五行
   const result: any[] = [];
   const seen = new Set<string>();
-  for (let i = 0; i < uniqueChars.length; i++) {
-    for (let j = i + 1; j < uniqueChars.length; j++) {
-      const c1 = uniqueChars[i];
-      const c2 = uniqueChars[j];
+  const allChars = Array.from(allCharMap.values());
 
-      // 音律过滤：两个字声调不能相同
-      const p1 = c1.pinyin?.split(",")[0] || "";
-      const p2 = c2.pinyin?.split(",")[0] || "";
-      const tone1 = extractTone(p1);
-      const tone2 = extractTone(p2);
+  for (const c1 of mainChars) {
+    for (const c2 of allChars) {
+      if (c1.char === c2.char) continue;
+      // 至少一个字是主五行
+      if (!mainSet.has(c1.char) && !mainSet.has(c2.char)) continue;
+
+      // 拼音分隔符用顿号
+      const p1 = c1.pinyin?.split("、")[0].trim() || "";
+      const p2 = c2.pinyin?.split("、")[0].trim() || "";
+
+      // 音律过滤：声调不能相同
+      const tone1 = extractToneFromPinyin(p1);
+      const tone2 = extractToneFromPinyin(p2);
       if (tone1 > 0 && tone2 > 0 && tone1 === tone2) continue;
 
-      // 五行过滤：两个字最好不同五行
+      // 五行过滤：两字五行不能完全相同
       if (c1.wuxing && c2.wuxing && c1.wuxing === c2.wuxing) continue;
 
       const key = [c1.char, c2.char].sort().join("");
@@ -170,7 +205,7 @@ async function generateNames(
       result.push({
         name: surname + c1.char + c2.char,
         givenName: c1.char + c2.char,
-        pinyin: [p1, p2].join(" "),
+        pinyin: [p1, p2].join("、"),
         wuxing: c1.wuxing + c2.wuxing,
         meaning: `${c1.meaning}；${c2.meaning}`,
         strokeCount: c1.strokeCount + c2.strokeCount,
@@ -178,7 +213,7 @@ async function generateNames(
     }
   }
 
-  console.log(`[generateNames] 全排列配对 → ${result.length}个候选`);
+  console.log(`[generateNames] 全排列配对完成 → ${result.length}个候选`);
   return result;
 }
 
