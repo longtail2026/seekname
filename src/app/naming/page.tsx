@@ -62,6 +62,12 @@ function NamingResultContent() {
   const expectations = searchParams.get("expectations") || "";
   const style = searchParams.get("style") || "";
   const category = searchParams.get("category") || "personal";
+  // 新增：意向和风格勾选参数
+  const rawIntentions = searchParams.get("intentions") || "";
+  const rawStyles = searchParams.get("styles") || "";
+  // 解析 JSON 字符串
+  const intentions = rawIntentions ? JSON.parse(rawIntentions) : [];
+  const styles = rawStyles ? JSON.parse(rawStyles) : [];
 
   const [loading, setLoading] = useState(true);
   const [names, setNames] = useState<NameItem[]>([]);
@@ -98,6 +104,9 @@ function NamingResultContent() {
         if (birthTime) body.birthTime = birthTime;
         if (expectations) body.expectations = expectations;
         if (style) body.style = style;
+        // 新增：意向和风格勾选参数
+        if (intentions.length > 0) body.intentions = intentions;
+        if (styles.length > 0) body.styles = styles;
         // 默认开启 AI 组合
         body.useAiComposer = "true";
 
