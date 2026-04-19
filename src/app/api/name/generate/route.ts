@@ -76,13 +76,13 @@ async function queryClassics(keywords: string[], limit: number = 3) {
   }>(
     `SELECT id, book_name, ancient_text, modern_text
      FROM classics_entries
-     WHERE keywords && $1  -- 数组包含搜索词（使用 GIN 索引）
+     WHERE keywords && ARRAY[$1]  -- 数组包含搜索词（使用 GIN 索引）
         OR modern_text ILIKE $1  -- 现代文翻译匹配
      ORDER BY 
-       CASE WHEN keywords && $1 THEN 0 ELSE 1 END,  -- keywords 匹配优先
+       CASE WHEN keywords && ARRAY[$1] THEN 0 ELSE 1 END,  -- keywords 匹配优先
        id
      LIMIT $2`,
-    [`{${keyword}}`, limit]
+    [keyword, limit]
   );
   return entries;
 }
