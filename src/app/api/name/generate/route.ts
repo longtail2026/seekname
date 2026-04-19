@@ -75,6 +75,8 @@ async function queryClassics(keywords: string[], limit: number = 3) {
   }
   keyword = keyword.slice(0, 10); // 限制长度
   
+  // 搜索关键词（兼容 keywords 字段为空的情况，直接搜索原文）
+  const searchPattern = `%${keyword}%`;
   const entries = await queryRaw<{
     id: string;
     book_name: string;
@@ -83,13 +85,12 @@ async function queryClassics(keywords: string[], limit: number = 3) {
   }>(
     `SELECT id, book_name, ancient_text, modern_text
      FROM classics_entries
-     WHERE keywords && ARRAY[$1]::text[]  -- 数组包含搜索词（使用 GIN 索引）
-        OR modern_text ILIKE $1  -- 现代文翻译匹配
-     ORDER BY 
-       CASE WHEN keywords && ARRAY[$1]::text[] THEN 0 ELSE 1 END,  -- keywords 匹配优先
-       id
+     WHERE ancient_text ILIKE $1  -- 古文匹配
+        OR modern_text ILIKE $1   -- 现代文匹配
+        OR book_name ILIKE $1     -- 书名匹配
+     ORDER BY id
      LIMIT $2`,
-    [keyword, limit]
+    [searchPattern, limit]
   );
   // 调试日志
   console.log(`[API] queryClassics: keyword="${keyword}", limit=${limit}, 结果数=${entries.length}`);
