@@ -8,23 +8,20 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, User, Loader2, Check } from "lucide-react";
 
-// 意向词库（可多选）
+// 意向词库（可多选，最多3个）
 const INTENTION_TAGS = [
-  { category: "品格", tags: ["善良", "正直", "诚信", "勇敢", "坚强", "谦虚", "宽容"] },
-  { category: "才华", tags: ["智慧", "学识", "文采", "艺术", "诗意", "音乐"] },
-  { category: "事业", tags: ["成功", "财富", "进取", "成就", "辉煌"] },
-  { category: "情感", tags: ["快乐", "幸福", "和谐", "温暖", "乐观", "积极"] },
-  { category: "健康", tags: ["健康", "平安", "长寿", "活力", "阳光"] },
-  { category: "美好", tags: ["美好", "吉祥", "如意", "福气"] },
+  { category: "品格", tags: ["善良", "勇敢", "宽容"] },
+  { category: "才华", tags: ["智慧", "文采"] },
+  { category: "事业", tags: ["成功", "进取"] },
+  { category: "情感", tags: ["乐观", "阳光"] },
+  { category: "美好", tags: ["福气", "吉祥"] },
 ];
 
-// 风格词库（可多选）
+// 风格词库（可多选，最多2个）
 const STYLE_TAGS = [
-  { category: "古典", tags: ["雅致", "古风", "儒雅", "书卷气"] },
-  { category: "现代", tags: ["简洁", "大气", "时尚", "国际"] },
-  { category: "温婉", tags: ["柔美", "清新", "灵动", "秀气"] },
-  { category: "力量", tags: ["刚毅", "豪迈", "威武", "雄壮"] },
-  { category: "自然", tags: ["清新", "山水", "云霞", "草木"] },
+  { category: "古典", tags: ["雅致", "儒雅"] },
+  { category: "现代", tags: ["大气", "时尚"] },
+  { category: "自然", tags: ["清新", "秀气"] },
 ];
 
 export default function PersonalFormPage() {
