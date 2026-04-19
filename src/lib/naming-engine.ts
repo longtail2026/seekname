@@ -9,7 +9,7 @@
  * 5. AI 组合与润色层（大模型干） - 组合名字、保证音律平仄、写释义+出处
  */
 
-import { prisma } from "./prisma";
+import { prisma, queryRaw } from "./prisma";
 import { DeepSeekIntegration } from "./deepseek-integration";
 import { PhoneticOptimizer } from "./phonetic-optimizer";
 import { FEMALE_TABOO_CHARS, MALE_TABOO_CHARS, UNIVERSAL_TABOO_CHARS } from "./constants";
@@ -252,23 +252,46 @@ export async function matchClassics(intent: StructuredIntent): Promise<Character
     if (characters.length < 50) {
       console.log(`典籍匹配层: 字符不足 (${characters.length})，从五行字库补充`);
 
-      const wuxingChars = await prisma.wuxingCharacter.findMany({
-        where: {
-          wuxing: { in: intent.wuxing },
-        },
-        take: 60,
-      });
-      
-      console.log(`典籍匹配层: 从五行字库找到 ${wuxingChars.length} 个字`);
-      
-      for (const wxChar of wuxingChars) {
+      // 策略：优先查 name_wuxing（高覆盖），再回退 kangxi_dict 补全字段
+      const wxChars: { character: string; wuxing: string; pinyin: string; meaning: string; strokeCount: number }[] = [];
+      for (const wx of intent.wuxing) {
+        const wxRows = await queryRaw<{ name_char: string; wuxing: string }>(
+          `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT 60`,
+          [wx]
+        );
+        const charList = wxRows.map(r => r.name_char);
+        if (charList.length === 0) continue;
+
+        // 从 kangxi_dict 补全 pinyin / meaning / stroke_count
+        const placeholders = charList.map((_, i) => `$${i + 1}`).join(", ");
+        const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
+          `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character IN (${placeholders})`,
+          charList
+        );
+        const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
+        for (const r of dictRows) dictMap.set(r.character, r);
+
+        for (const r of wxRows) {
+          const d = dictMap.get(r.name_char);
+          wxChars.push({
+            character: r.name_char,
+            wuxing: r.wuxing,
+            pinyin: d?.pinyin || "",
+            meaning: d?.meaning || "",
+            strokeCount: d?.stroke_count || 0,
+          });
+        }
+      }
+
+      console.log(`典籍匹配层: 从 name_wuxing 找到 ${wxChars.length} 个字`);
+      for (const wxChar of wxChars) {
         if (!characters.some(c => c.character === wxChar.character)) {
           characters.push({
             character: wxChar.character,
-            pinyin: wxChar.pinyin || "",
-            wuxing: wxChar.wuxing || "",
-            meaning: wxChar.meaning || "",
-            strokeCount: wxChar.strokeCount || 0,
+            pinyin: wxChar.pinyin,
+            wuxing: wxChar.wuxing,
+            meaning: wxChar.meaning,
+            strokeCount: wxChar.strokeCount,
           });
         }
       }

@@ -146,15 +146,62 @@ async function generateNames(
 
   type CharInfo = { char: string; pinyin: string; wuxing: string; meaning: string; strokeCount: number };
 
+  // 查询 kangxi_dict 获取拼音和笔画（原生SQL，替代Prisma ORM）
+  async function queryKangxiChars(chars: string[]) {
+    if (!chars.length) return [];
+    const placeholders = chars.map((_, i) => `$${i + 1}`).join(", ");
+    const dict = await queryRaw<{
+      character: string;
+      pinyin: string;
+      wuxing: string;
+      meaning: string;
+      stroke_count: number;
+    }>(
+      `SELECT character, pinyin, wuxing, meaning, stroke_count
+       FROM kangxi_dict
+       WHERE character IN (${placeholders})`,
+      chars
+    );
+    return dict;
+  }
+
   async function fetchChars(wxList: string[], limitEach: number): Promise<CharInfo[]> {
     const chars: CharInfo[] = [];
     for (const wx of wxList) {
-      const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
-        `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 AND meaning != 'None' ORDER BY stroke_count ASC LIMIT $2`,
+      // 策略：优先查 name_wuxing（五行高覆盖），再回退 kangxi_dict
+      const wxRows = await queryRaw<{ name_char: string; wuxing: string }>(
+        `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT $2`,
         [wx, limitEach]
       );
-      for (const r of rows) {
-        chars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
+      const charList = wxRows.map(r => r.name_char);
+
+      if (charList.length === 0) {
+        // name_wuxing 没有，回退到 kangxi_dict
+        const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
+          `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 AND meaning != 'None' ORDER BY stroke_count ASC LIMIT $2`,
+          [wx, limitEach]
+        );
+        for (const r of rows) {
+          chars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
+        }
+      } else {
+        // name_wuxing 有，查 kangxi_dict 补全其他字段
+        const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
+        const dictRows = await queryKangxiChars(charList);
+        for (const r of dictRows) {
+          dictMap.set(r.character, { pinyin: r.pinyin, meaning: r.meaning, stroke_count: r.stroke_count });
+        }
+        // name_wuxing 中每一行都有五行值，直接用
+        for (const r of wxRows) {
+          const d = dictMap.get(r.name_char);
+          chars.push({
+            char: r.name_char,
+            pinyin: d?.pinyin || "",
+            wuxing: r.wuxing,
+            meaning: d?.meaning || "",
+            strokeCount: d?.stroke_count || 0
+          });
+        }
       }
     }
     return chars;
