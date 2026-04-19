@@ -190,65 +190,64 @@ const GENDER_CHARS: Record<string, Record<string, string[]>> = {
 
 async function fetchChars(wxList: string[], limitEach: number, gender: string): Promise<CharInfo[]> {
   const chars: CharInfo[] = [];
-  const genderMap = GENDER_CHARS[gender] || GENDER_CHARS.F;
-
+  const seen = new Set<string>();
+  
+  // 策略：先从数据库 name_wuxing + kangxi_dict JOIN 查询（覆盖率高）
   for (const wx of wxList) {
-    // 优先用性别友好的字池
-    const preferredChars = genderMap[wx] || [];
-    const charList = preferredChars.slice(0, limitEach);
+    const wxRows = await queryRaw<{ name_char: string; pinyin: string; meaning: string; stroke_count: number }>(
+      `SELECT nw.name_char, kd.pinyin, kd.meaning, kd.stroke_count
+       FROM name_wuxing nw
+       LEFT JOIN kangxi_dict kd ON kd.character = nw.name_char
+       WHERE nw.wuxing = $1
+       LIMIT $2`,
+      [wx, limitEach * 2] // 多查一些，留出过滤空间
+    );
     
-    if (charList.length === 0) {
-      // 字池没有，查询 name_wuxing + kangxi_dict
-      const wxRows = await queryRaw<{ name_char: string; wuxing: string }>(
-        `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT $2`,
-        [wx, limitEach]
-      );
-      const dbCharList = wxRows.map(r => r.name_char);
+    for (const r of wxRows) {
+      if (seen.has(r.name_char)) continue;
+      seen.add(r.name_char);
       
-      if (dbCharList.length === 0) continue;
-      
-      const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
-      const placeholders = dbCharList.map((_, i) => `$${i + 1}`).join(", ");
-      const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
-        `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character IN (${placeholders})`,
-        dbCharList
-      );
-      for (const r of dictRows) dictMap.set(r.character, { pinyin: r.pinyin, meaning: r.meaning, stroke_count: r.stroke_count });
-      
-      for (const r of wxRows) {
-        const d = dictMap.get(r.name_char);
+      // 只有有拼音的字才加入（确保声调过滤有效）
+      if (r.pinyin) {
         chars.push({
           char: r.name_char,
-          pinyin: d?.pinyin || "",
-          wuxing: r.wuxing,
-          meaning: d?.meaning || "",
-          strokeCount: d?.stroke_count || 0
+          pinyin: r.pinyin,
+          wuxing: wx,
+          meaning: r.meaning || "",
+          strokeCount: r.stroke_count || 0
         });
       }
-    } else {
-      // 用性别友好字池，查 kangxi_dict 补全字段
-      const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
-      const placeholders = charList.map((_, i) => `$${i + 1}`).join(", ");
-      const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
-        `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character IN (${placeholders})`,
-        charList
-      );
-      for (const r of dictRows) dictMap.set(r.character, { pinyin: r.pinyin, meaning: r.meaning, stroke_count: r.stroke_count });
-      
-      for (const c of charList) {
-        const d = dictMap.get(c);
-        if (d) {
+    }
+  }
+  
+  // 如果数据库字不够，再用硬编码字池补充
+  if (chars.length < wxList.length * 5) {
+    const genderMap = GENDER_CHARS[gender] || GENDER_CHARS.F;
+    for (const wx of wxList) {
+      const preferredChars = genderMap[wx] || [];
+      for (const c of preferredChars) {
+        if (seen.has(c)) continue;
+        
+        // 查询这个字的完整信息
+        const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
+          `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character = $1`,
+          [c]
+        );
+        
+        if (dictRows[0]?.pinyin) {
+          seen.add(c);
           chars.push({
             char: c,
-            pinyin: d.pinyin,
+            pinyin: dictRows[0].pinyin,
             wuxing: wx,
-            meaning: d.meaning,
-            strokeCount: d.stroke_count
+            meaning: dictRows[0].meaning || "",
+            strokeCount: dictRows[0].stroke_count || 0
           });
         }
       }
     }
   }
+  
   return chars;
 }
 
