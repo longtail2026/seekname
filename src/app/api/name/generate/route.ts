@@ -165,50 +165,90 @@ async function generateNames(
     return dict;
   }
 
-  async function fetchChars(wxList: string[], limitEach: number): Promise<CharInfo[]> {
-    const chars: CharInfo[] = [];
-    for (const wx of wxList) {
-      // 策略：优先查 name_wuxing（五行高覆盖），再回退 kangxi_dict
+  // 性别友好的字池（从619字五行库中精选）
+const GENDER_CHARS: Record<string, Record<string, string[]>> = {
+  F: { // 女性优先
+    金: ["琳","瑶","珂","珊","琦","瑾","璐","珂","珞","珠","瑞","琴","瑛","瑟","珑","珈","珂","玥","锦","钰"],
+    木: ["桐","楠","梅","桦","榆","桂","樱","槿","榕","兰","芳","芷","芸","芬","芯","花","苒","莲","莎","苹"],
+    水: ["涵","泽","洋","沛","润","澜","沁","汐","洁","沁","漾","澜","淳","清","漫","潇","潞","潼","潞","汝"],
+    火: ["炅","煦","焕","晴","晓","晗","昱","婷","烨","煜","煊","炜","熙","彤","丹","荧","甜","映","黛","昕"],
+    土: ["培","基","均","堂","安","婉","娴","媛","婕","怡","娅","嫣","娴","婷","岚","岫","岱","岭","岳","均"],
+  },
+  M: { // 男性优先
+    金: ["铭","钧","铮","锐","锋","瑞","铎","锡","铠","镕","钟","鉴","镇","锦","钰","鑫","鏹","鐘","鐸","鏞"],
+    木: ["林","森","梓","柏","松","槐","楷","栋","梁","桐","楠","榆","森","桓","榛","榕","楠","楷","棱","楚"],
+    水: ["泽","浩","清","源","涛","润","澜","瀚","波","泉","滔","潮","澎","澈","潺","濡","滨","润","渊","湛"],
+    火: ["炎","煜","炜","烨","熠","灿","燃","烽","炫","耀","辉","炽","炀","焕","煌","熠","灼","炜","熠","熠"],
+    土: ["坤","培","基","城","垣","坚","墨","域","垚","堂","培","域","堪","坚","增","圣","型","垣","址","垂"],
+  },
+};
+
+async function fetchChars(wxList: string[], limitEach: number, gender: string): Promise<CharInfo[]> {
+  const chars: CharInfo[] = [];
+  const genderMap = GENDER_CHARS[gender] || GENDER_CHARS.F;
+
+  for (const wx of wxList) {
+    // 优先用性别友好的字池
+    const preferredChars = genderMap[wx] || [];
+    const charList = preferredChars.slice(0, limitEach);
+    
+    if (charList.length === 0) {
+      // 字池没有，查询 name_wuxing + kangxi_dict
       const wxRows = await queryRaw<{ name_char: string; wuxing: string }>(
         `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT $2`,
         [wx, limitEach]
       );
-      const charList = wxRows.map(r => r.name_char);
-
-      if (charList.length === 0) {
-        // name_wuxing 没有，回退到 kangxi_dict
-        const rows = await queryRaw<{ character: string; pinyin: string; wuxing: string; meaning: string; stroke_count: number }>(
-          `SELECT character, pinyin, wuxing, meaning, stroke_count FROM kangxi_dict WHERE wuxing = $1 AND meaning != 'None' ORDER BY stroke_count ASC LIMIT $2`,
-          [wx, limitEach]
-        );
-        for (const r of rows) {
-          chars.push({ char: r.character, pinyin: r.pinyin, wuxing: r.wuxing, meaning: r.meaning, strokeCount: r.stroke_count });
-        }
-      } else {
-        // name_wuxing 有，查 kangxi_dict 补全其他字段
-        const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
-        const dictRows = await queryKangxiChars(charList);
-        for (const r of dictRows) {
-          dictMap.set(r.character, { pinyin: r.pinyin, meaning: r.meaning, stroke_count: r.stroke_count });
-        }
-        // name_wuxing 中每一行都有五行值，直接用
-        for (const r of wxRows) {
-          const d = dictMap.get(r.name_char);
+      const dbCharList = wxRows.map(r => r.name_char);
+      
+      if (dbCharList.length === 0) continue;
+      
+      const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
+      const placeholders = dbCharList.map((_, i) => `$${i + 1}`).join(", ");
+      const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
+        `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character IN (${placeholders})`,
+        dbCharList
+      );
+      for (const r of dictRows) dictMap.set(r.character, { pinyin: r.pinyin, meaning: r.meaning, stroke_count: r.stroke_count });
+      
+      for (const r of wxRows) {
+        const d = dictMap.get(r.name_char);
+        chars.push({
+          char: r.name_char,
+          pinyin: d?.pinyin || "",
+          wuxing: r.wuxing,
+          meaning: d?.meaning || "",
+          strokeCount: d?.stroke_count || 0
+        });
+      }
+    } else {
+      // 用性别友好字池，查 kangxi_dict 补全字段
+      const dictMap = new Map<string, { pinyin: string; meaning: string; stroke_count: number }>();
+      const placeholders = charList.map((_, i) => `$${i + 1}`).join(", ");
+      const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
+        `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character IN (${placeholders})`,
+        charList
+      );
+      for (const r of dictRows) dictMap.set(r.character, { pinyin: r.pinyin, meaning: r.meaning, stroke_count: r.stroke_count });
+      
+      for (const c of charList) {
+        const d = dictMap.get(c);
+        if (d) {
           chars.push({
-            char: r.name_char,
-            pinyin: d?.pinyin || "",
-            wuxing: r.wuxing,
-            meaning: d?.meaning || "",
-            strokeCount: d?.stroke_count || 0
+            char: c,
+            pinyin: d.pinyin,
+            wuxing: wx,
+            meaning: d.meaning,
+            strokeCount: d.stroke_count
           });
         }
       }
     }
-    return chars;
   }
+  return chars;
+}
 
-  const mainChars = await fetchChars(mainWx, 20);
-  const compChars = await fetchChars(compWx, 15);
+  const mainChars = await fetchChars(mainWx, 40, gender);
+  const compChars = await fetchChars(compWx, 30, gender);
 
   // 去重
   const allCharMap = new Map<string, CharInfo>();
@@ -477,17 +517,37 @@ export async function POST(request: NextRequest) {
 
         console.log(`[API] 意图解析：原始=${expectations || "无"} → 扩展=${expanded.slice(0, 15).join(",")}...`);
 
-        // ── 构建候选字池（从五行字库中取）──
+        // ── 构建候选字池（从数据库的619字五行库中取，性别区分）──
+        const isFemale = gender === "F";
         const poolChars: Array<{ char: string; wx: string }> = [];
+        
+        // 喜用五行各取 20 字
         for (const wx of wuxingResult.likes) {
-          const chars = NAME_CONFIG.wuxingChars[wx as keyof typeof NAME_CONFIG.wuxingChars] || [];
-          for (const char of chars) {
-            poolChars.push({ char, wx });
+          const wxChars = await queryRaw<{ name_char: string; wuxing: string }>(
+            `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT 30`,
+            [wx]
+          );
+          for (const r of wxChars) {
+            poolChars.push({ char: r.name_char, wx: r.wuxing });
+          }
+        }
+        
+        // 补充其他四行的字（各 10 字，增加多样性）
+        const allWuxing = ["金","木","水","火","土"];
+        for (const wx of allWuxing) {
+          if (!wuxingResult.likes.includes(wx)) {
+            const wxChars = await queryRaw<{ name_char: string; wuxing: string }>(
+              `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT 15`,
+              [wx]
+            );
+            for (const r of wxChars) {
+              poolChars.push({ char: r.name_char, wx: r.wuxing });
+            }
           }
         }
 
         const uniqueChars = Array.from(new Set(poolChars.map((p) => p.char)));
-        const charInfo = await queryKangxiChars(uniqueChars.slice(0, 30));
+        const charInfo = await queryKangxiChars(uniqueChars.slice(0, 100));
         const charMap = new Map(charInfo.map((c) => [c.character, { ...c, strokeCount: c.stroke_count }]));
 
         const pool = poolChars
@@ -508,15 +568,14 @@ export async function POST(request: NextRequest) {
             };
           });
 
-        // ── 补充完整五行字池（金/木/水/火/土各20字，共100字）──
-        const isFemale = gender === "F";
+        // ── 补充完整五行字池（金/木/水/火/土各20字，共100字，性别区分）──
         const FULL_POOL_CHARS: Array<{ char: string; wx: string }> = [
           ...(isFemale
-            ? ["铭","锦","钰","瑞","瑜","珞","琛","琦","瑶","珂","琳","钥"].map(c=>({char:c,wx:"金"}))
-            : ["铭","鑫","钧","铮","锐","锋","瑞","铎","锡","铠","镕","钟"].map(c=>({char:c,wx:"金"}))
+            ? ["琳","瑶","珂","珊","琦","瑾","璐","珠","瑞","琴","瑛","瑟","珑","珈","玥","锦","钰","环","璧","琅"].map(c=>({char:c,wx:"金"}))
+            : ["铭","鑫","钧","铮","锐","锋","瑞","铎","锡","铠","镕","钟","鉴","鎮","鏹","鐘","鐸","鏞","鎮","鏍"].map(c=>({char:c,wx:"金"}))
           ),
           ...(isFemale
-            ? ["桐","楠","梅","桦","榆","桂","枫","樱","槿","榕","杨","柳"].map(c=>({char:c,wx:"木"}))
+            ? ["桐","楠","梅","桦","榆","桂","樱","槿","榕","兰","芳","芷","芸","芬","芯","花","苒","莲","莎","苹"].map(c=>({char:c,wx:"木"}))
             : ["林","森","梓","柏","松","槐","楷","栋","梁","桐","楠","榆"].map(c=>({char:c,wx:"木"}))
           ),
           ...(isFemale
