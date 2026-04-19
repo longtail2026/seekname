@@ -306,14 +306,11 @@ ${poolSummary}
 
 /**
  * 将候选字池转换为摘要字符串（给 LLM 看）
- * 增大到 200 个字，确保覆盖整个字池，减少生成不在字池中的字
+ * 关键：必须包含所有字，确保 AI 不生成不在字池中的字
  */
-function buildPoolSummary(
-  pool: CharacterInfo[],
-  maxChars: number = 200
-): string {
-  const topChars = pool.slice(0, maxChars);
-  return topChars
+function buildPoolSummary(pool: CharacterInfo[]): string {
+  // 不限制数量，包含整个字池
+  return pool
     .map((c) => {
       const pinyin = c.pinyin ? `（${c.pinyin}）` : "";
       const wuxing = c.wuxing ? `·${c.wuxing}` : "";
