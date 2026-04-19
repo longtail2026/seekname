@@ -512,7 +512,9 @@ export async function POST(request: NextRequest) {
     const useAiComposer = body.useAiComposer !== false; // 默认开启
 
     // ── 解析用户意图（分词+同义词扩展），所有分支都需要 ──
-    const { keywords: _, expanded } = parseIntent(expectations);
+    const { keywords: _, expanded, priority, fallback } = parseIntent(expectations);
+    // 合并：priority 优先查询典籍，fallback 作为后备补充
+    const classicalKeywords = [...priority, ...fallback];
 
     let rawNames: any[] = [];
 
@@ -520,8 +522,7 @@ export async function POST(request: NextRequest) {
       // ── 使用 AI 创意组合层 ──
       try {
         console.log(`[API] 使用 AI Composer，场景=${scenario}`);
-
-        console.log(`[API] 意图解析：原始=${expectations || "无"} → 扩展=${expanded.slice(0, 15).join(",")}...`);
+        console.log(`[API] 意图解析：原始=${expectations || "无"} → 优先级=${priority.slice(0, 8).join(",")}，后备=${fallback.slice(0, 8).join(",")}`);
 
         // ── 构建候选字池（从数据库的619字五行库中取，性别区分）──
         const isFemale = gender === "F";
@@ -609,17 +610,30 @@ export async function POST(request: NextRequest) {
         ];
         Object.assign(pool, fullPool);
 
-        // ── 用扩展后的关键词查询典籍库，传给 AI Composer ──
+        // ── 用优先级关键词查询典籍库，优先用完整词 ──
         let classicalEntries: Array<{ id: string; book_name: string; ancient_text: string; modern_text: string }> = [];
         const seen = new Set<string>();
-        for (const kw of expanded.slice(0, 15)) {
+        
+        // 优先用 priority（完整词）查询典籍
+        for (const kw of priority.slice(0, 10)) {
           const entries = await queryClassics([kw], 3);
           for (const e of entries) {
             if (!seen.has(e.id)) { seen.add(e.id); classicalEntries.push(e); }
           }
         }
+        
+        // 如果 priority 查询结果少于 15 条，再用 fallback 补充
+        if (classicalEntries.length < 15) {
+          for (const kw of fallback.slice(0, 8)) {
+            const entries = await queryClassics([kw], 2);
+            for (const e of entries) {
+              if (!seen.has(e.id)) { seen.add(e.id); classicalEntries.push(e); }
+            }
+          }
+        }
+        
         classicalEntries = classicalEntries.slice(0, 30);
-        console.log(`[API] 典籍查询：去重后=${classicalEntries.length}条`);
+        console.log(`[API] 典籍查询：优先级词=${priority.slice(0,5).join(",")}... → 去重后=${classicalEntries.length}条`);
 
         // ── 构建 StructuredIntent（imagery 用扩展后的关键词）──
         const intent = {
@@ -718,11 +732,32 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
-    const namesWithSource = await attachSources(rawNames, expanded);
+    const namesWithSource = await attachSources(rawNames, classicalKeywords);
     console.log(`[API] attachSources 完成，namesWithSource=${namesWithSource.length}个`);
 
+    // ── 排序并只返回评分最高的6个名字 ──
+    const scoredNames = namesWithSource
+      .map((n, idx) => {
+        // 如果已有分数，直接使用；否则根据五行、典籍等生成估算分
+        let score = n.score;
+        if (!score || score <= 0) {
+          // 五行完整 + 有典籍出处 → 高分
+          let estimatedScore = 70;
+          if (n.wuxing && n.wuxing.length >= 2) estimatedScore += 8;
+          if (n.source) estimatedScore += 10;
+          if (n.pinyin) estimatedScore += 5;
+          // 添加随机扰动避免完全相同分数（±5分）
+          score = Math.min(95, Math.max(65, estimatedScore + Math.floor(Math.random() * 10) - 5));
+        }
+        return { ...n, score };
+      })
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 6); // 只返回评分最高的6个
+
+    console.log(`[API] 排序并限制为前6个，最高分=${scoredNames[0]?.score}`);
+
     // ── 如果名字为空，直接报错（方便调试）──
-    if (namesWithSource.length === 0) {
+    if (scoredNames.length === 0) {
       // 先检查数据库是否有康熙字典数据
       const charCountRows = await queryRaw<{ cnt: string }>(`SELECT COUNT(*) as cnt FROM kangxi_dict`);
       const entryCountRows = await queryRaw<{ cnt: string }>(`SELECT COUNT(*) as cnt FROM classics_entries`);
@@ -767,7 +802,7 @@ export async function POST(request: NextRequest) {
             expectations,
             style,
           },
-          candidates: namesWithSource.map((n) => ({
+          candidates: scoredNames.map((n) => ({
             name: n.name,
             pinyin: n.pinyin,
             wuxing: n.wuxing,
@@ -792,7 +827,7 @@ export async function POST(request: NextRequest) {
         orderNo: order?.orderNo,
         orderDetail,
         wuxing: wuxingResult,
-        names: namesWithSource,
+        names: scoredNames,
         scenario,
         useAiComposer,
       },

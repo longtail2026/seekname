@@ -144,23 +144,28 @@ function extractKeywords(text: string): string[] {
  * 扩展关键词为同义词列表
  * 策略：
  * 1. 精确匹配优先（保留完整意图词如"才华"）
- * 2. 部分包含时，只扩展包含部分，不拆词
- * 3. 单字符直接加入
+ * 2. 扩展时：完整词优先，单字符作为后备补充（不干扰典籍查询优先级）
+ * 3. 返回带优先级的关键词列表：完整词在前，单字符在后
  */
-function expandWithSynonyms(keywords: string[]): string[] {
-  const expanded = new Set<string>();
+function expandWithSynonyms(keywords: string[]): { priority: string[]; fallback: string[] } {
+  const priority = new Set<string>();   // 完整词（2-4字），优先用于典籍查询
+  const fallback = new Set<string>();    // 单字符，作为后备
 
   for (const keyword of keywords) {
-    // 单字符直接加入
+    // 单字符直接加入 fallback
     if (keyword.length === 1) {
-      expanded.add(keyword);
+      fallback.add(keyword);
       continue;
     }
 
-    // 1. 精确匹配（如"才华" → ["才","华","艺","文","雅","诗","书"]）
+    // 1. 精确匹配（如"才华"）
     if (INTENT_SYNONYMS[keyword]) {
-      expanded.add(keyword); // 保留完整词
-      INTENT_SYNONYMS[keyword].forEach((s) => expanded.add(s));
+      priority.add(keyword); // 保留完整词到优先级列表
+      // 同义词也加入 priority（它们通常是多字词）
+      INTENT_SYNONYMS[keyword].forEach((s) => {
+        if (s.length >= 2) priority.add(s);
+        else fallback.add(s);
+      });
       continue;
     }
 
@@ -169,8 +174,11 @@ function expandWithSynonyms(keywords: string[]): string[] {
     let matchedLonger = false;
     for (const [key, synonyms] of Object.entries(INTENT_SYNONYMS)) {
       if (key.length >= 2 && keyword.includes(key)) {
-        expanded.add(key);
-        synonyms.forEach((s) => expanded.add(s));
+        priority.add(key);
+        synonyms.forEach((s) => {
+          if (s.length >= 2) priority.add(s);
+          else fallback.add(s);
+        });
         matchedLonger = true;
       }
     }
@@ -179,29 +187,37 @@ function expandWithSynonyms(keywords: string[]): string[] {
     // 3. 没有精确匹配，才按字符拆解（单字）
     for (const char of keyword) {
       if (/[\u4e00-\u9fa5]/.test(char)) {
-        expanded.add(char);
+        fallback.add(char);
       }
     }
   }
 
-  return [...expanded];
+  return {
+    priority: [...priority],
+    fallback: [...fallback],
+  };
 }
 
 /**
  * 主函数：解析用户输入 → 返回扩展后的关键词列表
+ * 返回优先级分离的结果：priority（完整词）用于优先查询典籍，fallback（单字符）作为后备
  *
  * @param input 用户输入，如 "希望宝宝聪明伶俐，性格温柔"
- * @returns { keywords: 原始关键词, expanded: 扩展后关键词 }
+ * @returns { keywords: 原始关键词, expanded: 扩展后关键词, priority: 优先查询的关键词, fallback: 后备关键词 }
  */
 export function parseIntent(input?: string | null): {
   keywords: string[];
   expanded: string[];
+  priority: string[];
+  fallback: string[];
 } {
   if (!input || input.trim().length < 2) {
     // 默认返回积极品质关键词
     return {
       keywords: ["德", "才", "智", "仁", "义"],
       expanded: ["德", "才", "智", "仁", "义"],
+      priority: ["德", "才", "智", "仁", "义"],
+      fallback: [],
     };
   }
 
@@ -210,10 +226,14 @@ export function parseIntent(input?: string | null): {
     return {
       keywords: [],
       expanded: ["德", "才", "智", "仁", "义"],
+      priority: ["德", "才", "智", "仁", "义"],
+      fallback: [],
     };
   }
 
-  const expanded = expandWithSynonyms(keywords);
+  const { priority, fallback } = expandWithSynonyms(keywords);
+  // expanded 仍然返回全部（兼容旧代码）
+  const expanded = [...priority, ...fallback];
 
-  return { keywords, expanded };
+  return { keywords, expanded, priority, fallback };
 }
