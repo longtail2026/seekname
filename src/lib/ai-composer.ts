@@ -1135,12 +1135,16 @@ function buildCandidateFromPair(
 
 // 为 DeepSeekIntegration 补充 callRaw 方法
 // 智能识别 API Provider：Groq（推荐，国际节点，Vercel直连）/ SiliconFlow / OpenAI
+// ⚠️ 强制优先使用 SiliconFlow（DeepSeek-V3 中文理解更强，遵循约束更可靠）
 function resolveApiProvider() {
+  // 强制使用 SiliconFlow（国内节点，DeepSeek-V3 免费额度充足）
+  // 忽略 key 前缀判断，确保走 DeepSeek
   const key = process.env.DEEPSEEK_API_KEY || "";
   if (key.startsWith("gsk_")) return "groq";
-  if (key.startsWith("sk-or-v1-")) return "openrouter";
-  if (key.includes("siliconflow")) return "siliconflow";
-  return "openrouter"; // 默认走 OpenRouter（国际通用）
+  // 强制优先 SiliconFlow（DeepSeek-V3 对中文约束遵循更好）
+  if (key.length > 0) return "siliconflow";
+  // 无 key 时降级到 OpenRouter
+  return "openrouter";
 }
 
 const providerNameMap: Record<string, string> = {
