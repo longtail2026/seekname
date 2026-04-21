@@ -21,6 +21,7 @@ import { verifyToken } from "@/lib/auth";
 import { aiCompose } from "@/lib/ai-composer";
 import { parseIntent } from "@/lib/intent-parser";
 import { FEMALE_TABOO_CHARS, MALE_TABOO_CHARS, UNIVERSAL_TABOO_CHARS } from "@/lib/constants";
+import { integrateBGE_M3ToNamingFlow } from "@/lib/bge-m3-service";
 import type { NamingScenario } from "@/lib/ai-composer";
 
 // ─── 起名配置 ───
@@ -737,6 +738,51 @@ export async function POST(request: NextRequest) {
     const classicalKeywords = [...priority, ...fallback];
 
     let rawNames: any[] = [];
+
+    // ── 尝试使用BGE-M3语义匹配生成名字（先过滤忌讳字）──
+    const useBGE_M3 = process.env.NEXT_PUBLIC_USE_BGE_M3 === "true";
+    if (useBGE_M3 && expectations) {
+      try {
+        console.log(`[API] 尝试使用BGE-M3语义匹配生成名字...`);
+        const bgeResult = await integrateBGE_M3ToNamingFlow(
+          surname,
+          gender as "M" | "F",
+          expectations,
+          styles.length > 0 ? styles : (style ? [style] : []),
+          true
+        );
+        
+        if (bgeResult.success && bgeResult.names.length > 0) {
+          console.log(`[API] BGE-M3生成${bgeResult.names.length}个名字: ${bgeResult.message}`);
+          
+          // 将BGE-M3生成的名字转换为API格式
+          const bgeNames = bgeResult.names.map((name, index) => {
+            const givenName = name.slice(surname.length);
+            return {
+              name,
+              givenName,
+              pinyin: "", // BGE-M3服务可以扩展以提供拼音
+              wuxing: "", // BGE-M3服务可以扩展以提供五行
+              meaning: `基于BGE-M3语义匹配生成的名字，符合意向: ${expectations}`,
+              strokeCount: givenName.length * 8,
+              score: 85 - index * 2, // 递减分数
+              source: {
+                book: "BGE-M3语义匹配",
+                text: `基于用户意向"${expectations}"生成的语义匹配名字`,
+              },
+            };
+          });
+          
+          // 将BGE-M3生成的名字添加到rawNames
+          rawNames = [...bgeNames];
+          console.log(`[API] BGE-M3成功生成${rawNames.length}个名字`);
+        } else {
+          console.log(`[API] BGE-M3未生成有效名字: ${bgeResult.message}`);
+        }
+      } catch (bgeError) {
+        console.error(`[API] BGE-M3集成错误:`, bgeError);
+      }
+    }
 
     if (useAiComposer) {
       // ── 使用 AI 创意组合层 ──
