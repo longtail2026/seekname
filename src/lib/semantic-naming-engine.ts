@@ -450,10 +450,14 @@ export async function semanticNamingFlow(
       };
     }
     
-    // 4. 过滤名字
-    const filterResult = enhancedFilterNames(generatedNames, request.gender);
+    // 4. 过滤名字（暂时关闭过滤功能，全部放行）
+    // const filterResult = enhancedFilterNames(generatedNames, request.gender);
+    const filterResult: FilterResult = { 
+      passed: [...generatedNames], 
+      removed: [] 
+    };
     
-    console.log(`[语义起名] 完成: 生成${generatedNames.length}个，过滤后${filterResult.passed.length}个`);
+    console.log(`[语义起名] 完成: 生成${generatedNames.length}个，过滤后${filterResult.passed.length}个（过滤已关闭）`);
     
     return {
       success: true,
@@ -461,7 +465,7 @@ export async function semanticNamingFlow(
       generatedNames,
       filteredNames: filterResult.passed,
       filterResult,
-      message: `成功生成${generatedNames.length}个名字，过滤后保留${filterResult.passed.length}个`
+      message: `成功生成${generatedNames.length}个名字`
     };
     
   } catch (error) {
