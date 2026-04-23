@@ -88,6 +88,7 @@ export function parseEmbedding(embeddingBytes: Buffer | null): number[] {
 
 /**
  * 生成测试嵌入向量（用于模拟BGE-M3）
+ * 注意：此函数仅用于开发测试，生产环境应使用真实的BGE-M3模型
  */
 export function generateTestEmbedding(text: string, dimension: number = 1024): number[] {
   // 简单哈希生成伪随机向量
@@ -110,61 +111,93 @@ export function generateTestEmbedding(text: string, dimension: number = 1024): n
 }
 
 /**
- * 从文本中提取有意义的字符（用于起名）
+ * 关键词匹配搜索（增强版）
+ * 将用户输入拆分为单个关键词，搜索 keywords 字段和文本字段
  */
-function extractMeaningfulChars(text: string, gender: "M" | "F" = "M"): string[] {
-  if (!text) return [];
+export async function searchSimilarClassicsByKeywords(
+  queryText: string,
+  gender: "M" | "F" = "M",
+  maxResults: number = 10
+): Promise<VectorMatchResult[]> {
+  try {
+    console.log(`[关键词搜索] 开始搜索: "${queryText}"`);
 
-  // 常见有意义的字符（按性别偏好）
-  const meaningfulChars = {
-    // 通用美好字
-    universal: ["智", "慧", "仁", "义", "德", "善", "勇", "刚", "强", "成", "功", "健", "康", "安", "宁", "快", "乐", "欣", "悦"],
-    // 女性偏好字
-    female: ["雅", "婉", "淑", "静", "柔", "美", "丽", "婷", "芸", "兰", "芳", "芷", "馨", "怡", "媛", "婕", "娅", "嫣"],
-    // 男性偏好字
-    male: ["伟", "雄", "豪", "杰", "俊", "博", "文", "韬", "略", "宇", "轩", "浩", "泽", "涛", "峰", "岩", "磊", "森"],
-  };
+    // 将用户输入拆分为单个关键词（按中文逗号、英文逗号、空格分隔）
+    const keywords = queryText
+      .split(/[,，、\s]+/)
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
 
-  const chars: string[] = [];
-  const genderChars = gender === "F" ? meaningfulChars.female : meaningfulChars.male;
-  const allChars = [...meaningfulChars.universal, ...genderChars];
+    console.log(`[关键词搜索] 拆分关键词: [${keywords.join(', ')}]`);
 
-  // 从文本中提取字符
-  for (const char of text) {
-    if (allChars.includes(char) && !chars.includes(char)) {
-      chars.push(char);
+    if (keywords.length === 0) {
+      return [];
     }
+
+    // 构建关键词匹配条件
+    // 使用 ILIKE 匹配 keywords 字段中的任意关键词
+    const conditions = keywords.map((_, i) => 
+      `(keywords ILIKE $${i + 2} OR ancient_text ILIKE $${i + 2} OR modern_text ILIKE $${i + 2} OR book_name ILIKE $${i + 2})`
+    );
+
+    const query = `
+      SELECT id, book_name, ancient_text, modern_text, keywords
+      FROM naming_classics
+      WHERE (${conditions.join(' OR ')})
+      ORDER BY 
+        CASE 
+          WHEN keywords ILIKE $${keywords.length + 2} THEN 3
+          WHEN ancient_text ILIKE $${keywords.length + 2} THEN 2
+          WHEN modern_text ILIKE $${keywords.length + 2} THEN 1
+          ELSE 0
+        END DESC
+      LIMIT $1
+    `;
+
+    // 参数：第一个是限制数，后面是每个关键词的ILIKE模式，最后一个用于排序
+    const params = [
+      maxResults * 3,
+      ...keywords.map(kw => `%${kw}%`),
+      `%${keywords[0]}%`  // 优先匹配第一个关键词
+    ];
+
+    const entries = await queryRaw<{
+      id: string;
+      book_name: string;
+      ancient_text: string;
+      modern_text: string;
+      keywords: string;
+    }>(query, params);
+
+    console.log(`[关键词搜索] 找到 ${entries.length} 个匹配典籍`);
+
+    // 转换为统一格式
+    const matches: VectorMatchResult[] = entries.map((entry) => {
+      const text = entry.ancient_text || entry.modern_text || "";
+      const entryKeywords = entry.keywords ? entry.keywords.split(',').map((k: string) => k.trim()) : [];
+
+      return {
+        id: parseInt(entry.id),
+        bookName: entry.book_name || "未知典籍",
+        ancientText: entry.ancient_text || "",
+        modernText: entry.modern_text || "",
+        similarity: 0.8, // 关键词匹配固定较高相似度
+        extractedChars: extractMeaningfulChars(text, gender),
+        meaning: extractMeaning(text),
+        keywords: entryKeywords.slice(0, 5),
+      };
+    });
+
+    return matches;
+  } catch (error) {
+    console.error("[关键词搜索] 搜索失败:", error);
+    return [];
   }
-
-  // 如果提取的字符太少，添加一些默认字符
-  if (chars.length < 3) {
-    const defaultChars = gender === "F" 
-      ? ["雅", "欣", "怡"] 
-      : ["浩", "宇", "博"];
-
-    for (const char of defaultChars) {
-      if (!chars.includes(char)) {
-        chars.push(char);
-      }
-    }
-  }
-
-  return chars.slice(0, 10); // 返回最多10个字符
-}
-
-/**
- * 从文本中提取含义
- */
-function extractMeaning(text: string): string {
-  if (!text) return "美好寓意";
-
-  // 简单提取前30个字符作为含义
-  const preview = text.length > 30 ? text.slice(0, 30) + "..." : text;
-  return preview;
 }
 
 /**
  * 基于向量相似度搜索相似典籍
+ * 如果向量搜索无结果，会自动回退到关键词搜索
  */
 export async function searchSimilarClassicsByVector(
   queryText: string,
@@ -285,6 +318,12 @@ export async function searchSimilarClassicsByVector(
 
     console.log(`[向量搜索] 找到 ${topMatches.length} 个相似典籍 (阈值: ${similarityThreshold})`);
 
+    // 如果向量搜索找到0个结果，回退到关键词搜索
+    if (topMatches.length === 0) {
+      console.log(`[向量搜索] 向量搜索无结果，回退到关键词搜索`);
+      return await searchSimilarClassicsByKeywords(queryText, gender, maxResults);
+    }
+
     // 转换为完整结果格式
     const results: VectorMatchResult[] = topMatches.map(match => {
       const text = match.ancientText || match.modernText || "";
@@ -300,8 +339,8 @@ export async function searchSimilarClassicsByVector(
 
   } catch (error) {
     console.error("[向量搜索] 搜索失败:", error);
-    // 返回空结果，降级到传统方法
-    return [];
+    // 向量搜索失败，回退到关键词搜索
+    return await searchSimilarClassicsByKeywords(queryText, gender, maxResults);
   }
 }
 
@@ -321,6 +360,60 @@ export async function batchSearchSimilarClassics(
   }
 
   return results;
+}
+
+/**
+ * 从文本中提取有意义的字符（用于起名）
+ */
+function extractMeaningfulChars(text: string, gender: "M" | "F" = "M"): string[] {
+  if (!text) return [];
+
+  // 常见有意义的字符（按性别偏好）
+  const meaningfulChars = {
+    // 通用美好字
+    universal: ["智", "慧", "仁", "义", "德", "善", "勇", "刚", "强", "成", "功", "健", "康", "安", "宁", "快", "乐", "欣", "悦"],
+    // 女性偏好字
+    female: ["雅", "婉", "淑", "静", "柔", "美", "丽", "婷", "芸", "兰", "芳", "芷", "馨", "怡", "媛", "婕", "娅", "嫣"],
+    // 男性偏好字
+    male: ["伟", "雄", "豪", "杰", "俊", "博", "文", "韬", "略", "宇", "轩", "浩", "泽", "涛", "峰", "岩", "磊", "森"],
+  };
+
+  const chars: string[] = [];
+  const genderChars = gender === "F" ? meaningfulChars.female : meaningfulChars.male;
+  const allChars = [...meaningfulChars.universal, ...genderChars];
+
+  // 从文本中提取字符
+  for (const char of text) {
+    if (allChars.includes(char) && !chars.includes(char)) {
+      chars.push(char);
+    }
+  }
+
+  // 如果提取的字符太少，添加一些默认字符
+  if (chars.length < 3) {
+    const defaultChars = gender === "F" 
+      ? ["雅", "欣", "怡"] 
+      : ["浩", "宇", "博"];
+
+    for (const char of defaultChars) {
+      if (!chars.includes(char)) {
+        chars.push(char);
+      }
+    }
+  }
+
+  return chars.slice(0, 10); // 返回最多10个字符
+}
+
+/**
+ * 从文本中提取含义
+ */
+function extractMeaning(text: string): string {
+  if (!text) return "美好寓意";
+
+  // 简单提取前30个字符作为含义
+  const preview = text.length > 30 ? text.slice(0, 30) + "..." : text;
+  return preview;
 }
 
 /**
@@ -365,6 +458,7 @@ export const VectorSimilaritySearch = {
   parseEmbedding,
   generateTestEmbedding,
   searchSimilarClassicsByVector,
+  searchSimilarClassicsByKeywords,
   batchSearchSimilarClassics,
   testVectorSearch,
 };

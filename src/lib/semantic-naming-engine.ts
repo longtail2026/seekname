@@ -56,6 +56,7 @@ export interface FilterResult {
 
 /**
  * 关键词匹配 - 从naming_classics表中查找相似典籍（回退方案）
+ * 将用户输入拆分为单个关键词，搜索 keywords 字段和文本字段
  */
 async function findSemanticMatchesByKeyword(
   userInput: string,
@@ -65,51 +66,72 @@ async function findSemanticMatchesByKeyword(
   try {
     console.log(`[关键词匹配] 开始查找相似典籍: "${userInput}"`);
     
-    // 在实际生产环境中，这里应该：
-    // 1. 调用BGE-M3服务生成用户输入的嵌入向量
-    // 2. 在naming_classics表中查找语义相似的条目
-    // 3. 返回匹配结果
+    // 将用户输入拆分为单个关键词
+    const keywords = userInput
+      .split(/[,，、\s]+/)
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
     
-    // 当前实现：使用关键词匹配（占位实现）
-    const searchPattern = `%${userInput.slice(0, 30)}%`;
+    console.log(`[关键词匹配] 拆分关键词: [${keywords.join(', ')}]`);
+    
+    if (keywords.length === 0) {
+      return [];
+    }
+    
+    // 构建关键词匹配条件：搜索 keywords 字段和文本字段
+    const conditions = keywords.map((_, i) => 
+      `(keywords ILIKE $${i + 2} OR ancient_text ILIKE $${i + 2} OR modern_text ILIKE $${i + 2} OR book_name ILIKE $${i + 2})`
+    );
+    
+    const query = `
+      SELECT id, book_name, ancient_text, modern_text, keywords
+      FROM naming_classics
+      WHERE (${conditions.join(' OR ')})
+      ORDER BY 
+        CASE 
+          WHEN keywords ILIKE $${keywords.length + 2} THEN 3
+          WHEN ancient_text ILIKE $${keywords.length + 2} THEN 2
+          WHEN modern_text ILIKE $${keywords.length + 2} THEN 1
+          ELSE 0
+        END DESC
+      LIMIT $1
+    `;
+    
+    const params = [
+      limit,
+      ...keywords.map(kw => `%${kw}%`),
+      `%${keywords[0]}%`
+    ];
     
     const entries = await queryRaw<{
       id: string;
       book_name: string;
       ancient_text: string;
       modern_text: string;
-    }>(
-      `SELECT id, book_name, ancient_text, modern_text
-       FROM naming_classics
-       WHERE ancient_text ILIKE $1 
-          OR modern_text ILIKE $1
-          OR book_name ILIKE $1
-       ORDER BY RANDOM()
-       LIMIT $2`,
-      [searchPattern, limit]
-    );
+      keywords: string;
+    }>(query, params);
+    
+    console.log(`[关键词匹配] 找到 ${entries.length} 个相似典籍`);
     
     // 转换为匹配结果格式
-    const matches: ClassicsMatch[] = entries.map((entry, index) => {
+    const matches: ClassicsMatch[] = entries.map((entry) => {
       const text = entry.ancient_text || entry.modern_text || "";
       
       return {
-        id: parseInt(entry.id),
+        id: typeof entry.id === 'string' ? parseInt(entry.id) : Number(entry.id),
         bookName: entry.book_name || "未知典籍",
         ancientText: entry.ancient_text || "",
         modernText: entry.modern_text || "",
-        similarity: 0.7 + (Math.random() * 0.3), // 模拟相似度
+        similarity: 0.8, // 关键词匹配固定相似度
         extractedChars: extractMeaningfulChars(text),
         meaning: extractMeaning(text),
       };
     });
     
-    console.log(`[关键词匹配] 找到 ${matches.length} 个相似典籍`);
     return matches;
     
   } catch (error) {
     console.error("[关键词匹配] 查找失败:", error);
-    // 返回空结果
     return [];
   }
 }
