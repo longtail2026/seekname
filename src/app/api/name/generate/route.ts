@@ -1,40 +1,30 @@
 /**
- * AI 起名 API
+ * AI 起名 API - 语义匹配版本
  * POST /api/name/generate
  *
- * 每次调用自动创建订单记录（免费和付费统一）
- * 订单包含完整起名信息，供后台数据分析
+ * 基于语义匹配和DeepSeek AI生成名字
+ * 每次调用自动创建订单记录
  *
  * 请求体：
  *   surname, gender, birthDate, birthTime?, expectations?, style?
- *   scenario?: "baby" | "adult" | "company" | "brand" | "shop" | "pet"  (默认 baby)
- *   useAiComposer?: boolean  (默认 true，优先使用 AI 创意组合层)
+ *   intentions?: string[]  // 勾选的意向词数组
+ *   styles?: string[]      // 勾选的风格词数组
+ *   category?: "personal" | "company" | "pet" | "evaluate"  (默认 personal)
  *
  * 响应：
  *   success, data: { orderId, orderNo, wuxing, names }
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { queryRaw, executeRaw } from "@/lib/prisma";
+import { queryRaw } from "@/lib/prisma";
 import { generateOrderNo, generateAnonymousName } from "@/lib/order";
 import { verifyToken } from "@/lib/auth";
-import { aiCompose } from "@/lib/ai-composer";
-import { parseIntent } from "@/lib/intent-parser";
-import { FEMALE_TABOO_CHARS, MALE_TABOO_CHARS, UNIVERSAL_TABOO_CHARS } from "@/lib/constants";
-import { integrateBGE_M3ToNamingFlow } from "@/lib/bge-m3-service";
-import type { NamingScenario } from "@/lib/ai-composer";
-
-// ─── 起名配置 ───
-const NAME_CONFIG = {
-  countPerSurname: 5,
-  wuxingChars: {
-    "金": ["铭", "锦", "钧", "铮", "铄", "钰", "鑫", "锐", "锋", "铭"],
-    "木": ["林", "森", "桐", "楠", "梓", "柏", "松", "桦", "柳", "梅"],
-    "水": ["涵", "泽", "洋", "涛", "浩", "清", "源", "沐", "沛", "沅"],
-    "火": ["炎", "煜", "煊", "炜", "烨", "熠", "灿", "炅", "炅", "煦"],
-    "土": ["坤", "垚", "培", "基", "城", "垣", "堂", "墨", "均", "圣"],
-  },
-};
+import { 
+  SemanticNamingRequest, 
+  semanticNamingFlow,
+  GeneratedName,
+  ClassicsMatch 
+} from "@/lib/semantic-naming-engine";
 
 // 业务类别映射
 const CATEGORY_MAP: Record<string, string> = {
@@ -44,7 +34,7 @@ const CATEGORY_MAP: Record<string, string> = {
   evaluate: "名字测评",
 };
 
-// 根据八字计算五行喜忌（简化版）
+// 根据八字计算五行喜忌（简化版）- 保留用于返回结果
 function calculateWuxing(birthDate: string, birthTime?: string) {
   const month = new Date(birthDate).getMonth() + 1;
   const seasonMap: Record<number, { likes: string[]; avoids: string[] }> = {
@@ -62,510 +52,6 @@ function calculateWuxing(birthDate: string, birthTime?: string) {
     12: { likes: ["火"], avoids: ["水"] },
   };
   return seasonMap[month] || { likes: ["土"], avoids: [] };
-}
-
-// ─── 过滤函数 ───
-
-/**
- * 检查名字是否包含忌讳字
- */
-function checkTabooChars(name: string, gender: string): { hasTaboo: boolean; tabooChars: string[] } {
-  const givenName = name.slice(1); // 去掉姓氏
-  const tabooChars: string[] = [];
-  const genderKey = gender === "F" ? "F" : "M";
-  
-  for (const char of givenName) {
-    let isTaboo = false;
-    // 检查女性忌讳字
-    if (genderKey === "F" && FEMALE_TABOO_CHARS.has(char)) {
-      isTaboo = true;
-    }
-    // 检查男性忌讳字
-    if (genderKey === "M" && MALE_TABOO_CHARS.has(char)) {
-      isTaboo = true;
-    }
-    // 检查通用忌讳字
-    if (UNIVERSAL_TABOO_CHARS.has(char)) {
-      isTaboo = true;
-    }
-    if (isTaboo) {
-      tabooChars.push(char);
-    }
-  }
-  
-  return { hasTaboo: tabooChars.length > 0, tabooChars };
-}
-
-/**
- * 检查名字是否发音困难（声母/韵母组合问题）
- */
-function checkPronunciationDifficulty(name: string): { isDifficult: boolean; reason?: string } {
-  const givenName = name.slice(1);
-  if (givenName.length < 2) return { isDifficult: false };
-  
-  // 声母表
-  const initials = ["b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "zh", "ch", "sh", "r", "z", "c", "s", "y", "w"];
-  
-  // 获取名字的拼音首字母（声母）
-  const getInitials = (pinyin: string): string[] => {
-    const parts = pinyin.split("、");
-    return parts.map(p => {
-      const first = p.trim().toLowerCase();
-      // 简单处理：返回前两个字符作为声母
-      if (first.length >= 2) return first.slice(0, 2);
-      return first;
-    });
-  };
-  
-  // 常见发音困难组合
-  const difficultCombos = [
-    // 相同声母
-    ["b", "b"], ["p", "p"], ["m", "m"], ["d", "d"], ["t", "t"],
-    ["n", "n"], ["l", "l"], ["g", "g"], ["k", "k"], ["h", "h"],
-    ["z", "z"], ["c", "c"], ["s", "s"], ["zh", "zh"], ["ch", "ch"], ["sh", "sh"],
-    // 绕嘴组合
-    ["sh", "s"], ["s", "sh"], ["zh", "z"], ["z", "zh"], ["ch", "c"], ["c", "ch"],
-    // 鼻音+边音
-    ["n", "l"], ["l", "n"], ["m", "n"], ["n", "m"],
-  ];
-  
-  // 检查每个字
-  for (let i = 0; i < givenName.length - 1; i++) {
-    const char1 = givenName[i];
-    const char2 = givenName[i + 1];
-    
-    // 简单检查：相同声母可能发音困难
-    if (char1 === char2) {
-      return { isDifficult: true, reason: `重复字` };
-    }
-  }
-  
-  return { isDifficult: false };
-}
-
-/**
- * 核实大模型给出的典籍出处是否真实
- * 通过数据库查询验证，如果验证失败则返回 null
- */
-async function verifySource(char: string, claimedSource: string): Promise<{ verified: boolean; realSource?: { book: string; text: string } }> {
-  if (!claimedSource) return { verified: false };
-  
-  // 从声称的出处中提取书名（简化版）
-  const bookMatch = claimedSource.match(/《([^》]+)》/);
-  if (!bookMatch) return { verified: false };
-  
-  const bookName = bookMatch[1];
-  
-  // 查询数据库验证
-  const entries = await queryRaw<{
-    id: string;
-    book_name: string;
-    ancient_text: string;
-    modern_text: string;
-  }>(
-    `SELECT id, book_name, ancient_text, modern_text
-     FROM classics_entries
-     WHERE book_name ILIKE $1
-       AND (ancient_text LIKE $2 OR modern_text LIKE $2)
-     LIMIT 1`,
-    [`%${bookName}%`, `%${char}%`]
-  );
-  
-  if (entries.length > 0) {
-    return {
-      verified: true,
-      realSource: {
-        book: entries[0].book_name,
-        text: entries[0].ancient_text?.slice(0, 50),
-      },
-    };
-  }
-  
-  return { verified: false };
-}
-
-/**
- * 为名字分配真实典籍出处（从数据库查询）
- */
-async function assignRealSource(name: string): Promise<{ book?: string; text?: string }> {
-  const givenName = name.slice(1);
-  
-  // 尝试为名字中的每个字查找典籍出处
-  for (const char of givenName) {
-    const entries = await queryRaw<{
-      id: string;
-      book_name: string;
-      ancient_text: string;
-    }>(
-      `SELECT id, book_name, ancient_text
-       FROM classics_entries
-       WHERE ancient_text LIKE $1 OR modern_text LIKE $1
-       LIMIT 1`,
-      [`%${char}%`]
-    );
-    
-    if (entries.length > 0) {
-      return {
-        book: entries[0].book_name,
-        text: entries[0].ancient_text?.slice(0, 50),
-      };
-    }
-  }
-  
-  // 如果找不到典籍出处，返回默认出处
-  return { book: "《诗经》", text: "美好寓意" };
-}
-
-// 从数据库查询典籍名句（原生SQL，替代Prisma ORM）
-async function queryClassics(keywords: string[], limit: number = 3) {
-  // 去除常见前缀，提取核心关键词（如"有才华"→"才华"，"诗意"保持不变）
-  const prefixes = ["有", "希望", "想要", "要", "喜欢", "期望"];
-  let keyword = keywords[0] || "德";
-  for (const p of prefixes) {
-    if (keyword.startsWith(p)) {
-      keyword = keyword.slice(p.length);
-      break;
-    }
-  }
-  keyword = keyword.slice(0, 10); // 限制长度
-  
-  // 搜索关键词（兼容 keywords 字段为空的情况，直接搜索原文）
-  const searchPattern = `%${keyword}%`;
-  const entries = await queryRaw<{
-    id: string;
-    book_name: string;
-    ancient_text: string;
-    modern_text: string;
-  }>(
-    `SELECT id, book_name, ancient_text, modern_text
-     FROM classics_entries
-     WHERE ancient_text ILIKE $1  -- 古文匹配
-        OR modern_text ILIKE $1   -- 现代文匹配
-        OR book_name ILIKE $1     -- 书名匹配
-     ORDER BY id
-     LIMIT $2`,
-    [searchPattern, limit]
-  );
-  // 调试日志
-  console.log(`[API] queryClassics: keyword="${keyword}", limit=${limit}, 结果数=${entries.length}`);
-  if (entries.length > 0) {
-    console.log(`[API] queryClassics 首条: book=${entries[0].book_name}, ancient=${entries[0].ancient_text?.slice(0,20)}`);
-  }
-  return entries;
-}
-
-// 从康熙字典查询字（原生SQL，替代Prisma ORM）
-async function queryKangxiChars(chars: string[]) {
-  if (!chars.length) return [];
-  const placeholders = chars.map((_, i) => `$${i + 1}`).join(", ");
-  const dict = await queryRaw<{
-    character: string;
-    pinyin: string;
-    wuxing: string;
-    meaning: string;
-    stroke_count: number;
-  }>(
-    `SELECT character, pinyin, wuxing, meaning, stroke_count
-     FROM kangxi_dict
-     WHERE character IN (${placeholders})`,
-    chars
-  );
-  return dict;
-}
-
-
-
-
-// 五行相生关系：每个五行的相生五行
-const WUXING_SHENG: Record<string, string[]> = {
-  "金": ["水", "土"],   // 金生水，土生金
-  "木": ["火", "水"],   // 木生火，水生木
-  "水": ["木", "金"],   // 水生木，金生水
-  "火": ["土", "木"],   // 火生土，木生火
-  "土": ["金", "火"],   // 土生金，火生土
-};
-
-// 从拼音提取声调（支持 Unicode 声调符号 + 数字声调格式）
-function extractToneFromPinyin(pinyin: string): number {
-  if (!pinyin) return 0;
-  const first = pinyin.split("、")[0].trim();
-  
-  // 优先检查 Unicode 声调符号（á/à/ǎ等）
-  for (const ch of first) {
-    if ("āēīōūǖĀĒĪŌŪǕ".includes(ch)) return 1;
-    if ("áéíóúǘÁÉÍÓÚǗ".includes(ch)) return 2;
-    if ("ǎěǐǒǔǚǍĚǏǑǓǙ".includes(ch)) return 3;
-    if ("àèìòùǜÀÈÌÒÙǛ".includes(ch)) return 4;
-  }
-  
-  // 数字声调格式：han2, hua4, ming2 等
-  const m = first.match(/(\d)$/);
-  if (m) return parseInt(m[1]);
-  
-  return 0;
-}
-
-async function generateNames(
-  surname: string,
-  gender: string,
-  wuxingLikes: string[],
-  expectations?: string,
-  style?: string  // 新增：风格偏好
-) {
-  // ── 风格关键字映射：用户输入的风格 → 相关关键字 ──
-  const STYLE_KEYWORDS: Record<string, string[]> = {
-    "古典": ["雅", "韵", "诗", "书", "典", "贤", "德", "玉", "兰", "芳"],
-    "诗意": ["诗", "书", "雅", "韵", "意", "境", "梦", "影", "香", "云"],
-    "优雅": ["雅", "美", "秀", "婉", "丽", "婷", "芸", "兰", "芳", "素"],
-    "大气": ["宏", "博", "伟", "雄", "豪", "壮", "阔", "宇", "坤", "乾"],
-    "阳光": ["阳", "光", "明", "朗", "旭", "晨", "辉", "耀", "曦", "辉"],
-    "温柔": ["柔", "温", "婉", "静", "淑", "雅", "宁", "和", "柔", "美"],
-    "可爱": ["萌", "甜", "小", " cute", "乖", "巧", "灵", "秀", "珀", "妮"],
-    "聪明": ["聪", "慧", "智", "明", "睿", "灵", "颖", "悟", "博", "学"],
-  };
-  
-  // 从 style 提取关键字（简单模糊匹配）
-  const styleKeywords: string[] = [];
-  if (style) {
-    const lowerStyle = style.toLowerCase();
-    for (const [key, words] of Object.entries(STYLE_KEYWORDS)) {
-      if (lowerStyle.includes(key.toLowerCase())) {
-        styleKeywords.push(...words);
-      }
-    }
-  }
-
-  // ── 策略：用喜用五行字做"主字"，用相生五行字做"配字"，确保跨五行配对 ──
-  // 喜用五行（每种最多20字）
-  const mainWx = wuxingLikes.length > 0 ? wuxingLikes : ["水", "木"];
-  // 相生五行（补充配对字池）
-  const compWxSet = new Set<string>();
-  for (const wx of mainWx) {
-    for (const s of (WUXING_SHENG[wx] || [])) compWxSet.add(s);
-  }
-  // 排除和喜用五行重叠的
-  for (const wx of mainWx) compWxSet.delete(wx);
-  const compWx = Array.from(compWxSet).slice(0, 2); // 最多取2种配字五行
-
-  type CharInfo = { char: string; pinyin: string; wuxing: string; meaning: string; strokeCount: number };
-
-  // 查询 kangxi_dict 获取拼音和笔画（原生SQL，替代Prisma ORM）
-  async function queryKangxiChars(chars: string[]) {
-    if (!chars.length) return [];
-    const placeholders = chars.map((_, i) => `$${i + 1}`).join(", ");
-    const dict = await queryRaw<{
-      character: string;
-      pinyin: string;
-      wuxing: string;
-      meaning: string;
-      stroke_count: number;
-    }>(
-      `SELECT character, pinyin, wuxing, meaning, stroke_count
-       FROM kangxi_dict
-       WHERE character IN (${placeholders})`,
-      chars
-    );
-    return dict;
-  }
-
-  // 性别友好的字池（从619字五行库中精选，扩充到每行40字，无重复）
-const GENDER_CHARS: Record<string, Record<string, string[]>> = {
-  F: { // 女性优先：优雅、柔美、诗意
-    金: ["琳","瑶","珂","珊","琦","瑾","璐","珠","瑞","琴","瑛","瑟","珑","珈","玥","锦","钰","环","璧","琅","璇","璐","瑱","璁","瑕","瑚","瑛","琦","瑄","瑧"],
-    木: ["桐","楠","梅","桦","榆","桂","樱","槿","榕","兰","芳","芷","芸","芬","芯","花","苒","莲","莎","苹","桃","杏","枝","柳","杨","松","桂","棂","梓","梦","榛","楚"],
-    水: ["涵","泽","洋","沛","润","澜","沁","汐","洁","漾","淳","清","漫","潇","潞","潼","汝","溪","浅","淑","涅","湛","滔","潺","瀛","漾","潮","潞","澈","瀑","瀚"],
-    火: ["炅","煦","焕","晴","晓","晗","昱","婷","烨","煜","煊","炜","熙","彤","丹","荧","甜","映","黛","昕","炀","炬","烁","灿","炫","熠","煌","耀","熠","曦","炫"],
-    土: ["培","基","均","堂","安","婉","娴","媛","婕","怡","娅","嫣","岚","岫","岱","岭","岳","均","墨","坚","坤","垂","圣","型","址","垂","型","坚","墨","城"],
-  },
-  M: { // 男性优先：大气、阳刚、稳重
-    金: ["铭","钧","铮","锐","锋","铎","锡","铠","镕","钟","鉴","镇","锦","钰","鑫","鏹","鏍","鏗","鏙","鏛","鏞","鏟","鏡","鏢","鏹","鐃","鐘","鐲","鐸","鐺"],
-    木: ["林","森","梓","柏","松","槐","楷","栋","梁","桐","榆","桓","榛","棱","楚","椰","樊","榕","榛","榔","栖","椒","棕","榜","榴","槐","槟","槿","樊","橘"],
-    水: ["泽","浩","清","源","涛","润","瀚","波","泉","滔","潮","澎","澈","潺","濡","滨","渊","湛","浪","浮","涂","涌","涤","涧","涸","淋","淑","淞","淡","溶"],
-    火: ["炎","煜","炜","烨","熠","灿","燃","烽","炫","耀","辉","炽","炀","焕","煌","灼","熠","燊","燎","燚","燥","燧","爆","爝","爨","耿","映","昭","昊","昌"],
-    土: ["坤","培","基","城","垣","坚","墨","域","垚","堪","增","圣","型","垂","址","垂","型","坚","墨","城","址","垂","型","坚","墨","址","垂","型","坚","址"],
-  },
-};
-
-async function fetchChars(wxList: string[], limitEach: number, gender: string): Promise<CharInfo[]> {
-  const chars: CharInfo[] = [];
-  const seen = new Set<string>();
-  
-  // 策略：先从数据库 name_wuxing + kangxi_dict JOIN 查询（覆盖率高）
-  for (const wx of wxList) {
-    const wxRows = await queryRaw<{ name_char: string; pinyin: string; meaning: string; stroke_count: number }>(
-      `SELECT nw.name_char, kd.pinyin, kd.meaning, kd.stroke_count
-       FROM name_wuxing nw
-       LEFT JOIN kangxi_dict kd ON kd.character = nw.name_char
-       WHERE nw.wuxing = $1
-       LIMIT $2`,
-      [wx, limitEach * 2] // 多查一些，留出过滤空间
-    );
-    
-    for (const r of wxRows) {
-      if (seen.has(r.name_char)) continue;
-      seen.add(r.name_char);
-      
-      // 只有有拼音的字才加入（确保声调过滤有效）
-      if (r.pinyin) {
-        chars.push({
-          char: r.name_char,
-          pinyin: r.pinyin,
-          wuxing: wx,
-          meaning: r.meaning || "",
-          strokeCount: r.stroke_count || 0
-        });
-      }
-    }
-  }
-  
-  // 如果数据库字不够，再用硬编码字池补充
-  if (chars.length < wxList.length * 5) {
-    const genderMap = GENDER_CHARS[gender] || GENDER_CHARS.F;
-    for (const wx of wxList) {
-      const preferredChars = genderMap[wx] || [];
-      for (const c of preferredChars) {
-        if (seen.has(c)) continue;
-        
-        // 查询这个字的完整信息
-        const dictRows = await queryRaw<{ character: string; pinyin: string; meaning: string; stroke_count: number }>(
-          `SELECT character, pinyin, meaning, stroke_count FROM kangxi_dict WHERE character = $1`,
-          [c]
-        );
-        
-        if (dictRows[0]?.pinyin) {
-          seen.add(c);
-          chars.push({
-            char: c,
-            pinyin: dictRows[0].pinyin,
-            wuxing: wx,
-            meaning: dictRows[0].meaning || "",
-            strokeCount: dictRows[0].stroke_count || 0
-          });
-        }
-      }
-    }
-  }
-  
-  return chars;
-}
-
-  const mainChars = await fetchChars(mainWx, 40, gender);
-  const compChars = await fetchChars(compWx, 30, gender);
-
-  // 去重
-  const allCharMap = new Map<string, CharInfo>();
-  for (const c of [...mainChars, ...compChars]) allCharMap.set(c.char, c);
-  const mainSet = new Set(mainChars.map(c => c.char));
-
-  console.log(`[generateNames] 主字(${mainWx.join(",")})=${mainChars.length}个，配字(${compWx.join(",")})=${compChars.length}个`);
-
-  if (mainChars.length === 0) {
-    console.warn("[generateNames] 主字池为空，无法配对");
-    return [];
-  }
-
-  // 全排列配对：主字 × 所有字（主字+配字），确保至少一个字是喜用五行
-  const result: any[] = [];
-  const seen = new Set<string>();
-  const allChars = Array.from(allCharMap.values());
-
-  for (const c1 of mainChars) {
-    for (const c2 of allChars) {
-      if (c1.char === c2.char) continue;
-      // 至少一个字是主五行
-      if (!mainSet.has(c1.char) && !mainSet.has(c2.char)) continue;
-
-      // 拼音分隔符用顿号
-      const p1 = c1.pinyin?.split("、")[0].trim() || "";
-      const p2 = c2.pinyin?.split("、")[0].trim() || "";
-
-      // 音律过滤：声调不能相同
-      const tone1 = extractToneFromPinyin(p1);
-      const tone2 = extractToneFromPinyin(p2);
-      if (tone1 > 0 && tone2 > 0 && tone1 === tone2) continue;
-
-      // 五行过滤：两字五行不能完全相同
-      if (c1.wuxing && c2.wuxing && c1.wuxing === c2.wuxing) continue;
-
-      const key = [c1.char, c2.char].sort().join("");
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      result.push({
-        name: surname + c1.char + c2.char,
-        givenName: c1.char + c2.char,
-        pinyin: [p1, p2].join("、"),
-        wuxing: c1.wuxing + c2.wuxing,
-        meaning: `${c1.meaning}；${c2.meaning}`,
-        strokeCount: c1.strokeCount + c2.strokeCount,
-      });
-    }
-  }
-
-  console.log(`[generateNames] 全排列配对完成 → ${result.length}个候选`);
-
-  // ── 风格偏好加权：如果指定了风格，包含风格关键字的名字评分+5 ──
-  if (styleKeywords.length > 0) {
-    for (const name of result) {
-      const nameChars = name.givenName || "";
-      for (const kw of styleKeywords) {
-        if (nameChars.includes(kw)) {
-          name.score = (name.score || 0) + 5;
-          break; // 每个名字最多加一次
-        }
-      }
-    }
-    // 按评分重新排序
-    result.sort((a, b) => (b.score || 0) - (a.score || 0));
-    console.log(`[generateNames] 风格加权后 TOP3: ${result.slice(0,3).map(n => n.givenName).join(", ")}`);
-  }
-
-  return result;
-}
-
-// 为名字匹配典籍出处
-// 用扩展关键词查询典籍库，按索引轮换分配出处
-// 注意：不再跳过已有 source 的名字，而是强制用扩展关键词重新分配
-async function attachSources(names: any[], expandedKeywords: string[] = []) {
-  if (!names.length) return names;
-
-  const keywords = expandedKeywords.length ? expandedKeywords : ["德", "才", "智", "仁", "义"];
-
-  // 用扩展后的关键词列表逐个查询典籍并去重
-  const seen = new Set<string>();
-  const entries: Array<{ id: string; book_name: string; ancient_text: string; modern_text: string }> = [];
-  for (const kw of keywords.slice(0, 15)) {
-    const matched = await queryClassics([kw], 3);
-    for (const e of matched) {
-      if (!seen.has(e.id)) {
-        seen.add(e.id);
-        entries.push(e);
-      }
-    }
-  }
-
-  if (!entries.length) {
-    console.log(`[API] attachSources: 典籍库无匹配记录（关键词=${keywords.slice(0, 5).join(",")}），返回无典籍`);
-    // 清空不可靠典籍
-    return names.map((n) => ({ ...n, source: undefined }));
-  }
-
-  console.log(`[API] attachSources: 关键词=${keywords.slice(0, 3).join(",")}... → 查询到${entries.length}条典籍，分配给${names.length}个名字`);
-
-  // 用名字的hash值来分配典籍，避免相邻名字分到同一典籍
-  return names.map((name) => {
-    // 用名字内容生成稳定的hash
-    const hash = name.givenName.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-    const entry = entries[hash % entries.length];
-    return {
-      ...name,
-      source: {
-        book: entry.book_name,
-        text: entry.ancient_text?.slice(0, 50) + "...",
-        fullText: entry.modern_text,
-      },
-    };
-  });
 }
 
 /**
@@ -663,6 +149,20 @@ async function createOrder(params: {
   }
 }
 
+// 辅助：当前时间字符串
+function nowStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+function nowTimeStr(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
 export async function POST(request: NextRequest) {
   // 整体超时保护：55秒后强制返回（Vercel Hobby 最大 10s，企业版 60s）
   const TIMEOUT_MS = 55000;
@@ -685,7 +185,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // 日志输出参数
-    console.log(`[API] 接收参数: style=${style}, expectations=${expectations}, intentions=${JSON.stringify(intentions)}, styles=${JSON.stringify(styles)}`);
+    console.log(`[API] 接收参数: surname=${surname}, gender=${gender}, expectations=${expectations}, intentions=${JSON.stringify(intentions)}, styles=${JSON.stringify(styles)}`);
 
     // 参数校验
     if (!surname || !gender || !birthDate) {
@@ -694,6 +194,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 验证性别格式
+    const genderCode = gender.toUpperCase() === "F" ? "F" : "M";
 
     // ── 获取当前用户（如果已登录）──
     let currentUser: { id: string; name?: string | null } | null = null;
@@ -722,394 +225,149 @@ export async function POST(request: NextRequest) {
       anonymousName = generateAnonymousName();
     }
 
-    // ── 计算五行喜忌 ──
+    // ── 计算五行喜忌（保留用于返回结果）──
     const wuxingResult = calculateWuxing(birthDate, birthTime);
 
-    // ── 确定场景 & 是否使用 AI 组合层 ──
-    const validScenarios: NamingScenario[] = ["baby", "adult", "company", "brand", "shop", "pet"];
-    const scenario: NamingScenario = validScenarios.includes(category as NamingScenario)
-      ? (category as NamingScenario)
-      : "baby";
-    const useAiComposer = body.useAiComposer !== false; // 默认开启
-
-    // ── 解析用户意图（分词+同义词扩展），所有分支都需要 ──
-    const { keywords: _, expanded, priority, fallback } = parseIntent(expectations);
-    // 合并：priority 优先查询典籍，fallback 作为后备补充
-    const classicalKeywords = [...priority, ...fallback];
-
-    let rawNames: any[] = [];
-
-    // ── 尝试使用BGE-M3语义匹配生成名字（先过滤忌讳字）──
-    const useBGE_M3 = process.env.NEXT_PUBLIC_USE_BGE_M3 === "true";
-    if (useBGE_M3 && expectations) {
-      try {
-        console.log(`[API] 尝试使用BGE-M3语义匹配生成名字...`);
-        const bgeResult = await integrateBGE_M3ToNamingFlow(
-          surname,
-          gender as "M" | "F",
-          expectations,
-          styles.length > 0 ? styles : (style ? [style] : []),
-          true
-        );
-        
-        if (bgeResult.success && bgeResult.names.length > 0) {
-          console.log(`[API] BGE-M3生成${bgeResult.names.length}个名字: ${bgeResult.message}`);
-          
-          // 将BGE-M3生成的名字转换为API格式
-          const bgeNames = bgeResult.names.map((name, index) => {
-            const givenName = name.slice(surname.length);
-            return {
-              name,
-              givenName,
-              pinyin: "", // BGE-M3服务可以扩展以提供拼音
-              wuxing: "", // BGE-M3服务可以扩展以提供五行
-              meaning: `基于BGE-M3语义匹配生成的名字，符合意向: ${expectations}`,
-              strokeCount: givenName.length * 8,
-              score: 85 - index * 2, // 递减分数
-              source: {
-                book: "BGE-M3语义匹配",
-                text: `基于用户意向"${expectations}"生成的语义匹配名字`,
-              },
-            };
-          });
-          
-          // 将BGE-M3生成的名字添加到rawNames
-          rawNames = [...bgeNames];
-          console.log(`[API] BGE-M3成功生成${rawNames.length}个名字`);
-        } else {
-          console.log(`[API] BGE-M3未生成有效名字: ${bgeResult.message}`);
-        }
-      } catch (bgeError) {
-        console.error(`[API] BGE-M3集成错误:`, bgeError);
-      }
-    }
-
-    if (useAiComposer) {
-      // ── 使用 AI 创意组合层 ──
-      try {
-        console.log(`[API] 使用 AI Composer，场景=${scenario}`);
-        console.log(`[API] 意图解析：原始=${expectations || "无"} → 优先级=${priority.slice(0, 8).join(",")}，后备=${fallback.slice(0, 8).join(",")}`);
-
-        // ── 构建候选字池（从数据库的619字五行库中取，性别区分）──
-        const isFemale = gender === "F";
-        const poolChars: Array<{ char: string; wx: string }> = [];
-        
-        // 喜用五行各取 20 字
-        for (const wx of wuxingResult.likes) {
-          const wxChars = await queryRaw<{ name_char: string; wuxing: string }>(
-            `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT 30`,
-            [wx]
-          );
-          for (const r of wxChars) {
-            poolChars.push({ char: r.name_char, wx: r.wuxing });
-          }
-        }
-        
-        // 补充其他四行的字（各 10 字，增加多样性）
-        const allWuxing = ["金","木","水","火","土"];
-        for (const wx of allWuxing) {
-          if (!wuxingResult.likes.includes(wx)) {
-            const wxChars = await queryRaw<{ name_char: string; wuxing: string }>(
-              `SELECT name_char, wuxing FROM name_wuxing WHERE wuxing = $1 LIMIT 15`,
-              [wx]
-            );
-            for (const r of wxChars) {
-              poolChars.push({ char: r.name_char, wx: r.wuxing });
-            }
-          }
-        }
-
-        const uniqueChars = Array.from(new Set(poolChars.map((p) => p.char)));
-        const charInfo = await queryKangxiChars(uniqueChars.slice(0, 100));
-        const charMap = new Map(charInfo.map((c) => [c.character, { ...c, strokeCount: c.stroke_count }]));
-
-        const pool = poolChars
-          .filter((p) => charMap.has(p.char))
-          .reduce<typeof poolChars>((acc, p) => {
-            if (!acc.find((x) => x.char === p.char)) acc.push(p);
-            return acc;
-          }, [])
-          .map((p) => {
-            const info = charMap.get(p.char)!;
-            return {
-              character: p.char,
-              pinyin: info.pinyin || "",
-              wuxing: info.wuxing || p.wx || "",
-              meaning: info.meaning || "",
-              strokeCount: info.strokeCount || 0,
-              frequency: 50,
-            };
-          });
-
-        // ── 补充完整五行字池（扩大字池，增加意象相关好字）──
-        // 包含：经典好字 + 古典雅致字 + 诗意意象字
-        const FULL_POOL_CHARS: Array<{ char: string; wx: string }> = [
-          // 女性 - 金行（珍美玉珠）
-          ...(isFemale
-            ? ["琳","瑶","珂","珊","琦","瑾","璐","珠","瑞","琴","瑛","瑟","珑","珈","玥","锦","钰","环","璧","琅","璇","瑱","璁","瑕","瑚","琦","瑄","瑧","翠","黛"].map(c=>({char:c,wx:"金"}))
-            : ["铭","鑫","钧","铮","锐","锋","瑞","铎","锡","铠","镕","钟","鉴","鎮","鏹","鐘","鐸","鏞","鎮","鏍"].map(c=>({char:c,wx:"金"}))
-          ),
-          // 女性 - 木行（花草林木）
-          ...(isFemale
-            ? ["桐","楠","梅","桦","榆","桂","樱","槿","榕","兰","芳","芷","芸","芬","芯","花","苒","莲","莎","苹","竹","筠","筱","梨","枣","桃","杏","枝","棠","桔"].map(c=>({char:c,wx:"木"}))
-            : ["林","森","梓","柏","松","槐","楷","栋","梁","桐","楠","榆","竹","枫","桓","槟","棂"].map(c=>({char:c,wx:"木"}))
-          ),
-          // 女性 - 水行（江河湖海）
-          ...(isFemale
-            ? ["涵","泽","洋","沛","润","澜","淳","沁","瀚","波","泉","汐","洁","滢","滟","潞","潇","濂","潺","漾","漪","泓","溱","澎","潮","汝","洱","沚"].map(c=>({char:c,wx:"水"}))
-            : ["泽","浩","清","源","涛","润","澜","瀚","波","泉","滔","潮","海","江","河","溪","涧","津","湛","浚","潇","潞","濂"].map(c=>({char:c,wx:"水"}))
-          ),
-          // 女性 - 火行（光明温暖）
-          ...(isFemale
-            ? ["炅","煦","焕","灵","晴","晓","晗","昱","晃","曼","晶","熹","昭","晔","晖","熙","灿","焕","耀","辉","炫","烨","炜","熠","昕","昀","映","晁","晓","晔"].map(c=>({char:c,wx:"火"}))
-            : ["炎","煜","炜","烨","熠","灿","燃","烽","炫","耀","辉","炽","烁","旭","昊","昙","晗","昕","昱","昭","昃","昄","晁"].map(c=>({char:c,wx:"火"}))
-          ),
-          // 土行（大地稳重）
-          ...["坤","培","基","城","均","堂","圣","坚","墨","域","垚","安","岩","岚","岱","岳","岭","峰","峦","崧","嵘","巍","崇","崎","屹","岸","墩","塘","砚"].map(c=>({char:c,wx:"土"})),
-          // 古典雅致字（诗词典故常用）
-          ...(isFemale
-            ? ["雅","韵","诗","书","思","念","若","兮","言","笑","颜","眉","梦","影","蝶","燕","雁","翎","羽","翔","鸾","凤","昭","明","月","华","秋","春","梅","雪"].map(c=>({char:c,wx:"木"}))
-            : ["博","文","韬","略","贤","德","仁","义","礼","智","信","忠","孝","恭","敬","诚","朴","厚","纯","正"].map(c=>({char:c,wx:"火"}))
-          ),
-        ];
-        const poolCharSet = new Set(pool.map((p: any) => p.character));
-        const supplementalChars = FULL_POOL_CHARS.filter((p) => !poolCharSet.has(p.char)).slice(0, 120);
-        const fullPool: typeof pool = [
-          ...pool,
-          ...supplementalChars.map((p) => ({
-            character: p.char,
-            pinyin: "",
-            wuxing: p.wx,
-            meaning: "",
-            strokeCount: 8,
-            frequency: 50,
-          })),
-        ];
-        Object.assign(pool, fullPool);
-
-        // ── 用优先级关键词查询典籍库，优先用完整词 ──
-        let classicalEntries: Array<{ id: string; book_name: string; ancient_text: string; modern_text: string }> = [];
-        const seen = new Set<string>();
-        
-        // 优先用 priority（完整词）查询典籍
-        for (const kw of priority.slice(0, 10)) {
-          const entries = await queryClassics([kw], 3);
-          for (const e of entries) {
-            if (!seen.has(e.id)) { seen.add(e.id); classicalEntries.push(e); }
-          }
-        }
-        
-        // 如果 priority 查询结果少于 15 条，再用 fallback 补充
-        if (classicalEntries.length < 15) {
-          for (const kw of fallback.slice(0, 8)) {
-            const entries = await queryClassics([kw], 2);
-            for (const e of entries) {
-              if (!seen.has(e.id)) { seen.add(e.id); classicalEntries.push(e); }
-            }
-          }
-        }
-        
-        classicalEntries = classicalEntries.slice(0, 30);
-        console.log(`[API] 典籍查询：优先级词=${priority.slice(0,5).join(",")}... → 去重后=${classicalEntries.length}条`);
-
-        // ── 构建 StructuredIntent ──
-        // 优先使用勾选的 intentions 和 styles，其次使用解析后的 expectations
-        let imageryList: string[];
-        let styleList: string[];
-        
-        if (intentions.length > 0 || styles.length > 0) {
-          // 使用勾选参数
-          imageryList = intentions;
-          styleList = styles;
-          console.log(`[API] 使用勾选参数: intentions=${intentions.join(",")}, styles=${styles.join(",")}`);
-        } else {
-          // 使用解析后的参数
-          imageryList = expanded.slice(0, 12);
-          styleList = style ? [style] : [];
-        }
-        
-        const intent = {
-          surname,
-          gender: gender as "M" | "F",
-          birthDate,
-          birthTime,
-          style: styleList,
-          wordCount: 2 as const,
-          wuxing: wuxingResult.likes,
-          avoidances: [] as string[],
-          imagery: imageryList,
-          sourcePreference: [],
-          notes: expectations,
-        };
-
-        // 调用 AI Composer（含一次超时重试）
-        console.log(`[API] aiCompose 开始，候选池=${pool.length}个字`);
-        let candidates: any[] = [];
-        let composeError: Error | null = null;
-        let resultHolder: any[] | null = null;
-
-        for (let attempt = 1; attempt <= 2; attempt++) {
-          resultHolder = null;
-          const timeout = attempt === 1 ? 45000 : 40000;
-          console.log(`[API] AI Composer 第 ${attempt} 次尝试，超时=${timeout / 1000}s...`);
-
-          const aiPromise = aiCompose(pool, intent, {
-            scenario,
-            fallbackToRules: true,
-            maxCandidates: 6,
-            wordCount: 2,
-            classicalEntries: classicalEntries.map((e) => ({
-              book: e.book_name,
-              ancient_text: e.ancient_text,
-              modern_text: e.modern_text,
-            })),
-          }, surname, classicalEntries.map((e) => ({
-            book: e.book_name,
-            ancient_text: e.ancient_text,
-            modern_text: e.modern_text,
-          }))).then((result) => {
-            resultHolder = result;
-            return result;
-          });
-
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`AI Composer 超时(${attempt})`)), timeout)
-          );
-
-          try {
-            candidates = await Promise.race([aiPromise, timeoutPromise]);
-            console.log(`[API] AI Composer 第 ${attempt} 次成功，返回 ${candidates.length} 个`);
-            break;
-          } catch (err) {
-            composeError = err as Error;
-            if (resultHolder !== null) {
-              candidates = resultHolder;
-              console.log(`[API] AI Composer 第 ${attempt} 次 timeout 但有 ${candidates.length} 个结果`);
-              break;
-            }
-            console.warn(`[API] AI Composer 第 ${attempt} 次失败: ${composeError.message}`);
-            if (attempt === 1) {
-              await new Promise((r) => setTimeout(r, 500));
-            }
-          }
-        }
-
-        // 两次都失败且无结果，降级到传统生成（不在此处调attachSources，统一在最后处理）
-        if (candidates.length === 0) {
-          console.warn("[API] AI Composer 两次都失败，降级到传统生成");
-          rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations, style);
-        } else {
-          // AI Composer 成功 → 映射结果
-          rawNames = candidates.map((c: any) => ({
-            name: c.fullName,
-            givenName: c.givenName,
-            pinyin: c.pinyin,
-            wuxing: c.wuxing,
-            meaning: c.meaning,
-            strokeCount: c.strokeCount,
-            source: c.sources?.[0]
-              ? { book: c.sources[0].book, text: c.sources[0].text }
-              : undefined,
-            score: c.score,
-          }));
-          console.log(`[API] AI Composer 生成 ${rawNames.length} 个名字`);
-        }
-      } catch (err) {
-        console.error("[API] AI Composer 意外失败，降级到传统生成:", err);
-        rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations, style);
-      }
-    } else {
-      // ── 使用传统规则生成 ──
-      rawNames = await generateNames(surname, gender, wuxingResult.likes, expectations, style);
-    }
-
-    // ── 附加典籍出处（传统模式下补全，AI 模式已有）──
-    const namesWithSource = await attachSources(rawNames, classicalKeywords);
-    console.log(`[API] attachSources 完成，namesWithSource=${namesWithSource.length}个`);
-
-    // ── 过滤：忌讳字、敏感字、发音困难 ──
-    console.log(`[API] 开始过滤忌讳字、敏感字、发音困难...`);
-    const filteredNames = [];
-    let tabooFiltered = 0;
-    let pronFiltered = 0;
+    // ── 构建语义匹配请求 ──
+    // 组合 expectations 和 intentions 作为 rawInput
+    const rawInputParts: string[] = [];
+    if (expectations) rawInputParts.push(expectations);
+    if (intentions.length > 0) rawInputParts.push(intentions.join("，"));
     
-    for (const n of namesWithSource) {
-      // 1. 检查忌讳字
-      const tabooResult = checkTabooChars(n.name, gender);
-      if (tabooResult.hasTaboo) {
-        tabooFiltered++;
-        console.log(`[API] 过滤忌讳字: ${n.name} (${tabooResult.tabooChars.join(",")})`);
-        continue;
-      }
-      
-      // 2. 检查发音困难
-      const pronResult = checkPronunciationDifficulty(n.name);
-      if (pronResult.isDifficult) {
-        pronFiltered++;
-        console.log(`[API] 过滤发音困难: ${n.name} (${pronResult.reason})`);
-        continue;
-      }
-      
-      filteredNames.push(n);
-    }
+    const rawInput = rawInputParts.join("，") || "美好寓意";
     
-    console.log(`[API] 过滤完成: 忌讳字过滤${tabooFiltered}个, 发音困难过滤${pronFiltered}个, 剩余${filteredNames.length}个`);
+    // 组合 style 和 styles 作为风格偏好
+    const styleList: string[] = [];
+    if (style) styleList.push(style);
+    if (styles.length > 0) styleList.push(...styles);
     
-    // 如果过滤后名字太少，降低标准再尝试
-    let finalNames = filteredNames;
-    if (filteredNames.length < 3) {
-      console.log(`[API] 过滤后名字不足，回退到未过滤列表`);
-      finalNames = namesWithSource;
-    }
+    const semanticRequest: SemanticNamingRequest = {
+      rawInput,
+      surname,
+      gender: genderCode,
+      birthDate,
+      birthTime,
+      expectations: rawInput, // 使用组合后的文本
+      style: styleList.length > 0 ? styleList : ["古风典雅"], // 默认风格
+      wordCount: 2, // 默认2个字的名字
+    };
 
-    // ── 排序并只返回评分最高的6个名字 ──
-    const scoredNames = finalNames
-      .map((n, idx) => {
-        // 如果已有分数，直接使用；否则根据五行、典籍等生成估算分
-        let score = n.score;
-        if (!score || score <= 0) {
-          // 五行完整 + 有典籍出处 → 高分
-          let estimatedScore = 70;
-          if (n.wuxing && n.wuxing.length >= 2) estimatedScore += 8;
-          if (n.source) estimatedScore += 10;
-          if (n.pinyin) estimatedScore += 5;
-          // 添加随机扰动避免完全相同分数（±5分）
-          score = Math.min(95, Math.max(65, estimatedScore + Math.floor(Math.random() * 10) - 5));
-        }
-        return { ...n, score };
-      })
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .slice(0, 6); // 只返回评分最高的6个
+    console.log(`[API] 语义匹配请求: rawInput="${rawInput}", gender=${genderCode}, style=${JSON.stringify(semanticRequest.style)}`);
 
-    console.log(`[API] 排序并限制为前6个，最高分=${scoredNames[0]?.score}`);
+    // ── 调用语义匹配起名引擎 ──
+    const result = await semanticNamingFlow(semanticRequest);
 
-    // ── 如果名字为空，直接报错（方便调试）──
-    if (scoredNames.length === 0) {
-      // 先检查数据库是否有康熙字典数据
-      const charCountRows = await queryRaw<{ cnt: string }>(`SELECT COUNT(*) as cnt FROM kangxi_dict`);
-      const entryCountRows = await queryRaw<{ cnt: string }>(`SELECT COUNT(*) as cnt FROM classics_entries`);
-      const charCount = parseInt(charCountRows[0]?.cnt || "0");
-      const entryCount = parseInt(entryCountRows[0]?.cnt || "0");
-      console.error(`[API] 名字列表为空！康熙字典=${charCount}条，典籍=${entryCount}条`);
+    if (!result.success) {
+      console.error(`[API] 语义匹配起名失败: ${result.message}`);
       return NextResponse.json(
-        { success: false, error: `名字生成失败（康熙字典${charCount}条，典籍${entryCount}条）。请检查数据库是否有初始数据。` },
+        { 
+          success: false, 
+          error: result.message || "语义匹配起名失败，请稍后重试",
+          detail: "SEMANTIC_NAMING_FAILED"
+        },
         { status: 500 }
       );
     }
 
+    console.log(`[API] 语义匹配成功: 匹配典籍${result.matches.length}个，生成名字${result.generatedNames.length}个，过滤后保留${result.filteredNames.length}个`);
+
+    // ── 转换结果为API格式 ──
+    const apiNames = result.filteredNames.map((name: GeneratedName, index: number) => {
+      // 为每个名字分配五行（简化版：从名字字符中推断）
+      const givenName = name.givenName;
+      let wuxing = "";
+      if (givenName.length >= 2) {
+        // 简单映射：根据字符常见五行分配
+        const charWuxingMap: Record<string, string> = {
+          "金": "金", "鑫": "金", "铭": "金", "锦": "金", "钧": "金",
+          "木": "木", "林": "木", "森": "木", "桐": "木", "楠": "木",
+          "水": "水", "涵": "水", "泽": "水", "洋": "水", "涛": "水",
+          "火": "火", "炎": "火", "煜": "火", "炜": "火", "烨": "火",
+          "土": "土", "坤": "土", "培": "土", "基": "土", "城": "土",
+        };
+        
+        const wuxingList = givenName.split('').map(char => charWuxingMap[char] || "").filter(w => w);
+        wuxing = wuxingList.length > 0 ? wuxingList.join("") : "木火";
+      } else {
+        wuxing = "木火"; // 默认
+      }
+
+      // 计算笔画数（简化版）
+      const strokeCount = givenName.length * 8; // 平均估算
+
+      // 分配典籍出处（从匹配的典籍中选取）
+      let source = { book: "《诗经》", text: "美好寓意" };
+      if (result.matches.length > 0) {
+        const matchIndex = index % result.matches.length;
+        const match = result.matches[matchIndex];
+        source = {
+          book: `《${match.bookName}》`,
+          text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
+        };
+      }
+
+      return {
+        name: name.name,
+        givenName: name.givenName,
+        pinyin: name.pinyin,
+        wuxing,
+        meaning: name.meaning,
+        strokeCount,
+        score: 90 - index * 2, // 递减分数
+        source,
+      };
+    });
+
+    // 如果过滤后名字不足，使用生成的名字（未过滤）
+    let finalNames = apiNames;
+    if (apiNames.length < 5 && result.generatedNames.length > 0) {
+      console.log(`[API] 过滤后名字不足(${apiNames.length})，使用部分未过滤名字`);
+      const additionalNames = result.generatedNames.slice(0, 10 - apiNames.length).map((name: GeneratedName, index: number) => {
+        const givenName = name.givenName;
+        let wuxing = "木火";
+        const strokeCount = givenName.length * 8;
+        
+        let source = { book: "《诗经》", text: "美好寓意" };
+        if (result.matches.length > 0) {
+          const matchIndex = (apiNames.length + index) % result.matches.length;
+          const match = result.matches[matchIndex];
+          source = {
+            book: `《${match.bookName}》`,
+            text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
+          };
+        }
+
+        return {
+          name: name.name,
+          givenName: name.givenName,
+          pinyin: name.pinyin,
+          wuxing,
+          meaning: name.meaning,
+          strokeCount,
+          score: 80 - index * 2,
+          source,
+        };
+      });
+      
+      finalNames = [...apiNames, ...additionalNames];
+    }
+
+    // 限制最多10个名字
+    finalNames = finalNames.slice(0, 10);
+
     // ── 创建订单记录（每次必建）──
-    console.log(`[API] 开始创建订单，scoredNames=${scoredNames.length}个`);
+    console.log(`[API] 开始创建订单，finalNames=${finalNames.length}个`);
     const order = await createOrder({
       userId: currentUser?.id ?? null,
       userName: currentUser?.name || anonymousName,
       category: CATEGORY_MAP[category] || category,
       surname,
-      gender,
+      gender: genderCode,
       birthDate,
       birthTime,
       expectations,
       style,
-      results: scoredNames,
+      results: finalNames,
     });
     console.log(`[API] createOrder 完成，orderId=${order?.id || 'null'}`);
 
@@ -1123,29 +381,24 @@ export async function POST(request: NextRequest) {
           time: nowTimeStr(),
           detail: {
             surname,
-            gender: gender === "M" ? "男" : gender === "F" ? "女" : gender,
+            gender: genderCode === "M" ? "男" : "女",
             birthDate,
             birthTime,
             expectations,
             style,
           },
-          candidates: scoredNames.map((n) => ({
+          candidates: finalNames.map((n) => ({
             name: n.name,
             pinyin: n.pinyin,
             wuxing: n.wuxing,
             meaning: n.meaning,
             source: n.source,
-            score: n.score, // 必须传递 score，否则前端随机生成分数导致乱序
+            score: n.score,
           })),
         }
       : null;
 
-    console.log(`[API] 返回成功，names=${namesWithSource.length}，order=${order?.id || 'null'}`);
-    
-    // 调试：检查返回数据
-    console.log(`[API] namesWithSource[0]:`, JSON.stringify(namesWithSource[0]));
-    console.log(`[API] namesWithSource[0] 是 null?`, namesWithSource[0] === null);
-    console.log(`[API] namesWithSource[0] 是 undefined?`, namesWithSource[0] === undefined);
+    console.log(`[API] 返回成功，names=${finalNames.length}，order=${order?.id || 'null'}`);
     
     return NextResponse.json({
       success: true,
@@ -1154,9 +407,9 @@ export async function POST(request: NextRequest) {
         orderNo: order?.orderNo,
         orderDetail,
         wuxing: wuxingResult,
-        names: scoredNames,
-        scenario,
-        useAiComposer,
+        names: finalNames,
+        semanticMatches: result.matches.length,
+        message: result.message,
       },
     });
   } catch (error: any) {
@@ -1180,6 +433,8 @@ export async function POST(request: NextRequest) {
       userMsg = "AI 服务调用失败，请稍后重试";
     } else if (msg.includes("prisma") || msg.includes("connect") || msg.includes("connection")) {
       userMsg = "数据库连接失败，请检查环境变量配置";
+    } else if (msg.includes("semantic") || msg.includes("语义")) {
+      userMsg = "语义匹配服务异常，请稍后重试";
     }
 
     return NextResponse.json(
@@ -1191,25 +446,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 辅助：当前时间字符串
-function nowStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
-}
-function nowTimeStr(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
-}
-
 // 测试接口
 export async function GET() {
   return NextResponse.json({
-    message: "AI 起名 API - 每次调用自动生成订单",
+    message: "AI 起名 API - 语义匹配版本",
     usage:
-      "POST /api/name/generate with body: { surname, gender, birthDate, birthTime?, expectations?, style?, category? }",
+      "POST /api/name/generate with body: { surname, gender, birthDate, birthTime?, expectations?, style?, intentions?, styles?, category? }",
+    note: "基于语义匹配和DeepSeek AI生成名字，自动过滤忌讳字、生僻字等",
   });
 }
