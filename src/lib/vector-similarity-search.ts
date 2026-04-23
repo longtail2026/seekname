@@ -135,10 +135,31 @@ export async function searchSimilarClassicsByKeywords(
     }
 
     // 构建关键词匹配条件
-    // 使用 ILIKE 匹配 keywords 字段中的任意关键词
-    const conditions = keywords.map((_, i) => 
+    // 用户输入可能是短语如"聪明智慧,才华艺术"，需要拆分为单个字匹配
+    // 同时保留原始短语用于ILIKE匹配
+    const searchTerms: string[] = [];
+    for (const phrase of keywords) {
+      // 添加原始短语
+      searchTerms.push(phrase);
+      // 如果短语包含多个字，也拆分为单个字
+      if (phrase.length > 1) {
+        for (const char of phrase) {
+          searchTerms.push(char);
+        }
+      }
+    }
+    // 去重
+    const uniqueTerms = [...new Set(searchTerms)];
+    
+    console.log(`[关键词搜索] 展开搜索词: [${uniqueTerms.join(', ')}]`);
+
+    // 构建关键词匹配条件：每个搜索词匹配 keywords, ancient_text, modern_text, book_name
+    const conditions = uniqueTerms.map((_, i) => 
       `(keywords ILIKE $${i + 2} OR ancient_text ILIKE $${i + 2} OR modern_text ILIKE $${i + 2} OR book_name ILIKE $${i + 2})`
     );
+
+    // ORDER BY 使用第一个原始关键词作为优先匹配
+    const firstKeyword = keywords[0];
 
     const query = `
       SELECT id, book_name, ancient_text, modern_text, keywords
@@ -146,20 +167,21 @@ export async function searchSimilarClassicsByKeywords(
       WHERE (${conditions.join(' OR ')})
       ORDER BY 
         CASE 
-          WHEN keywords ILIKE $${keywords.length + 2} THEN 3
-          WHEN ancient_text ILIKE $${keywords.length + 2} THEN 2
-          WHEN modern_text ILIKE $${keywords.length + 2} THEN 1
+          WHEN keywords ILIKE $${uniqueTerms.length + 2} THEN 3
+          WHEN ancient_text ILIKE $${uniqueTerms.length + 2} THEN 2
+          WHEN modern_text ILIKE $${uniqueTerms.length + 2} THEN 1
           ELSE 0
         END DESC
       LIMIT $1
     `;
 
-    // 参数：第一个是限制数，后面是每个关键词的ILIKE模式，最后一个用于排序
+    // 参数：第一个是限制数，后面是每个搜索词的ILIKE模式，最后一个用于排序
     const params = [
       maxResults * 3,
-      ...keywords.map(kw => `%${kw}%`),
-      `%${keywords[0]}%`  // 优先匹配第一个关键词
+      ...uniqueTerms.map(kw => `%${kw}%`),
+      `%${firstKeyword}%`  // 优先匹配第一个关键词
     ];
+
 
     const entries = await queryRaw<{
       id: string;

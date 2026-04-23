@@ -66,22 +66,36 @@ async function findSemanticMatchesByKeyword(
   try {
     console.log(`[关键词匹配] 开始查找相似典籍: "${userInput}"`);
     
-    // 将用户输入拆分为单个关键词
-    const keywords = userInput
+    // 将用户输入拆分为单个关键词（按中文逗号、英文逗号、空格分隔）
+    const phrases = userInput
       .split(/[,，、\s]+/)
       .map(k => k.trim())
       .filter(k => k.length > 0);
     
-    console.log(`[关键词匹配] 拆分关键词: [${keywords.join(', ')}]`);
+    // 短语展开为单字以提高匹配率（用户输入"聪明智慧,才华艺术"需要匹配关键词中独立的"智慧"或"才华"）
+    const searchTerms: string[] = [];
+    for (const phrase of phrases) {
+      searchTerms.push(phrase);
+      if (phrase.length > 1) {
+        for (const char of phrase) {
+          searchTerms.push(char);
+        }
+      }
+    }
+    const uniqueTerms = [...new Set(searchTerms)];
     
-    if (keywords.length === 0) {
+    console.log(`[关键词匹配] 拆分关键词: [${uniqueTerms.join(', ')}]`);
+    
+    if (uniqueTerms.length === 0) {
       return [];
     }
     
     // 构建关键词匹配条件：搜索 keywords 字段和文本字段
-    const conditions = keywords.map((_, i) => 
+    const conditions = uniqueTerms.map((_, i) => 
       `(keywords ILIKE $${i + 2} OR ancient_text ILIKE $${i + 2} OR modern_text ILIKE $${i + 2} OR book_name ILIKE $${i + 2})`
     );
+    
+    const firstKeyword = phrases[0];
     
     const query = `
       SELECT id, book_name, ancient_text, modern_text, keywords
@@ -89,9 +103,9 @@ async function findSemanticMatchesByKeyword(
       WHERE (${conditions.join(' OR ')})
       ORDER BY 
         CASE 
-          WHEN keywords ILIKE $${keywords.length + 2} THEN 3
-          WHEN ancient_text ILIKE $${keywords.length + 2} THEN 2
-          WHEN modern_text ILIKE $${keywords.length + 2} THEN 1
+          WHEN keywords ILIKE $${uniqueTerms.length + 2} THEN 3
+          WHEN ancient_text ILIKE $${uniqueTerms.length + 2} THEN 2
+          WHEN modern_text ILIKE $${uniqueTerms.length + 2} THEN 1
           ELSE 0
         END DESC
       LIMIT $1
@@ -99,8 +113,8 @@ async function findSemanticMatchesByKeyword(
     
     const params = [
       limit,
-      ...keywords.map(kw => `%${kw}%`),
-      `%${keywords[0]}%`
+      ...uniqueTerms.map(kw => `%${kw}%`),
+      `%${firstKeyword}%`
     ];
     
     const entries = await queryRaw<{
