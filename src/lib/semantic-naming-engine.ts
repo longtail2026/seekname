@@ -45,7 +45,8 @@ export interface GeneratedName {
   givenName: string;
   pinyin: string;
   meaning: string;
-  reason: string;
+  reason: string;       // 选字理由（详细说明每个字取自哪篇哪句）
+  source: string;       // 典籍出处原文（含篇章名和原句）
   score?: number;
 }
 
@@ -110,7 +111,8 @@ export function buildAIPrompt(
 1. 名字
 2. 拼音（带声调）
 3. 寓意说明（30-50字）
-4. 符合客户需求的理由
+4. 选字理由（说明取用哪个字的含义，以及为什么这个字符合客户需求）
+5. 典籍出处（标明该字出自哪部典籍的哪篇哪句原文，如"字"出自《诗经·小雅·鹿鸣》"鼓瑟吹笙"）
 
 客户需求：
 - 性别：【${genderText}】
@@ -118,13 +120,15 @@ export function buildAIPrompt(
 - 期望寓意：【${expectations}】
 - 风格偏好：【${styleText}】
 
-输出格式：用Markdown表格，列包括：序号、名字、拼音、寓意说明、匹配理由
+输出格式：用Markdown表格，列包括：序号、名字、拼音、寓意说明、选字理由、典籍出处
 
 注意：
 1. 名字要优美、有文化内涵，符合客户性别和风格偏好
 2. 拼音要准确，带声调标注
 3. 寓意说明要具体、有诗意
-4. 匹配理由要说明名字如何符合客户需求`;
+4. 【关键】选字理由必须具体指出名字中每个字取自哪部典籍的哪篇哪段原文，例如："'熙'字取自《诗经·大雅·文王》'穆穆文王，于缉熙敬止'，意为光明和乐"；
+5. 典籍出处必须精确到篇章名和原句，不能只说"出自《诗经》"这种笼统表述；
+6. 名字要体现性别特点：男名宜用刚健、宏大、英武类字，女名宜用柔美、温婉、秀丽类字。`;
   }
 
   const classicsInfo = matches
@@ -140,7 +144,8 @@ export function buildAIPrompt(
 1. 名字
 2. 拼音（带声调）
 3. 寓意说明（30-50字）
-4. 符合客户需求的理由
+4. 选字理由（说明取用哪个字的含义，以及为什么这个字符合客户需求）
+5. 典籍出处（标明该字出自哪部典籍的哪篇哪句原文，如"熙"出自《诗经·大雅·文王》"于缉熙敬止"）
 
 客户需求：
 - 性别：【${genderText}】
@@ -152,13 +157,16 @@ export function buildAIPrompt(
 参考典籍：
 ${classicsInfo}
 
-输出格式：用Markdown表格，列包括：序号、名字、拼音、寓意说明、匹配理由
+输出格式：用Markdown表格，列包括：序号、名字、拼音、寓意说明、选字理由、典籍出处
 
 注意：
 1. 名字要优美、有文化内涵，符合客户性别和风格偏好
 2. 拼音要准确，带声调标注
 3. 寓意说明要具体、有诗意
-4. 匹配理由要说明名字如何符合客户需求`;
+4. 【关键】选字理由必须具体指出名字中每个字取自哪部典籍的哪篇哪段原文，例如："'熙'字取自《诗经·大雅·文王》'于缉熙敬止'，意为光明和乐"；
+5. 典籍出处必须精确到篇章名和原句，不能只说"出自《诗经》"这种笼统表述；
+6. 名字要体现性别特点：男名宜用刚健、宏大、英武类字，女名宜用柔美、温婉、秀丽类字。`;
+
 }
 
 /**
@@ -403,11 +411,14 @@ function parseMarkdownTable(markdown: string): GeneratedName[] {
           .map((cell) => cell.trim())
           .filter((cell) => cell);
 
+        // 列数：6列（序号、名字、拼音、寓意说明、选字理由、典籍出处）
+        // 兼容旧版5列（序号、名字、拼音、寓意说明、选字理由）
         if (cells.length >= 5) {
           const name = cells[1];
           const pinyin = cells[2];
           const meaning = cells[3];
           const reason = cells[4];
+          const source = cells.length >= 6 ? cells[5] : "";
           const givenName = name.slice(1) || "";
 
           names.push({
@@ -416,6 +427,7 @@ function parseMarkdownTable(markdown: string): GeneratedName[] {
             pinyin,
             meaning,
             reason,
+            source,
             score: 80,
           });
         }

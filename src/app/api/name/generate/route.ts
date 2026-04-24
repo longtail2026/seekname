@@ -295,14 +295,29 @@ export async function POST(request: NextRequest) {
       // 计算笔画数（简化版）
       const strokeCount = givenName.length * 8; // 平均估算
 
-      // 分配典籍出处（从匹配的典籍中选取）
-      let source = { book: "《诗经》", text: "美好寓意" };
-      if (result.matches.length > 0) {
+      // 使用DeepSeek返回的选字理由和典籍出处（新Prompt要求精确到篇章和原句）
+      // 如果DeepSeek未返回source，则从匹配的典籍中选取
+      let source = { book: "《诗经》", text: "美好寓意", reason: "" };
+      if (name.source && name.source.length > 0) {
+        // DeepSeek返回了精确的典籍出处
+        source = {
+          book: name.source,
+          text: name.reason || "美好寓意",
+          reason: name.reason || "",
+        };
+      } else if (result.matches.length > 0) {
         const matchIndex = index % result.matches.length;
         const match = result.matches[matchIndex];
         source = {
           book: `《${match.bookName}》`,
           text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
+          reason: name.reason || "",
+        };
+      } else {
+        source = {
+          book: name.source || "《诗经》",
+          text: name.reason || "美好寓意",
+          reason: name.reason || "",
         };
       }
 
@@ -312,6 +327,7 @@ export async function POST(request: NextRequest) {
         pinyin: name.pinyin,
         wuxing,
         meaning: name.meaning,
+        reason: name.reason,           // 选字理由（精确到每个字取自哪篇哪句）
         strokeCount,
         score: 90 - index * 2, // 递减分数
         source,
@@ -327,13 +343,14 @@ export async function POST(request: NextRequest) {
         let wuxing = "木火";
         const strokeCount = givenName.length * 8;
         
-        let source = { book: "《诗经》", text: "美好寓意" };
+        let source = { book: "《诗经》", text: "美好寓意", reason: "" };
         if (result.matches.length > 0) {
           const matchIndex = (apiNames.length + index) % result.matches.length;
           const match = result.matches[matchIndex];
           source = {
             book: `《${match.bookName}》`,
             text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
+            reason: name.reason || "",
           };
         }
 
@@ -343,6 +360,7 @@ export async function POST(request: NextRequest) {
           pinyin: name.pinyin,
           wuxing,
           meaning: name.meaning,
+          reason: name.reason || "",
           strokeCount,
           score: 80 - index * 2,
           source,

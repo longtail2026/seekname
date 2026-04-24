@@ -37,9 +37,9 @@ export interface ClassicsMatch {
 // ========== 配置 ==========
 
 const VECTOR_SEARCH_CONFIG = {
-  maxResults: 10,
-  minResults: 5,
-  similarityThreshold: 0.85, // 余弦距离阈值，>0.85 视为不相关
+  maxResults: 30,
+  minResults: 10,
+  similarityThreshold: 0.75, // 余弦距离阈值（降低以提升召回量）
 };
 
 /**
@@ -284,10 +284,17 @@ export async function searchNamingClassics(
   try {
     console.log(`[典籍搜索] 开始搜索: "${userInput}", gender=${gender}`);
 
+    // ── 注入性别信号：将性别关键词拼入搜索文本 ──
+    const genderKeywords: Record<string, string> = {
+      M: "刚健 英武 雄壮 阳刚 男子 俊朗 豪迈 宏大气魄",
+      F: "柔美 温婉 娴淑 女子 秀丽 优雅 婉约 婀娜多姿",
+    };
+    const genderedInput = `${userInput} ${genderKeywords[gender] || ""}`;
+
     const minResults = Math.min(VECTOR_SEARCH_CONFIG.minResults, maxResults);
 
-    // 1. 向量搜索（OVHcloud BGE-M3）
-    const vectorResults = await searchNamingClassicsByVector(userInput, maxResults);
+    // 1. 向量搜索（OVHcloud BGE-M3）— 使用注入性别信号的文本
+    const vectorResults = await searchNamingClassicsByVector(genderedInput, maxResults);
 
     console.log(`[典籍搜索] 向量搜索返回 ${vectorResults.length} 条`);
 
