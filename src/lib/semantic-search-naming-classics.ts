@@ -8,8 +8,8 @@
  * 4. 从匹配的典籍条目中提取字词用于后续 AI 起名
  * 
  * 数据库表：naming_classics（已做 BGE-M3 向量化，embedding 维度 1024）
- * 向量列：combined_text_embedding (vector(1024))
- * 索引：idx_naming_classics_embedding (HNSW, cosine_ops)
+ * 向量列：combined_text_embedding_vec (vector(1024)) — 原 combined_text_embedding 为 bytea 类型
+ * 索引：idx_naming_classics_embedding_vec (HNSW, cosine_ops)
  */
 
 import { queryRaw } from "./prisma";
@@ -100,11 +100,11 @@ export async function searchNamingClassicsByVector(
         ancient_text,
         modern_text,
         keywords,
-        (combined_text_embedding <=> $2::vector) AS distance
+        (combined_text_embedding_vec <=> $2::vector) AS distance
       FROM naming_classics
-      WHERE combined_text_embedding IS NOT NULL
-        AND (combined_text_embedding <=> $2::vector) < $3
-      ORDER BY combined_text_embedding <=> $2::vector
+      WHERE combined_text_embedding_vec IS NOT NULL
+        AND (combined_text_embedding_vec <=> $2::vector) < $3
+      ORDER BY combined_text_embedding_vec <=> $2::vector
       LIMIT $1
     `;
 
