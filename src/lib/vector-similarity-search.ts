@@ -1,18 +1,22 @@
 /**
- * 向量相似度搜索模块
- * 提供基于classics_entries表向量数据的语义搜索功能
+ * 向量相似度搜索模块（重写版）
  * 
- * 注意：数据库实际表为classics_entries（124120条记录），包含keywords(text[])字段
- * 因生产环境未部署BGE-M3向量嵌入，暂时全部回退到关键词/全文搜索
+ * 核心逻辑：
+ * 1. 用户输入文本 → 调用本地嵌入服务(BGE-small-zh) → 生成512维向量
+ * 2. 使用 pgvector `<=>` 余弦距离算子，在 classics_entries 表中做语义相似度搜索
+ * 3. 如果向量搜索结果不足(＜5条)，自动回退到关键词搜索兜底
+ * 4. 合并去重后返回最终结果
  */
 
 import { queryRaw } from "./prisma";
+import { EmbeddingClient } from "./embedding-client";
 
 // 向量相似度配置
 export interface VectorSearchConfig {
-  similarityThreshold?: number;  // 相似度阈值
+  similarityThreshold?: number;  // 相似度阈值（余弦距离，越小越相似）
   maxResults?: number;          // 最大返回结果数
   dimension?: number;           // 向量维度
+  vectorOnly?: boolean;         // 仅使用向量搜索（不启用关键词兜底）
 }
 
 // 典籍匹配结果
@@ -21,25 +25,115 @@ export interface VectorMatchResult {
   bookName: string;
   ancientText: string;
   modernText: string;
-  similarity: number;
+  similarity: number;      // 0~1 之间的相似度得分（1为最相似）
   extractedChars: string[];
   meaning: string;
   keywords?: string[];
+  searchMethod: "vector" | "keyword"; // 来源标记
 }
 
 /**
- * 关键词匹配搜索（基于classics_entries表）
- * keywords 字段是 text[] 数组类型，使用 array_to_string 或 unnest 进行匹配
+ * 使用 pgvector 余弦距离(`<=>`)进行语义搜索
+ * combined_text_embedding 列存储 512 维向量，使用 HNSW 索引加速
  */
-export async function searchSimilarClassicsByKeywords(
+async function searchByVector(
   queryText: string,
-  gender: "M" | "F" = "M",
+  maxResults: number = 10,
+  threshold: number = 0.85  // 余弦距离阈值，大于此值视为不相关
+): Promise<VectorMatchResult[]> {
+  try {
+    console.log(`[向量搜索] 开始语义搜索: "${queryText}"`);
+
+    // 1. 检查嵌入服务是否可用
+    const serviceAvailable = await EmbeddingClient.checkEmbeddingService();
+    if (!serviceAvailable) {
+      console.warn("[向量搜索] 嵌入服务不可用，跳过向量搜索");
+      return [];
+    }
+
+    // 2. 生成用户输入文本的向量
+    const embedResult = await EmbeddingClient.embedText(queryText);
+    const vectorStr = EmbeddingClient.vectorToPgVector(embedResult.vector);
+    console.log(`[向量搜索] 向量已生成，维度=${embedResult.dimension}`);
+
+    // 3. 使用 pgvector 余弦距离搜索
+    // combined_text_embedding <=> $2 返回余弦距离（0=完全相同，2=完全相反）
+    // 筛选距离 < threshold 的结果
+    const query = `
+      SELECT 
+        id, 
+        book_name, 
+        ancient_text, 
+        modern_text, 
+        keywords,
+        (combined_text_embedding <=> $2::vector) AS distance
+      FROM classics_entries
+      WHERE combined_text_embedding IS NOT NULL
+        AND (combined_text_embedding <=> $2::vector) < $3
+      ORDER BY combined_text_embedding <=> $2::vector
+      LIMIT $1
+    `;
+
+    const entries = await queryRaw<{
+      id: string;
+      book_name: string;
+      ancient_text: string;
+      modern_text: string;
+      keywords: string[] | string;
+      distance: number;
+    }>(query, [maxResults, vectorStr, threshold]);
+
+    console.log(`[向量搜索] 找到 ${entries.length} 个语义匹配的典籍`);
+
+    // 4. 转换为统一格式
+    const matches: VectorMatchResult[] = entries.map((entry) => {
+      const text = entry.ancient_text || entry.modern_text || "";
+      
+      // 将余弦距离转为相似度得分（0~1）
+      // 余弦距离: 0 → 完全相同 → similarity=1
+      // 余弦距离: 1 → 正交 → similarity=0.5
+      // 余弦距离: 2 → 完全相反 → similarity=0
+      const similarity = Math.max(0, Math.min(1, 1 - entry.distance / 2));
+
+      let entryKeywords: string[] = [];
+      if (Array.isArray(entry.keywords)) {
+        entryKeywords = entry.keywords;
+      } else if (typeof entry.keywords === 'string') {
+        entryKeywords = entry.keywords.split(',').map((k: string) => k.trim());
+      }
+
+      return {
+        id: parseInt(entry.id),
+        bookName: entry.book_name || "未知典籍",
+        ancientText: entry.ancient_text || "",
+        modernText: entry.modern_text || "",
+        similarity,
+        extractedChars: extractMeaningfulChars(text),
+        meaning: extractMeaning(text),
+        keywords: entryKeywords.slice(0, 5),
+        searchMethod: "vector" as const,
+      };
+    });
+
+    return matches;
+  } catch (error) {
+    console.error("[向量搜索] 搜索失败:", error);
+    return [];
+  }
+}
+
+/**
+ * 关键词匹配搜索（兜底方案）
+ * 基于 classsics_entries 表的 keywords(text[])、ancient_text、modern_text、book_name 做 ILIKE 匹配
+ */
+async function searchByKeywords(
+  queryText: string,
   maxResults: number = 10
 ): Promise<VectorMatchResult[]> {
   try {
     console.log(`[关键词搜索] 开始搜索: "${queryText}"`);
 
-    // 将用户输入拆分为单个关键词（按中文逗号、英文逗号、空格分隔）
+    // 将用户输入拆分为关键词
     const keywords = queryText
       .split(/[,，、\s]+/)
       .map(k => k.trim())
@@ -51,32 +145,23 @@ export async function searchSimilarClassicsByKeywords(
       return [];
     }
 
-    // 构建关键词匹配条件
-    // 用户输入可能是短语如"聪明智慧,才华艺术"，需要拆分为单个字匹配
-    // 同时保留原始短语用于ILIKE匹配
+    // 展开搜索词：原始短语 + 单字
     const searchTerms: string[] = [];
     for (const phrase of keywords) {
       searchTerms.push(phrase);
-      // 如果短语包含多个字，也拆分为单个字
       if (phrase.length > 1) {
         for (const char of phrase) {
           searchTerms.push(char);
         }
       }
     }
-    // 去重
     const uniqueTerms = [...new Set(searchTerms)];
-    
-    console.log(`[关键词搜索] 展开搜索词: [${uniqueTerms.join(', ')}]`);
 
-    // 构建关键词匹配条件（适配 text[] 数组类型）：
-    // - keywords 是 text[] 数组，使用 array_to_string 转字符串后 ILIKE
-    // - ancient_text / modern_text / book_name 是 text，直接 ILIKE
+    // 构建 ILIKE 匹配条件
     const conditions = uniqueTerms.map((_, i) => 
       `(array_to_string(keywords, ',') ILIKE $${i + 2} OR ancient_text ILIKE $${i + 2} OR modern_text ILIKE $${i + 2} OR book_name ILIKE $${i + 2})`
     );
 
-    // ORDER BY 使用第一个原始关键词作为优先匹配
     const firstKeyword = keywords[0];
 
     const query = `
@@ -94,9 +179,9 @@ export async function searchSimilarClassicsByKeywords(
     `;
 
     const params = [
-      maxResults * 3,
+      maxResults,
       ...uniqueTerms.map(kw => `%${kw}%`),
-      `%${firstKeyword}%`  // 优先匹配第一个关键词
+      `%${firstKeyword}%`
     ];
 
     const entries = await queryRaw<{
@@ -109,10 +194,8 @@ export async function searchSimilarClassicsByKeywords(
 
     console.log(`[关键词搜索] 找到 ${entries.length} 个匹配典籍`);
 
-    // 转换为统一格式
     const matches: VectorMatchResult[] = entries.map((entry) => {
       const text = entry.ancient_text || entry.modern_text || "";
-      // keywords 可能是 text[] 数组或逗号分隔字符串
       let entryKeywords: string[] = [];
       if (Array.isArray(entry.keywords)) {
         entryKeywords = entry.keywords;
@@ -125,10 +208,11 @@ export async function searchSimilarClassicsByKeywords(
         bookName: entry.book_name || "未知典籍",
         ancientText: entry.ancient_text || "",
         modernText: entry.modern_text || "",
-        similarity: 0.8, // 关键词匹配固定较高相似度
-        extractedChars: extractMeaningfulChars(text, gender),
+        similarity: 0.7, // 关键词匹配固定为0.7
+        extractedChars: extractMeaningfulChars(text),
         meaning: extractMeaning(text),
         keywords: entryKeywords.slice(0, 5),
+        searchMethod: "keyword" as const,
       };
     });
 
@@ -140,11 +224,12 @@ export async function searchSimilarClassicsByKeywords(
 }
 
 /**
- * 搜索相似典籍（主入口）
+ * 主搜索入口：向量搜索优先，关键词搜索兜底
  * 
- * 由于生产环境未部署向量嵌入，统一使用关键词/全文搜索
- * 如需启用向量搜索，需先执行向量化脚本并确保 classics_entries 表包含 
- * combined_text_embedding 列（bytea 类型）
+ * 策略：
+ * 1. 先使用 pgvector 余弦距离搜索语义匹配
+ * 2. 如果向量搜索结果不足（＜minResults条），再用关键词搜索补充
+ * 3. 合并去重后返回
  */
 export async function searchSimilarClassicsByVector(
   queryText: string,
@@ -152,21 +237,60 @@ export async function searchSimilarClassicsByVector(
   config: VectorSearchConfig = {}
 ): Promise<VectorMatchResult[]> {
   try {
-    console.log(`[典籍搜索] 开始搜索: "${queryText}"`);
-    
-    // 直接使用关键词搜索（回退方案）
+    console.log(`[典籍搜索] 开始搜索: "${queryText}", gender=${gender}`);
+
     const maxResults = config.maxResults ?? 10;
-    const results = await searchSimilarClassicsByKeywords(queryText, gender, maxResults);
-    
-    return results;
+    const threshold = config.similarityThreshold ?? 0.85;
+    const minResults = Math.min(5, maxResults); // 至少需要5条才满足
+
+    // 1. 向量搜索
+    const vectorResults = await searchByVector(queryText, maxResults, threshold);
+
+    console.log(`[典籍搜索] 向量搜索返回 ${vectorResults.length} 条`);
+
+    // 2. 如果向量搜索结果足够，直接返回
+    if (vectorResults.length >= minResults && !config.vectorOnly === false) {
+      console.log(`[典籍搜索] 向量搜索结果充足(${vectorResults.length}条)，直接返回`);
+      return vectorResults.slice(0, maxResults);
+    }
+
+    // 3. 向量搜索结果不足，用关键词搜索兜底补充
+    console.log(`[典籍搜索] 向量搜索结果不足(${vectorResults.length}条)，尝试关键词搜索兜底...`);
+    const keywordResults = await searchByKeywords(queryText, maxResults);
+
+    // 4. 合并去重（按id去重，向量结果优先）
+    const seenIds = new Set<number>();
+    const mergedResults: VectorMatchResult[] = [];
+
+    // 先放入向量搜索结果
+    for (const match of vectorResults) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        mergedResults.push(match);
+      }
+    }
+
+    // 再补充关键词搜索结果（去重）
+    for (const match of keywordResults) {
+      if (!seenIds.has(match.id) && mergedResults.length < maxResults) {
+        seenIds.add(match.id);
+        mergedResults.push(match);
+      }
+    }
+
+    console.log(`[典籍搜索] 合并后共 ${mergedResults.length} 条结果（向量${vectorResults.length}条 + 关键词${keywordResults.length}条）`);
+
+    return mergedResults.slice(0, maxResults);
   } catch (error) {
     console.error("[典籍搜索] 搜索失败:", error);
-    return [];
+    // 出错时回退到纯关键词搜索
+    console.log("[典籍搜索] 搜索异常，回退到关键词搜索");
+    return await searchByKeywords(queryText, config.maxResults ?? 10);
   }
 }
 
 /**
- * 批量搜索相似典籍（优化性能）
+ * 批量搜索相似典籍
  */
 export async function batchSearchSimilarClassics(
   queryTexts: string[],
@@ -174,72 +298,45 @@ export async function batchSearchSimilarClassics(
   config: VectorSearchConfig = {}
 ): Promise<Map<string, VectorMatchResult[]>> {
   const results = new Map<string, VectorMatchResult[]>();
-
   for (const queryText of queryTexts) {
     const matches = await searchSimilarClassicsByVector(queryText, gender, config);
     results.set(queryText, matches);
   }
-
   return results;
 }
 
 /**
  * 从文本中提取有意义的字符（用于起名）
  */
-function extractMeaningfulChars(text: string, gender: "M" | "F" = "M"): string[] {
+function extractMeaningfulChars(text: string, _gender?: "M" | "F"): string[] {
   if (!text) return [];
-
-  // 常见有意义的字符（按性别偏好）
-  const meaningfulChars = {
-    // 通用美好字
-    universal: ["智", "慧", "仁", "义", "德", "善", "勇", "刚", "强", "成", "功", "健", "康", "安", "宁", "快", "乐", "欣", "悦"],
-    // 女性偏好字
-    female: ["雅", "婉", "淑", "静", "柔", "美", "丽", "婷", "芸", "兰", "芳", "芷", "馨", "怡", "媛", "婕", "娅", "嫣"],
-    // 男性偏好字
-    male: ["伟", "雄", "豪", "杰", "俊", "博", "文", "韬", "略", "宇", "轩", "浩", "泽", "涛", "峰", "岩", "磊", "森"],
-  };
-
   const chars: string[] = [];
-  const genderChars = gender === "F" ? meaningfulChars.female : meaningfulChars.male;
-  const allChars = [...meaningfulChars.universal, ...genderChars];
-
-  // 从文本中提取字符
   for (const char of text) {
-    if (allChars.includes(char) && !chars.includes(char)) {
+    if (isChineseCharacter(char) && !chars.includes(char)) {
       chars.push(char);
     }
   }
-
-  // 如果提取的字符太少，添加一些默认字符
-  if (chars.length < 3) {
-    const defaultChars = gender === "F" 
-      ? ["雅", "欣", "怡"] 
-      : ["浩", "宇", "博"];
-
-    for (const char of defaultChars) {
-      if (!chars.includes(char)) {
-        chars.push(char);
-      }
-    }
-  }
-
-  return chars.slice(0, 10); // 返回最多10个字符
+  return chars.slice(0, 10);
 }
 
 /**
- * 从文本中提取含义
+ * 从文本中提取含义摘要
  */
 function extractMeaning(text: string): string {
   if (!text) return "美好寓意";
-
-  // 简单提取前30个字符作为含义
-  const preview = text.length > 30 ? text.slice(0, 30) + "..." : text;
-  return preview;
+  return text.length > 30 ? text.slice(0, 30) + "..." : text;
 }
 
-// 导出工具函数
+function isChineseCharacter(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return code >= 0x4E00 && code <= 0x9FFF;
+}
+
+// 导出
+export { searchByVector, searchByKeywords };
 export const VectorSimilaritySearch = {
   searchSimilarClassicsByVector,
-  searchSimilarClassicsByKeywords,
   batchSearchSimilarClassics,
+  searchByVector,
+  searchByKeywords,
 };

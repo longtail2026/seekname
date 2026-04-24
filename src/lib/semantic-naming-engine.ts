@@ -1,14 +1,20 @@
 /**
- * 语义匹配起名引擎
- * 基于BGE-M3语义匹配和DeepSeek AI生成名字
- *
- * 数据库表：classics_entries（124120条记录）
- * 关键词字段：keywords (text[] 数组类型)
+ * 语义匹配起名引擎（OVHcloud BGE-M3 版）
+ * 
+ * 核心流程：
+ * 1. 客户输入起名意向（如"希望孩子聪明智慧、才华横溢"）
+ * 2. 调用 OVHcloud BGE-M3 API（免费、无需 API Key）生成 1024 维语义向量
+ * 3. 在 naming_classics 表中做 pgvector 余弦相似度搜索
+ * 4. 如果向量搜索结果不足，自动降级到关键词搜索兜底
+ * 5. 从匹配到的典籍中提取字词，构建提示词交给 DeepSeek 生成名字
+ * 
+ * 数据库表：naming_classics（典籍词句表，已做 BGE-M3 向量化）
+ * 向量列：combined_text_embedding (vector(1024))
+ * 索引：idx_naming_classics_embedding (HNSW, cosine_ops)
  */
 
-import { queryRaw } from "./prisma";
 import { DeepSeekIntegration } from "./deepseek-integration";
-import { searchSimilarClassicsByVector } from "./vector-similarity-search";
+import { searchNamingClassics } from "./semantic-search-naming-classics";
 
 // 用户意图接口
 export interface SemanticNamingRequest {
@@ -50,94 +56,13 @@ export interface FilterResult {
 }
 
 /**
- * 关键词匹配 - 从classics_entries表中查找相似典籍
- * keywords 是 text[] 数组类型，使用 array_to_string 进行 ILIKE 匹配
- */
-async function findSemanticMatchesByKeyword(
-  userInput: string,
-  limit: number = 10
-): Promise<ClassicsMatch[]> {
-  try {
-    console.log(`[关键词匹配] 开始查找相似典籍: "${userInput}"`);
-
-    const phrases = userInput
-      .split(/[,，、\s]+/)
-      .map(k => k.trim())
-      .filter(k => k.length > 0);
-
-    const searchTerms: string[] = [];
-    for (const phrase of phrases) {
-      searchTerms.push(phrase);
-      if (phrase.length > 1) {
-        for (const char of phrase) {
-          searchTerms.push(char);
-        }
-      }
-    }
-    const uniqueTerms = [...new Set(searchTerms)];
-
-    console.log(`[关键词匹配] 拆分关键词: [${uniqueTerms.join(', ')}]`);
-
-    if (uniqueTerms.length === 0) return [];
-
-    // keywords 是 text[] 数组类型，用 array_to_string 转为逗号分隔字符串再 ILIKE
-    const conditions = uniqueTerms.map(
-      (_, i) =>
-        `(array_to_string(keywords, ',') ILIKE $${i + 2} OR ancient_text ILIKE $${i + 2} OR modern_text ILIKE $${i + 2} OR book_name ILIKE $${i + 2})`
-    );
-
-    const firstKeyword = phrases[0];
-
-    const query = `
-      SELECT id, book_name, ancient_text, modern_text, keywords
-      FROM classics_entries
-      WHERE (${conditions.join(' OR ')})
-      ORDER BY
-        CASE
-          WHEN array_to_string(keywords, ',') ILIKE $${uniqueTerms.length + 2} THEN 3
-          WHEN ancient_text ILIKE $${uniqueTerms.length + 2} THEN 2
-          WHEN modern_text ILIKE $${uniqueTerms.length + 2} THEN 1
-          ELSE 0
-        END DESC
-      LIMIT $1
-    `;
-
-    const params = [
-      limit,
-      ...uniqueTerms.map(kw => `%${kw}%`),
-      `%${firstKeyword}%`,
-    ];
-
-    const entries = await queryRaw<{
-      id: string;
-      book_name: string;
-      ancient_text: string;
-      modern_text: string;
-      keywords: string[] | string;
-    }>(query, params);
-
-    console.log(`[关键词匹配] 找到 ${entries.length} 个相似典籍`);
-
-    return entries.map((entry) => {
-      const text = entry.ancient_text || entry.modern_text || "";
-      return {
-        id: typeof entry.id === 'string' ? parseInt(entry.id) : Number(entry.id),
-        bookName: entry.book_name || "未知典籍",
-        ancientText: entry.ancient_text || "",
-        modernText: entry.modern_text || "",
-        similarity: 0.8,
-        extractedChars: extractMeaningfulChars(text),
-        meaning: extractMeaning(text),
-      };
-    });
-  } catch (error) {
-    console.error("[关键词匹配] 查找失败:", error);
-    return [];
-  }
-}
-
-/**
- * 1. 语义匹配层 - 从classics_entries表中查找相似典籍
+ * 1. 语义匹配层
+ * 
+ * 策略（OVHcloud BGE-M3 向量搜索优先，关键词搜索兜底）：
+ * - 先通过 OVHcloud BGE-M3 API 生成用户输入的语义向量
+ * - 在 naming_classics 表用 pgvector 余弦距离做语义搜索
+ * - 如果搜索结果不足（＜minResults），自动用关键词搜索补充
+ * - 合并去重后返回
  */
 export async function findSemanticMatches(
   userInput: string,
@@ -145,48 +70,20 @@ export async function findSemanticMatches(
   gender: "M" | "F" = "M"
 ): Promise<ClassicsMatch[]> {
   try {
-    console.log(`[语义匹配] 开始查找相似典籍: "${userInput}"`);
+    console.log(`[语义匹配-OVHcloud] 开始查找相似典籍: "${userInput}"`);
 
-    const vectorMatches = await searchSimilarClassicsByVector(userInput, gender, {
-      maxResults: limit,
-    });
+    // 使用 BGE-M3 语义搜索（向量优先，关键词兜底）
+    const matches = await searchNamingClassics(userInput, gender, limit);
 
-    const matches: ClassicsMatch[] = vectorMatches.map((match) => ({
-      id: match.id,
-      bookName: match.bookName,
-      ancientText: match.ancientText,
-      modernText: match.modernText,
-      similarity: match.similarity,
-      extractedChars: match.extractedChars,
-      meaning: match.meaning,
-    }));
-
-    console.log(`[语义匹配] 向量搜索找到 ${matches.length} 个相似典籍`);
-
-    if (matches.length < limit / 2) {
-      console.log(`[语义匹配] 向量搜索结果不足(${matches.length})，尝试关键词匹配...`);
-      const keywordMatches = await findSemanticMatchesByKeyword(userInput, limit);
-
-      const allMatches = [...matches];
-      const seenIds = new Set(matches.map((m) => m.id));
-
-      for (const match of keywordMatches) {
-        if (!seenIds.has(match.id) && allMatches.length < limit) {
-          seenIds.add(match.id);
-          allMatches.push(match);
-        }
-      }
-
-      console.log(`[语义匹配] 合并后共 ${allMatches.length} 个相似典籍`);
-      return allMatches;
-    }
-
+    console.log(`[语义匹配] 最终返回 ${matches.length} 个相似典籍`);
     return matches;
   } catch (error) {
     console.error("[语义匹配] 搜索失败:", error);
-    return await findSemanticMatchesByKeyword(userInput, limit);
+    return [];
   }
 }
+
+
 
 /**
  * 2. 构建AI提示词（支持无典籍匹配情况下的降级）
