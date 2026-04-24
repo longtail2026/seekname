@@ -43,6 +43,10 @@ interface NameItem {
   score: number;
   meaning: string;
   source?: string;
+  sourceBook?: string;
+  sourceText?: string;
+  sourceModern?: string;
+  reason?: string;
   culturalScore?: number;
   harmonyScore?: number;
   uniqueness?: string;
@@ -238,10 +242,27 @@ function NamingResultContent() {
 
             // 处理 source 字段（可能是对象或字符串）
             let sourceValue: string | undefined = undefined;
+            let sourceBookVal: string | undefined = undefined;
+            let sourceTextVal: string | undefined = undefined;
+            let sourceModernVal: string | undefined = undefined;
+            let reasonVal: string | undefined = undefined;
+
+            // 提取 reason（选字理由）
+            if (n?.reason && typeof n.reason === "string") {
+              reasonVal = n.reason;
+            }
+
             if (n?.source) {
               if (typeof n.source === "string") {
                 sourceValue = n.source;
+                sourceBookVal = n.source;
               } else if (typeof n.source === "object" && n.source?.book) {
+                sourceBookVal = n.source.book;
+                sourceTextVal = n.source.text || "";
+                sourceModernVal = n.source.modernText || "";
+                // reason 优先取 source.reason，其次取直接 reason
+                if (n.source.reason) reasonVal = reasonVal || n.source.reason;
+                // sourceValue 构造用于显示的完整字符串
                 sourceValue = `《${n.source.book}》：${n.source.text || ""}`;
               }
             }
@@ -254,6 +275,10 @@ function NamingResultContent() {
               score,
               meaning: (n?.meaning || "") as string,
               source: sourceValue,
+              sourceBook: sourceBookVal,
+              sourceText: sourceTextVal,
+              sourceModern: sourceModernVal,
+              reason: reasonVal,
               culturalScore: typeof n?.scoreBreakdown?.cultural === "number" ? n.scoreBreakdown.cultural : undefined,
               harmonyScore: typeof n?.scoreBreakdown?.harmony === "number" ? n.scoreBreakdown.harmony : undefined,
               uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
@@ -587,10 +612,30 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                         <p className="text-[#5C4A42] text-sm mb-2 leading-relaxed">
                           {nameItem.meaning}
                         </p>
+
+                        {/* 选字理由 */}
+                        {nameItem.reason && (
+                          <div className="mb-2 p-2 bg-[#F8F3EA] rounded-lg">
+                            <p className="text-xs text-[#5C4A42] leading-relaxed">
+                              <span className="font-medium text-[#2C1810]">选字理由：</span>
+                              {nameItem.reason}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* 典籍出处 */}
                         {nameItem.source && (
                           <div className="flex items-center gap-2 text-xs text-[#C9A84C]">
                             <BookOpen className="w-3 h-3" />
                             <span>出处：{nameItem.source}</span>
+                          </div>
+                        )}
+
+                        {/* 白话译文 */}
+                        {nameItem.sourceModern && (
+                          <div className="flex items-start gap-2 mt-1 text-xs text-[#5C4A42]">
+                            <span className="text-[#C9A84C]">译文：</span>
+                            <span>{nameItem.sourceModern}</span>
                           </div>
                         )}
                       </>

@@ -295,14 +295,15 @@ export async function POST(request: NextRequest) {
       // 计算笔画数（简化版）
       const strokeCount = givenName.length * 8; // 平均估算
 
-      // 使用DeepSeek返回的选字理由和典籍出处（新Prompt要求精确到篇章和原句）
-      // 如果DeepSeek未返回source，则从匹配的典籍中选取
-      let source = { book: "《诗经》", text: "美好寓意", reason: "" };
+      // 使用DeepSeek返回的选字理由和典籍出处
+      // source对象包含：book(典籍出处原文)、text(古文原句)、modernText(白话译文)、reason(选字理由)
+      let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
       if (name.source && name.source.length > 0) {
-        // DeepSeek返回了精确的典籍出处
+        // DeepSeek返回了精确的典籍出处（如 "出自《庄子·外物》"目彻为明""）
         source = {
           book: name.source,
           text: name.reason || "美好寓意",
+          modernText: "",
           reason: name.reason || "",
         };
       } else if (result.matches.length > 0) {
@@ -310,27 +311,32 @@ export async function POST(request: NextRequest) {
         const match = result.matches[matchIndex];
         source = {
           book: `《${match.bookName}》`,
-          text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
-          reason: name.reason || "",
+          text: match.ancientText || "",
+          modernText: match.modernText || "",
+          reason: name.reason || match.meaning || "",
         };
       } else {
         source = {
           book: name.source || "《诗经》",
           text: name.reason || "美好寓意",
+          modernText: "",
           reason: name.reason || "",
         };
       }
 
+      // 拼接姓氏到全名中
+      const fullName = surname + name.givenName;
+
       return {
-        name: name.name,
-        givenName: name.givenName,
+        name: fullName,               // 全名（含姓氏）
+        givenName: name.givenName,    // 名（不含姓氏）
         pinyin: name.pinyin,
         wuxing,
         meaning: name.meaning,
         reason: name.reason,           // 选字理由（精确到每个字取自哪篇哪句）
         strokeCount,
         score: 90 - index * 2, // 递减分数
-        source,
+        source,                       // { book, text, modernText, reason }
       };
     });
 
@@ -343,13 +349,14 @@ export async function POST(request: NextRequest) {
         let wuxing = "木火";
         const strokeCount = givenName.length * 8;
         
-        let source = { book: "《诗经》", text: "美好寓意", reason: "" };
+        let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
         if (result.matches.length > 0) {
           const matchIndex = (apiNames.length + index) % result.matches.length;
           const match = result.matches[matchIndex];
           source = {
             book: `《${match.bookName}》`,
             text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
+            modernText: match.modernText || "",
             reason: name.reason || "",
           };
         }

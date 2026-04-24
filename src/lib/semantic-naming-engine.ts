@@ -422,12 +422,14 @@ function parseMarkdownTable(markdown: string): GeneratedName[] {
         // 列数：6列（序号、名字、拼音、寓意说明、选字理由、典籍出处）
         // 兼容旧版5列（序号、名字、拼音、寓意说明、选字理由）
         if (cells.length >= 5) {
-          const name = cells[1];
+          // DeepSeek 返回的名字列是 givenName（不含姓氏，如"丽敏"）
+          // 姓氏拼接在 route.ts 中处理
+          const givenName = cells[1];
           const pinyin = cells[2];
           const meaning = cells[3];
           const reason = cells[4];
           const source = cells.length >= 6 ? cells[5] : "";
-          const givenName = name.slice(1) || "";
+          const name = givenName;
 
           names.push({
             name,
