@@ -146,8 +146,18 @@ export async function searchNamingClassicsByVector(
     });
 
     return matches;
-  } catch (error) {
-    console.error("[语义搜索] 向量搜索失败:", error);
+  } catch (error: any) {
+    // 检测 pgvector 扩展是否未安装（生产环境常见）
+    if (error?.message?.includes?.('"vector" does not exist') || error?.code === '42704') {
+      console.warn(
+        "[语义搜索] pgvector 扩展未安装，向量搜索不可用。\n" +
+        "  ➜ 请在 Neon 数据库上执行: CREATE EXTENSION IF NOT EXISTS vector;\n" +
+        "  ➜ 或运行: npx prisma migrate deploy\n" +
+        "  ➜ 已自动降级到关键词搜索"
+      );
+    } else {
+      console.error("[语义搜索] 向量搜索失败:", error);
+    }
     return [];
   }
 }
