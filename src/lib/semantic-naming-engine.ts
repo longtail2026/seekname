@@ -47,6 +47,7 @@ export interface GeneratedName {
   meaning: string;
   reason: string;       // 选字理由（详细说明每个字取自哪篇哪句）
   source: string;       // 典籍出处原文（含篇章名和原句）
+  modernText?: string;  // 白话译文
   score?: number;
 }
 
@@ -184,7 +185,7 @@ export async function generateNamesWithDeepSeek(prompt: string): Promise<Generat
     }
 
     const systemPrompt = `你是一位专业的中文起名专家，请严格按照要求的格式输出名字列表。
-输出必须是Markdown表格格式，包含以下列：序号、名字、拼音、寓意说明、匹配理由。
+输出必须是Markdown表格格式，包含以下列：序号、名字、拼音、寓意说明、选字理由、典籍出处。
 不要添加任何额外的解释或说明文字。`;
 
     const response = await DeepSeekIntegration.callRaw(systemPrompt, prompt, 0.3, 2000);

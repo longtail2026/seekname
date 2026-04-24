@@ -295,31 +295,46 @@ export async function POST(request: NextRequest) {
       // 计算笔画数（简化版）
       const strokeCount = givenName.length * 8; // 平均估算
 
-      // 使用DeepSeek返回的选字理由和典籍出处
-      // source对象包含：book(典籍出处原文)、text(古文原句)、modernText(白话译文)、reason(选字理由)
+      // 解析典籍出处字符串，提取书名和原文
+      // DeepSeek返回格式示例："出自《庄子·外物》"目彻为明"" 或 "《诗经·小雅·鹿鸣》鼓瑟吹笙"
       let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
       if (name.source && name.source.length > 0) {
-        // DeepSeek返回了精确的典籍出处（如 "出自《庄子·外物》"目彻为明""）
+        // 从 DeepSeek 返回的典籍出处字符串中提取书名和原文
+        const sourceStr = name.source;
+        // 提取《》内的书名
+        const bookMatch = sourceStr.match(/《([^》]+)》/);
+        const rawBookName = bookMatch ? bookMatch[1] : "";
+        const displayBook = rawBookName ? `《${rawBookName}》` : "《诗经》";
+        // 提取书名后面的原文（引号内或书名后的文字）
+        const afterBook = sourceStr.replace(/.*?》/, "").replace(/^[：:""""]?/, "").replace(/[""""]$/g, "").trim();
+        
+        // 尝试从典籍匹配结果中查找白话译文
+        let matchedModernText = "";
+        if (result.matches.length > 0 && rawBookName) {
+          const foundMatch = result.matches.find(m => rawBookName.includes(m.bookName) || m.bookName.includes(rawBookName));
+          if (foundMatch) {
+            matchedModernText = foundMatch.modernText || "";
+          }
+        }
+        
         source = {
-          book: name.source,
-          text: name.reason || "美好寓意",
-          modernText: "",
+          book: displayBook,
+          text: afterBook || name.reason || "美好寓意",
+          modernText: matchedModernText || name.modernText || "",
           reason: name.reason || "",
         };
       } else if (result.matches.length > 0) {
         const matchIndex = index % result.matches.length;
         const match = result.matches[matchIndex];
-        const baseReason = name.reason || match.meaning || "";
-        const modernPart = match.modernText ? `（白话：${match.modernText}）` : "";
         source = {
           book: `《${match.bookName}》`,
           text: match.ancientText || "",
           modernText: match.modernText || "",
-          reason: baseReason + modernPart,
+          reason: name.reason || match.meaning || "",
         };
       } else {
         source = {
-          book: name.source || "《诗经》",
+          book: "《诗经》",
           text: name.reason || "美好寓意",
           modernText: "",
           reason: name.reason || "",
@@ -347,10 +362,11 @@ export async function POST(request: NextRequest) {
     let finalNames = apiNames;
     if (apiNames.length < 5 && result.generatedNames.length > 0) {
       console.log(`[API] 过滤后名字不足(${apiNames.length})，使用部分未过滤名字`);
-      const additionalNames = result.generatedNames.slice(0, 10 - apiNames.length).map((name: GeneratedName, index: number) => {
+    const additionalNames = result.generatedNames.slice(0, 10 - apiNames.length).map((name: GeneratedName, index: number) => {
         const givenName = name.givenName;
         let wuxing = "木火";
         const strokeCount = givenName.length * 8;
+        const fullName = surname + givenName;
         
         let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
         if (result.matches.length > 0) {
@@ -358,14 +374,21 @@ export async function POST(request: NextRequest) {
           const match = result.matches[matchIndex];
           source = {
             book: `《${match.bookName}》`,
-            text: match.ancientText?.slice(0, 50) + "..." || match.modernText?.slice(0, 50) + "..." || "美好寓意",
+            text: match.ancientText || "",
             modernText: match.modernText || "",
+            reason: name.reason || match.meaning || "",
+          };
+        } else if (name.source && name.source.length > 0) {
+          source = {
+            book: "",
+            text: name.source,
+            modernText: "",
             reason: name.reason || "",
           };
         }
 
         return {
-          name: name.name,
+          name: fullName,
           givenName: name.givenName,
           pinyin: name.pinyin,
           wuxing,
@@ -420,6 +443,7 @@ export async function POST(request: NextRequest) {
             pinyin: n.pinyin,
             wuxing: n.wuxing,
             meaning: n.meaning,
+            reason: n.reason,
             source: n.source,
             score: n.score,
           })),

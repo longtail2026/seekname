@@ -257,13 +257,17 @@ function NamingResultContent() {
                 sourceValue = n.source;
                 sourceBookVal = n.source;
               } else if (typeof n.source === "object" && n.source?.book) {
-                sourceBookVal = n.source.book;
+                // book 可能已是《庄子》格式或"庄子"格式，标准化为 book 名（去括号）
+                const rawBook = n.source.book;
+                const cleanBook = rawBook.replace(/[《》]/g, '');
+                const displayBook = `《${cleanBook}》`;
+                sourceBookVal = displayBook;
                 sourceTextVal = n.source.text || "";
                 sourceModernVal = n.source.modernText || "";
                 // reason 优先取 source.reason，其次取直接 reason
                 if (n.source.reason) reasonVal = reasonVal || n.source.reason;
-                // sourceValue 构造用于显示的完整字符串
-                sourceValue = `《${n.source.book}》：${n.source.text || ""}`;
+                // sourceValue 构造用于显示的完整字符串（避免双括号）
+                sourceValue = `${displayBook}：${n.source.text || ""}`;
               }
             }
 
@@ -308,7 +312,8 @@ function NamingResultContent() {
 
         // 保存到 sessionStorage，供详情页兜底读取
         for (const n of mapped) {
-          const fullName = surname + n.name;
+          // n.name 来自 API 已是全名（含姓氏），如"张丽敏"
+          const fullName = n.name;
           const detailObj = {
             rank: n.rank,
             name: n.name,
@@ -323,9 +328,11 @@ function NamingResultContent() {
               safety: Math.round(85 + Math.random() * 10),
             },
             meaning: n.meaning,
-            sources: typeof n.source === "string" && n.source.includes("》：") 
-              ? [{ book: n.source.split("》：")[0].replace("《", ""), text: n.source.split("》：")[1] || "" }] 
-              : [],
+            sources: n.sourceBook || n.sourceText
+              ? [{ book: (n.sourceBook || "").replace(/[《》]/g, ''), text: n.sourceText || "" }]
+              : typeof n.source === "string" && n.source.includes("》：") 
+                ? [{ book: n.source.split("》：")[0].replace("《", ""), text: n.source.split("》：")[1] || "" }] 
+                : [],
             warnings: [],
             uniqueness: n.uniqueness || "medium",
             strokeCount: (n.name || "").length * 8 + Math.floor(Math.random() * 4),
@@ -613,15 +620,39 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           {nameItem.meaning}
                         </p>
 
-                        {/* 选字理由（含典籍引用 + 白话译文 + 解释） */}
-                        {nameItem.reason && (
-                          <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
-                            <p className="text-xs text-[#5C4A42] leading-relaxed">
-                              <span className="font-medium text-[#2C1810]">选字理由：</span>
-                              {nameItem.reason}
-                            </p>
-                          </div>
-                        )}
+                        {/* 典籍出处 + 选字理由（含白话译文） */}
+                        {(() => {
+                          const hasClassics = nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern;
+                          const hasReason = nameItem.reason;
+                          if (!hasClassics && !hasReason) return null;
+                          return (
+                            <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
+                              {/* 典籍出处 */}
+                              {nameItem.sourceBook && (
+                                <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
+                                  <span className="font-medium text-[#2C1810]">典籍出处：</span>
+                                  {nameItem.sourceBook}
+                                  {nameItem.sourceText ? ` · ${nameItem.sourceText}` : ""}
+                                </p>
+                              )}
+                              {/* 白话译文 */}
+                              {nameItem.sourceModern && (
+                                <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
+                                  <span className="font-medium text-[#2C1810]">白话译文：</span>
+                                  {nameItem.sourceModern}
+                                </p>
+                              )}
+                              {/* 选字理由 */}
+                              {nameItem.reason && (
+                                <p className="text-xs text-[#5C4A42] leading-relaxed">
+                                  <span className="font-medium text-[#2C1810]">选字理由：</span>
+                                  {nameItem.reason}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+
 
 
                       </>
@@ -673,7 +704,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                   try {
                     const n = names[selectedIdx];
                     if (!n) return "#";
-                    const fullName = surname + n.name;
+                    const fullName = n.name; // n.name 来自 API 已是全名（含姓氏）
                     const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
                     // btoa 不支持中文，需先 encodeURIComponent 再 btoa
                     const data = stored ? btoa(encodeURIComponent(stored)) : "";
