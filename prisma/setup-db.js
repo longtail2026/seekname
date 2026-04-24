@@ -315,7 +315,15 @@ async function main() {
   } catch (err) {
     console.error("[setup-db] FAILED:", err.message);
     console.error("[setup-db] Detail:", err.detail);
-    process.exit(1);
+    // 注意：不要在 Vercel 构建时因为 DB 不可达就退出
+    // 表应该已经存在，构建期的 DB 连接失败不影响运行期
+    // 如果这是本地开发或首次部署，请确保 DATABASE_URL 正确
+    const isVercelBuild = !!process.env.VERCEL;
+    if (isVercelBuild) {
+      console.warn("[setup-db] Vercel build - DB unreachable is non-fatal, continuing build");
+    } else {
+      process.exit(1);
+    }
   }
 }
 
