@@ -272,12 +272,69 @@ export async function POST(request: NextRequest) {
     console.log(`[API] 语义匹配成功: 匹配典籍${result.matches.length}个，生成名字${result.generatedNames.length}个，过滤后保留${result.filteredNames.length}个`);
 
     // ── 转换结果为API格式 ──
-    const apiNames = result.filteredNames.map((name: GeneratedName, index: number) => {
-      // 为每个名字分配五行（简化版：从名字字符中推断）
-      const givenName = name.givenName;
+    // 先将 DeepSeek 返回的名字解析为 (givenName, rawSource) 对
+    // 同时检测并修复虚构典籍
+    interface ResolvedName {
+      givenName: string;
+      pinyin: string;
+      meaning: string;
+      reason: string;
+      rawSource: string;
+    }
+
+    const resolvedNames: ResolvedName[] = result.filteredNames.map((name: GeneratedName) => {
+      // 确保 givenName 不包含姓氏（parseMarkdownTable 已处理，但二次防御）
+      let givenName = name.givenName;
+      if (givenName.startsWith(surname)) {
+        givenName = givenName.slice(surname.length);
+      }
+      
+      // 检测 DeepSeek 是否编造了不存在的典籍出处
+      // 常见虚构模式："XX取自《YY·ZZ》"XX之XX"" — 典籍中不存在"X之X"格式的原文
+      const sourceStr = name.source || "";
+      const isFabricated = /之[^，。]*之/.test(sourceStr) && 
+        /[灵容慧德明]/.test(sourceStr) && 
+        !sourceStr.includes('《');
+      
+      let cleanedSource = sourceStr;
+      if (isFabricated && result.matches.length > 0) {
+        // 从真实典籍匹配结果中取一个作为替代
+        const match = result.matches[0];
+        cleanedSource = `出自《${match.bookName}》"${match.ancientText}"`;
+      }
+      
+      return {
+        givenName,
+        pinyin: name.pinyin,
+        meaning: name.meaning,
+        reason: name.reason,
+        rawSource: cleanedSource,
+      };
+    });
+
+    // 去重：相同 givenName 只保留第一个
+    const seenGivenNames = new Set<string>();
+    const uniqueResolvedNames = resolvedNames.filter(n => {
+      if (seenGivenNames.has(n.givenName)) return false;
+      seenGivenNames.add(n.givenName);
+      return true;
+    });
+
+    // 过滤掉叠字名（后两字完全相同的，如"灵灵""容容"）
+    const nonDuplicateGivenNames = uniqueResolvedNames.filter(n => {
+      if (n.givenName.length === 2 && n.givenName[0] === n.givenName[1]) {
+        return false; // 过滤叠字名
+      }
+      return true;
+    });
+
+    // 构建最终 API 格式的名字列表
+    const apiNames = nonDuplicateGivenNames.map((resolved: ResolvedName, index: number) => {
+      const givenName = resolved.givenName;
+      
+      // 为每个名字分配五行
       let wuxing = "";
       if (givenName.length >= 2) {
-        // 简单映射：根据字符常见五行分配
         const charWuxingMap: Record<string, string> = {
           "金": "金", "鑫": "金", "铭": "金", "锦": "金", "钧": "金",
           "木": "木", "林": "木", "森": "木", "桐": "木", "楠": "木",
@@ -285,43 +342,47 @@ export async function POST(request: NextRequest) {
           "火": "火", "炎": "火", "煜": "火", "炜": "火", "烨": "火",
           "土": "土", "坤": "土", "培": "土", "基": "土", "城": "土",
         };
-        
         const wuxingList = givenName.split('').map(char => charWuxingMap[char] || "").filter(w => w);
         wuxing = wuxingList.length > 0 ? wuxingList.join("") : "木火";
       } else {
-        wuxing = "木火"; // 默认
+        wuxing = "木火";
       }
 
-      // 计算笔画数（简化版）
-      const strokeCount = givenName.length * 8; // 平均估算
+      const strokeCount = givenName.length * 8;
 
-      // 解析典籍出处字符串，提取书名和原文
-      // DeepSeek返回格式示例："出自《庄子·外物》"目彻为明"" 或 "《诗经·小雅·鹿鸣》鼓瑟吹笙"
+      // 解析典籍出处，优先从数据库真实的 classicsMatch 中获取白话译文
       let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
-      if (name.source && name.source.length > 0) {
-        // 从 DeepSeek 返回的典籍出处字符串中提取书名和原文
-        const sourceStr = name.source;
-        // 提取《》内的书名
+
+      if (resolved.rawSource && resolved.rawSource.length > 0) {
+        const sourceStr = resolved.rawSource;
         const bookMatch = sourceStr.match(/《([^》]+)》/);
         const rawBookName = bookMatch ? bookMatch[1] : "";
         const displayBook = rawBookName ? `《${rawBookName}》` : "《诗经》";
-        // 提取书名后面的原文（引号内或书名后的文字）
         const afterBook = sourceStr.replace(/.*?》/, "").replace(/^[：:""""]?/, "").replace(/[""""]$/g, "").trim();
         
-        // 尝试从典籍匹配结果中查找白话译文
+        // 改进的 modernText 匹配：遍历所有 matches，模糊匹配书名
         let matchedModernText = "";
         if (result.matches.length > 0 && rawBookName) {
-          const foundMatch = result.matches.find(m => rawBookName.includes(m.bookName) || m.bookName.includes(rawBookName));
-          if (foundMatch) {
-            matchedModernText = foundMatch.modernText || "";
+          const cleanRawBook = rawBookName.replace(/[《》\s]/g, '');
+          for (const match of result.matches) {
+            const cleanMatchBook = match.bookName.replace(/[《》\s]/g, '');
+            // 只要书名部分包含或被包含就算匹配
+            if (cleanRawBook.includes(cleanMatchBook) || cleanMatchBook.includes(cleanRawBook) ||
+                match.ancientText.includes(afterBook.slice(0, 4)) || 
+                afterBook.includes(match.ancientText.slice(0, 4))) {
+              if (match.modernText) {
+                matchedModernText = match.modernText;
+                break;
+              }
+            }
           }
         }
         
         source = {
           book: displayBook,
-          text: afterBook || name.reason || "美好寓意",
-          modernText: matchedModernText || name.modernText || "",
-          reason: name.reason || "",
+          text: afterBook || resolved.reason || "美好寓意",
+          modernText: matchedModernText || "",
+          reason: resolved.reason || "",
         };
       } else if (result.matches.length > 0) {
         const matchIndex = index % result.matches.length;
@@ -330,31 +391,30 @@ export async function POST(request: NextRequest) {
           book: `《${match.bookName}》`,
           text: match.ancientText || "",
           modernText: match.modernText || "",
-          reason: name.reason || match.meaning || "",
+          reason: resolved.reason || match.meaning || "",
         };
       } else {
         source = {
           book: "《诗经》",
-          text: name.reason || "美好寓意",
+          text: resolved.reason || "美好寓意",
           modernText: "",
-          reason: name.reason || "",
+          reason: resolved.reason || "",
         };
       }
 
-
-      // 拼接姓氏到全名中
-      const fullName = surname + name.givenName;
+      // 拼接姓氏（保证不重复）
+      const fullName = surname + givenName;
 
       return {
-        name: fullName,               // 全名（含姓氏）
-        givenName: name.givenName,    // 名（不含姓氏）
-        pinyin: name.pinyin,
+        name: fullName,
+        givenName: givenName,
+        pinyin: resolved.pinyin,
         wuxing,
-        meaning: name.meaning,
-        reason: name.reason,           // 选字理由（精确到每个字取自哪篇哪句）
+        meaning: resolved.meaning,
+        reason: resolved.reason,
         strokeCount,
-        score: 90 - index * 2, // 递减分数
-        source,                       // { book, text, modernText, reason }
+        score: 90 - index * 2,
+        source,
       };
     });
 
