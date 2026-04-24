@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-将 naming_classics 表中 combined_text_embedding (bytea) 数据
+将 naming_classics 表中还剩余 bytea 数据 (ancient_text_embedding)
 转换为 combined_text_embedding_vec (vector(1024)) 列 — Neon 云数据库版
 
 背景：
-- combined_text_embedding 列被错误创建为 BYTEA 类型（当时 pgvector 未安装）
-- 其中存储了 numpy float32 的二进制数据（1024 个 float = 4096 字节）
-- 存储位置：Neon (Vercel Postgres) 云数据库
+- combined_text_embedding 列已被删除释放空间
+- 但 ancient_text_embedding 列仍保留 bytea 格式的 1024维向量数据
+- 从中解析出 float32 列表，写入 vector(1024) 格式
 
 使用 execute_values 批量更新以提高速度（减少网络往返）
 """
@@ -32,6 +32,9 @@ NEON_DATABASE_URL = os.getenv(
     "postgresql://neondb_owner:npg_2WiMHoA4RdTQ@ep-divine-flower-a1fsdfh2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
 )
 
+BATCH_SIZE = 200  # 使用更小的批次以减少空间压力
+
+
 def connect():
     """连接 Neon 数据库"""
     logger.info(f"连接到 Neon 数据库...")
@@ -48,7 +51,7 @@ def get_total_count(conn):
         cur.execute("""
             SELECT COUNT(*) 
             FROM naming_classics 
-            WHERE combined_text_embedding IS NOT NULL 
+            WHERE ancient_text_embedding IS NOT NULL 
               AND combined_text_embedding_vec IS NULL
         """)
         return cur.fetchone()[0]
@@ -56,30 +59,19 @@ def get_total_count(conn):
         cur.close()
 
 
-def fetch_all_bytea(conn):
-    """一次性获取所有 bytea 数据（内存中处理，避免逐条 UPDATE 的网络延迟）"""
-    logger.info("读取所有 bytea 数据到内存...")
-    cur = conn.cursor(name='bytea_cursor')  # 使用服务器端游标避免内存溢出
+def fetch_batch(conn, limit):
+    """分批获取 bytea 数据 (每次从头取，因为更新后 WHERE 排除已处理行)"""
+    cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT id, combined_text_embedding 
+            SELECT id, ancient_text_embedding 
             FROM naming_classics 
-            WHERE combined_text_embedding IS NOT NULL 
+            WHERE ancient_text_embedding IS NOT NULL 
               AND combined_text_embedding_vec IS NULL
             ORDER BY id
-        """)
-        
-        rows = []
-        batch_size = 1000
-        while True:
-            batch = cur.fetchmany(batch_size)
-            if not batch:
-                break
-            rows.extend(batch)
-            logger.info(f"  已读取 {len(rows)} 条 bytea 数据...")
-        
-        logger.info(f"共读取 {len(rows)} 条 bytea 数据")
-        return rows
+            LIMIT %s
+        """, (limit,))
+        return cur.fetchall()
     finally:
         cur.close()
 
@@ -88,7 +80,6 @@ def bytea_to_float32_list(bytea_data):
     """
     将 BYTEA 二进制数据解析为 float32 列表
     
-    vectorize_naming_classics.py 使用 numpy.astype(np.float32).tobytes()
     存储了 1024 个 float32 值（4096 字节）
     """
     if bytea_data is None:
@@ -119,17 +110,15 @@ def floats_to_vector_sql(floats):
     """将 float 列表转为 PostgreSQL vector 字符串格式 '[0.1,0.2,...]'"""
     if floats is None:
         return None
-    # 使用紧凑精度（8位小数足够）
     return '[' + ','.join(f'{v:.8f}' for v in floats) + ']'
 
 
-def convert_batch_execute_values(conn, batch_data):
+def convert_batch(conn, batch_data):
     """
-    使用 execute_values 批量更新，一条 SQL 更新多条记录
+    转换一批 bytea → vector
     
     batch_data: [(id, bytea_data), ...]
     """
-    # 预处理：解析所有 bytea 为 vector 字符串
     values = []
     for entry_id, bytea_data in batch_data:
         floats = bytea_to_float32_list(bytea_data)
@@ -143,7 +132,6 @@ def convert_batch_execute_values(conn, batch_data):
     if not values:
         return 0
     
-    # 使用 execute_values 批量更新
     cur = conn.cursor()
     try:
         psycopg2.extras.execute_values(
@@ -174,9 +162,9 @@ def verify_conversion(conn):
         cur.execute("""
             SELECT 
                 COUNT(*) as total,
-                COUNT(combined_text_embedding) as with_bytea,
+                COUNT(ancient_text_embedding) as with_bytea,
                 COUNT(combined_text_embedding_vec) as with_vector,
-                COUNT(*) FILTER (WHERE combined_text_embedding IS NOT NULL AND combined_text_embedding_vec IS NULL) as not_converted
+                COUNT(*) FILTER (WHERE ancient_text_embedding IS NOT NULL AND combined_text_embedding_vec IS NULL) as not_converted
             FROM naming_classics
         """)
         counts = cur.fetchone()
@@ -240,7 +228,7 @@ def test_vector_search(conn):
 def main():
     """主函数"""
     logger.info("=" * 60)
-    logger.info("bytea → vector(1024) 转换工具 (Neon 版 - 批量加速)")
+    logger.info("bytea → vector(1024) 转换工具 (Neon 版 - 使用 ancient_text_embedding)")
     logger.info("=" * 60)
     
     conn = connect()
@@ -252,24 +240,18 @@ def main():
         if total == 0:
             logger.info("没有需要转换的条目，直接验证")
         else:
-            # 1. 读取所有 bytea 数据到内存
-            logger.info(f"\n[步骤 1/3] 读取 {total} 条 bytea 数据...")
-            rows = fetch_all_bytea(conn)
-            
-            if not rows:
-                logger.info("没有读取到数据")
-                verify_conversion(conn)
-                return
-            
-            # 2. 分批转换（每批 500 条，使用 execute_values）
-            logger.info(f"\n[步骤 2/3] 开始分批转换 ({len(rows)} 条)...")
-            batch_size = 500
+            logger.info(f"\n[步骤 1/2] 开始分批转换 ({total} 条，每批 {BATCH_SIZE} 条)...")
             processed = 0
             start_time = time.time()
             
-            for i in range(0, len(rows), batch_size):
-                batch = rows[i:i + batch_size]
-                count = convert_batch_execute_values(conn, batch)
+            while True:
+                batch = fetch_batch(conn, BATCH_SIZE)
+                if not batch:
+                    break
+                
+                count = convert_batch(conn, batch)
+                if count == 0:
+                    break
                 processed += count
                 
                 elapsed = time.time() - start_time
@@ -280,12 +262,10 @@ def main():
                 logger.info(f"  进度: {processed}/{total} ({processed/total*100:.1f}%) - "
                            f"速率: {rate:.0f} 条/秒 - 预计剩余: {eta:.0f} 秒")
                 
-                # 每 2000 条清理内存
-                if processed % 2000 == 0:
-                    gc.collect()
+                gc.collect()
         
-        # 3. 验证
-        logger.info(f"\n[步骤 3/3] 验证转换结果...")
+        # 验证
+        logger.info(f"\n[步骤 2/2] 验证转换结果...")
         success = verify_conversion(conn)
         
         if success and total > 0:
