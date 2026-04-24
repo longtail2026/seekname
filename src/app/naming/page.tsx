@@ -613,9 +613,9 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           {nameItem.meaning}
                         </p>
 
-                        {/* 选字理由 */}
+                        {/* 选字理由（含典籍引用 + 白话译文 + 解释） */}
                         {nameItem.reason && (
-                          <div className="mb-2 p-2 bg-[#F8F3EA] rounded-lg">
+                          <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
                             <p className="text-xs text-[#5C4A42] leading-relaxed">
                               <span className="font-medium text-[#2C1810]">选字理由：</span>
                               {nameItem.reason}
@@ -623,21 +623,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           </div>
                         )}
 
-                        {/* 典籍出处 */}
-                        {nameItem.source && (
-                          <div className="flex items-center gap-2 text-xs text-[#C9A84C]">
-                            <BookOpen className="w-3 h-3" />
-                            <span>出处：{nameItem.source}</span>
-                          </div>
-                        )}
 
-                        {/* 白话译文 */}
-                        {nameItem.sourceModern && (
-                          <div className="flex items-start gap-2 mt-1 text-xs text-[#5C4A42]">
-                            <span className="text-[#C9A84C]">译文：</span>
-                            <span>{nameItem.sourceModern}</span>
-                          </div>
-                        )}
                       </>
                     )}
                   </div>

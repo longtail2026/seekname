@@ -309,11 +309,13 @@ export async function POST(request: NextRequest) {
       } else if (result.matches.length > 0) {
         const matchIndex = index % result.matches.length;
         const match = result.matches[matchIndex];
+        const baseReason = name.reason || match.meaning || "";
+        const modernPart = match.modernText ? `（白话：${match.modernText}）` : "";
         source = {
           book: `《${match.bookName}》`,
           text: match.ancientText || "",
           modernText: match.modernText || "",
-          reason: name.reason || match.meaning || "",
+          reason: baseReason + modernPart,
         };
       } else {
         source = {
@@ -323,6 +325,7 @@ export async function POST(request: NextRequest) {
           reason: name.reason || "",
         };
       }
+
 
       // 拼接姓氏到全名中
       const fullName = surname + name.givenName;
