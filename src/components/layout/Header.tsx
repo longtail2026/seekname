@@ -9,8 +9,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 /* ═══════════ 导航数据（模块级常量） ═══════════ */
 const PERSONAL_SUBMENU = [
-  { label: "宝宝起名", href: "/personal?type=baby", desc: "新生儿起名" },
-  { label: "成人改名", href: "/personal?type=adult", desc: "成年改名" },
+  { label: "起名改名", href: "/rename", desc: "AI智能起名" },
   { label: "英文起名", href: "/personal?type=english", desc: "英文名字" },
   { label: "社交网名", href: "/personal?type=nickname", desc: "网名昵称" },
 ];
