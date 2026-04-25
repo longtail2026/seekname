@@ -164,7 +164,7 @@ export default function Header() {
                 onMouseEnter={() => setOpenSubmenuKey(item.labelKey)}>
                 {item.submenu ? (
                   /* 有子菜单的主项：使用span禁止直接跳转 */
-                  <span 
+                  <span className="nav-item"
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     style={{ ...navItemStyle, color: openSubmenuKey === item.labelKey ? "#E86A17" : "#4A3428", gap: 4, cursor: "default" }}
                   >
