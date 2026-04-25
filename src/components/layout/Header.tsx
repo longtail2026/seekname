@@ -415,14 +415,14 @@ export default function Header() {
           .mobile-menu-btn { display: none !important; }
         }
         .nav-submenu-trigger > a { position: relative; border-image: none !important; }
-        .nav-submenu-trigger > a::before, .nav-item::before {
+        .nav-submenu-trigger > a::before, .nav-submenu-trigger > span::before, .nav-item::before {
           content: ''; position: absolute; inset: -3px; border: 0.5px solid #D4C9B0; border-radius: 6px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: -1;
         }
-        .nav-submenu-trigger > a::after, .nav-item::after {
+        .nav-submenu-trigger > a::after, .nav-submenu-trigger > span::after, .nav-item::after {
           content: ''; position: absolute; inset: -1px; border: 0.5px solid #D4941A; border-radius: 5px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: -1;
         }
-        .nav-submenu-trigger:hover a::before, .nav-item:hover::before { opacity: 0.6; }
-        .nav-submenu-trigger:hover a::after, .nav-item:hover::after { opacity: 0.3; }
+        .nav-submenu-trigger:hover a::before, .nav-submenu-trigger:hover span::before, .nav-item:hover::before { opacity: 0.6; }
+        .nav-submenu-trigger:hover a::after, .nav-submenu-trigger:hover span::after, .nav-item:hover::after { opacity: 0.3; }
       `}} />
     </header>
   );
