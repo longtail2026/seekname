@@ -142,12 +142,19 @@ export default function Home() {
       birthDate,
     });
     if (birthTime) params.set("birthTime", birthTime);
-    // 将多选数组转换为逗号分隔的字符串
+    // 保留逗号分隔字符串（向后兼容）
     if (selectedExpectations.length > 0) {
       params.set("expectations", selectedExpectations.join(","));
     }
     if (selectedStyles.length > 0) {
       params.set("style", selectedStyles.join(","));
+    }
+    // 新增：将多选数组编码为 JSON 传给意图参数，触发引擎的独立向量搜索模式
+    if (selectedExpectations.length > 0) {
+      params.set("intentions", JSON.stringify(selectedExpectations));
+    }
+    if (selectedStyles.length > 0) {
+      params.set("styles", JSON.stringify(selectedStyles));
     }
     if (additionalNotes.trim()) params.set("additionalNotes", additionalNotes.trim());
     window.location.href = `/naming?${params.toString()}`;
