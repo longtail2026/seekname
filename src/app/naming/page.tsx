@@ -653,11 +653,10 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           {nameItem.meaning}
                         </p>
 
-                        {/* 典籍出处 + 选字理由（含白话译文） */}
+                        {/* 典籍出处、典籍原文、现代翻译 */}
                         {(() => {
-                          const hasClassics = nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern;
-                          const hasReason = nameItem.reason;
-                          if (!hasClassics && !hasReason) return null;
+                          const hasSource = nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern;
+                          if (!hasSource) return null;
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
                               {/* 典籍出处 */}
@@ -665,21 +664,20 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                                 <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
                                   <span className="font-medium text-[#2C1810]">典籍出处：</span>
                                   {nameItem.sourceBook}
-                                  {nameItem.sourceText ? ` · ${nameItem.sourceText}` : ""}
                                 </p>
                               )}
-                              {/* 白话译文 */}
-                              {nameItem.sourceModern && (
+                              {/* 典籍原文 */}
+                              {nameItem.sourceText && (
                                 <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
-                                  <span className="font-medium text-[#2C1810]">白话译文：</span>
-                                  {nameItem.sourceModern}
+                                  <span className="font-medium text-[#2C1810]">典籍原文：</span>
+                                  {nameItem.sourceText}
                                 </p>
                               )}
-                              {/* 选字理由 */}
-                              {nameItem.reason && (
+                              {/* 现代翻译 */}
+                              {nameItem.sourceModern && (
                                 <p className="text-xs text-[#5C4A42] leading-relaxed">
-                                  <span className="font-medium text-[#2C1810]">选字理由：</span>
-                                  {nameItem.reason}
+                                  <span className="font-medium text-[#2C1810]">现代翻译：</span>
+                                  {nameItem.sourceModern}
                                 </p>
                               )}
                             </div>

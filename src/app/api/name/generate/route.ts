@@ -366,27 +366,57 @@ export async function POST(request: NextRequest) {
         const displayBook = rawBookName ? `《${rawBookName}》` : "《诗经》";
         const afterBook = sourceStr.replace(/.*?》/, "").replace(/^[：:""""]?/, "").replace(/[""""]$/g, "").trim();
         
-        // 改进的 modernText 匹配：遍历所有 matches，模糊匹配书名
+        // 改进的 modernText 匹配：遍历所有 matches，找到最匹配的典籍原文
         let matchedModernText = "";
+        let matchedAncientText = afterBook || "";
         if (result.matches.length > 0 && rawBookName) {
           const cleanRawBook = rawBookName.replace(/[《》\s]/g, '');
-          for (const match of result.matches) {
+          let bestMatchIndex = -1;
+          let bestScore = 0;
+          
+          for (let i = 0; i < result.matches.length; i++) {
+            const match = result.matches[i];
             const cleanMatchBook = match.bookName.replace(/[《》\s]/g, '');
-            // 只要书名部分包含或被包含就算匹配
-            if (cleanRawBook.includes(cleanMatchBook) || cleanMatchBook.includes(cleanRawBook) ||
-                match.ancientText.includes(afterBook.slice(0, 4)) || 
-                afterBook.includes(match.ancientText.slice(0, 4))) {
-              if (match.modernText) {
-                matchedModernText = match.modernText;
-                break;
-              }
+            let score = 0;
+            
+            // 精准匹配书名
+            if (cleanRawBook === cleanMatchBook) score += 3;
+            // 书名包含或被包含
+            if (cleanRawBook.includes(cleanMatchBook) || cleanMatchBook.includes(cleanRawBook)) score += 2;
+            // 典籍原文内容匹配
+            if (match.ancientText && afterBook && 
+                (match.ancientText.includes(afterBook.slice(0, 4)) || afterBook.includes(match.ancientText.slice(0, 4)))) {
+              score += 1;
             }
+            
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatchIndex = i;
+            }
+          }
+          
+          if (bestMatchIndex >= 0 && bestScore > 0) {
+            const bestMatch = result.matches[bestMatchIndex];
+            matchedModernText = bestMatch.modernText || "";
+            // 如果 AI 输出的典籍原文与数据库不一致，使用数据库的准确原文
+            if (bestMatch.ancientText && bestMatch.ancientText.length > matchedAncientText.length) {
+              matchedAncientText = bestMatch.ancientText;
+            }
+          }
+        }
+        
+        // 如果没有匹配到，使用第一个数据库匹配的原文和译文
+        if (!matchedModernText && result.matches.length > 0) {
+          const firstMatch = result.matches[0];
+          matchedModernText = firstMatch.modernText || "";
+          if (firstMatch.ancientText && !matchedAncientText) {
+            matchedAncientText = firstMatch.ancientText;
           }
         }
         
         source = {
           book: displayBook,
-          text: afterBook || resolved.reason || "美好寓意",
+          text: matchedAncientText || resolved.reason || "美好寓意",
           modernText: matchedModernText || "",
           reason: resolved.reason || "",
         };
