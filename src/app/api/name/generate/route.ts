@@ -25,6 +25,12 @@ import {
   GeneratedName,
   ClassicsMatch 
 } from "@/lib/semantic-naming-engine";
+import {
+  NamingStrategyType,
+  getStrategyTag,
+  STRATEGY_LABELS,
+  determineStrategy,
+} from "@/lib/naming-strategy";
 
 // 业务类别映射
 const CATEGORY_MAP: Record<string, string> = {
@@ -512,6 +518,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] 返回成功，names=${finalNames.length}，order=${order?.id || 'null'}`);
     
+    // ── 构建策略信息（供前端展示）──
+    const strategyTag = getStrategyTag(result.strategyType);
+    const strategyInfo = {
+      type: result.strategyType,
+      label: STRATEGY_LABELS[result.strategyType],
+      tag: strategyTag.label,
+      color: strategyTag.color,
+      description: strategyTag.description,
+    };
+
     return NextResponse.json({
       success: true,
       data: {
@@ -521,6 +537,7 @@ export async function POST(request: NextRequest) {
         wuxing: wuxingResult,
         names: finalNames,
         semanticMatches: result.matches.length,
+        strategy: strategyInfo,
         message: result.message,
       },
     });

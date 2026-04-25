@@ -84,6 +84,15 @@ function NamingResultContent() {
   const [copied, setCopied] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [debugError, setDebugError] = useState<string>("");
+  
+  // 策略矩阵状态
+  const [strategyInfo, setStrategyInfo] = useState<{
+    type: string;
+    label: string;
+    tag: string;
+    color: string;
+    description: string;
+  } | null>(null);
 
   // 调试：打印错误变化
   useEffect(() => {
@@ -148,6 +157,8 @@ function NamingResultContent() {
         if (result.data?.orderNo) setOrderNo(result.data.orderNo);
         if (result.data?.orderId) setOrderId(result.data.orderId);
         if (result.data?.wuxing) setWuxingResult(result.data.wuxing);
+        // 保存策略信息
+        if (result.data?.strategy) setStrategyInfo(result.data.strategy);
 
         // 调试：检查所有可能的数据源
         console.log("[Naming Page] result.data?.names:", JSON.stringify(result.data?.names)?.slice(0, 300));
@@ -527,6 +538,28 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                   <div className="font-medium text-[#2C1810] text-sm">{item.value}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 策略矩阵信息 */}
+        {strategyInfo && (
+          <div className="mb-6 p-3 bg-gradient-to-r from-[#F8F3EA] to-[#FDFAF4] border border-[#E5DDD3] rounded-lg">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-[#5C4A42]">当前推荐策略：</span>
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: `${strategyInfo.color}20`,
+                  color: strategyInfo.color,
+                  border: `1px solid ${strategyInfo.color}40`,
+                }}
+              >
+                <Sparkles className="w-3 h-3" />
+                {strategyInfo.tag}
+              </span>
+              <span className="text-xs text-[#5C4A42]">·</span>
+              <span className="text-xs text-[#5C4A42]">{strategyInfo.description}</span>
             </div>
           </div>
         )}
