@@ -25,7 +25,6 @@ import {
   getStrategyPromptBlock,
   getStrategyTag,
   STRATEGY_LABELS,
-  STRATEGY_DESCRIPTIONS,
 } from "./naming-strategy";
 
 // 用户意图接口
@@ -40,6 +39,10 @@ export interface SemanticNamingRequest {
   wordCount?: 2 | 3;
   /** 由 API route 或页面传入，如果为空则自动推导 */
   strategyType?: NamingStrategyType;
+  /** 多选意向词数组（每个选项独立向量化+独立搜索，合并去重后返回） */
+  intentions?: string[];
+  /** 多选风格词数组 */
+  styles?: string[];
 }
 
 // 典籍匹配结果
@@ -95,13 +98,61 @@ export interface FilterResult {
 
 /**
  * 1. 语义匹配层
+ * 
+ * 支持两种搜索模式：
+ * - 字符串模式（向后兼容）：单次搜索，将整个输入作为一个向量
+ * - 数组模式（推荐）：每个选项独立搜索，合并去重后按相似度排序
+ *   这种模式下每个选项的语义信号都不会被稀释，匹配精度显著提升
  */
 export async function findSemanticMatches(
-  userInput: string,
+  userInput: string | string[],
   limit: number = 10,
   gender: "M" | "F" = "M"
 ): Promise<ClassicsMatch[]> {
   try {
+    // ── 数组模式：每个选项独立搜索 → 合并去重 → 排序 ──
+    if (Array.isArray(userInput)) {
+      const validItems = userInput.filter(item => item && item.trim().length > 0);
+      
+      if (validItems.length === 0) {
+        return [];
+      }
+      
+      console.log(`[语义匹配-独立搜索] 开始: ${validItems.length}个选项 = [${validItems.join(", ")}]`);
+      
+      const allResults: ClassicsMatch[] = [];
+      const seenIds = new Set<number>();
+      
+      for (let i = 0; i < validItems.length; i++) {
+        const item = validItems[i].trim();
+        console.log(`[语义匹配-独立搜索] 第${i + 1}/${validItems.length}项: "${item}"`);
+        
+        try {
+          const matches = await searchNamingClassics(item, gender, limit);
+          console.log(`[语义匹配-独立搜索] "${item}" → 找到 ${matches.length} 条典籍`);
+          
+          for (const match of matches) {
+            if (!seenIds.has(match.id)) {
+              seenIds.add(match.id);
+              allResults.push(match);
+            }
+          }
+        } catch (e) {
+          console.error(`[语义匹配-独立搜索] 选项"${item}"搜索失败:`, e);
+        }
+      }
+      
+      // 按相似度降序排列
+      allResults.sort((a, b) => b.similarity - a.similarity);
+      
+      const finalMatches = allResults.slice(0, limit);
+      console.log(
+        `[语义匹配-独立搜索] 完成: ${validItems.length}个选项独立搜索 → 合并去重后 ${allResults.length} 条 → 取前 ${finalMatches.length} 条`
+      );
+      return finalMatches;
+    }
+    
+    // ── 字符串模式（向后兼容）──
     console.log(`[语义匹配-OVHcloud] 开始查找相似典籍: "${userInput}"`);
     const matches = await searchNamingClassics(userInput, gender, limit);
     console.log(`[语义匹配] 最终返回 ${matches.length} 个相似典籍`);
@@ -316,9 +367,20 @@ export async function semanticNamingFlow(
 
     console.log(`[语义起名] 策略选定: ${STRATEGY_LABELS[strategy]}`);
 
-    // 1. 语义匹配
+    // 1. 语义匹配 — 根据是否有 intentions 选择搜索模式
+    let searchInput: string | string[];
+    if (request.intentions && request.intentions.length > 0) {
+      // 独立搜索模式：每个意向词单独向量化搜索
+      searchInput = request.intentions;
+      console.log(`[语义起名] 使用独立搜索模式: ${request.intentions.length}个意向词`);
+    } else {
+      // 默认混合搜索模式
+      searchInput = request.rawInput || expectations || "";
+      console.log(`[语义起名] 使用混合搜索模式: "${searchInput}"`);
+    }
+
     const matches = await findSemanticMatches(
-      request.rawInput || expectations || "",
+      searchInput,
       10,
       gender
     );

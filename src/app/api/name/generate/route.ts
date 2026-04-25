@@ -29,6 +29,7 @@ import {
   NamingStrategyType,
   getStrategyTag,
   STRATEGY_LABELS,
+  STRATEGY_MATRIX,
   determineStrategy,
 } from "@/lib/naming-strategy";
 
@@ -256,6 +257,9 @@ export async function POST(request: NextRequest) {
       expectations: rawInput, // 使用组合后的文本
       style: styleList.length > 0 ? styleList : ["古风典雅"], // 默认风格
       wordCount: 2, // 默认2个字的名字
+      // 将勾选的意向词逐项传给引擎，触发独立搜索模式
+      intentions: intentions.length > 0 ? intentions : undefined,
+      styles: styles.length > 0 ? styles : undefined,
     };
 
     console.log(`[API] 语义匹配请求: rawInput="${rawInput}", gender=${genderCode}, style=${JSON.stringify(semanticRequest.style)}`);
@@ -556,6 +560,7 @@ export async function POST(request: NextRequest) {
       tag: strategyTag.label,
       color: strategyTag.color,
       description: strategyTag.description,
+      displayMode: STRATEGY_MATRIX[result.strategyType]?.displayMode || "both",
     };
 
     return NextResponse.json({

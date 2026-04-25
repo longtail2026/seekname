@@ -333,10 +333,10 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  {/* 第四行：风格偏好（多选项） */}
+                  {/* 第四行：风格偏好（多选项）+ 策略矩阵提示 */}
                   <div className="mb-4">
-                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">风格偏好（可多选）</div>
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">风格偏好（可多选，影响起名策略）</div>
+                    <div className="grid grid-cols-5 gap-2 mb-2">
                       {[
                         "古风典雅", "现代简约", "清新自然", "大气豪迈", "温柔婉约",
                         "独特个性", "可爱灵动", "稳重成熟", "诗意浪漫", "洋气国际"
@@ -351,6 +351,18 @@ export default function Home() {
                           <span className="text-[12px] text-[#5A4334]">{option}</span>
                         </label>
                       ))}
+                    </div>
+                    {/* 策略矩阵引导提示 */}
+                    <div className="flex flex-wrap gap-2 text-[11px] text-[#8B7355] leading-relaxed px-1">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700">
+                        🏛 古风典雅→优先典籍原字
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-600">
+                        🔧 现代简约→使用常见字
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-600">
+                        ⚖️ 其他→古今双轨展示
+                      </span>
                     </div>
                   </div>
                   

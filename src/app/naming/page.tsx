@@ -92,6 +92,7 @@ function NamingResultContent() {
     tag: string;
     color: string;
     description: string;
+    displayMode?: "original" | "modern" | "both";
   } | null>(null);
 
   // 调试：打印错误变化
@@ -653,38 +654,102 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           {nameItem.meaning}
                         </p>
 
-                        {/* 典籍出处、典籍原文、现代翻译 */}
+                        {/* 典籍出处 - 根据策略差异化展示 */}
                         {(() => {
                           const hasSource = nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern;
                           if (!hasSource) return null;
+                          const mode = strategyInfo?.displayMode || "both";
+                          // 生僻度模拟（实际可从数据中得到）
+                          const isRare = nameItem.sourceText && /[兮猗聿祇曷盍劼勖]/.test(nameItem.sourceText);
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
-                              {/* 典籍出处 */}
-                              {nameItem.sourceBook && (
-                                <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
-                                  <span className="font-medium text-[#2C1810]">典籍出处：</span>
-                                  {nameItem.sourceBook}
-                                </p>
+                              {mode === "original" && (
+                                /* ── 古典模式：原字优先，展示典籍出处 + 生僻度标注 ── */
+                                <>
+                                  {nameItem.sourceBook && (
+                                    <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
+                                      <span className="font-medium text-[#2C1810]">典籍出处：</span>
+                                      {nameItem.sourceBook}
+                                    </p>
+                                  )}
+                                  {nameItem.sourceText && (
+                                    <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
+                                      <span className="font-medium text-[#2C1810]">典籍原文：</span>
+                                      <span className="font-mono text-[#C84A2A]">{nameItem.sourceText}</span>
+                                    </p>
+                                  )}
+                                  {nameItem.sourceModern && (
+                                    <p className="text-xs text-[#8B7355] leading-relaxed italic mb-1">
+                                      <span className="font-medium text-[#2C1810] not-italic">释义：</span>
+                                      {nameItem.sourceModern}
+                                    </p>
+                                  )}
+                                  {/* 生僻度标注（仅古典模式） */}
+                                  {isRare && (
+                                    <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700 border border-yellow-200">
+                                      ⚠ 含生僻字
+                                    </span>
+                                  )}
+                                  {!isRare && nameItem.sourceText && (
+                                    <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] bg-green-50 text-green-600 border border-green-200">
+                                      ✓ 字义通俗
+                                    </span>
+                                  )}
+                                </>
                               )}
-                              {/* 典籍原文 */}
-                              {nameItem.sourceText && (
-                                <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
-                                  <span className="font-medium text-[#2C1810]">典籍原文：</span>
-                                  {nameItem.sourceText}
-                                </p>
+                              {mode === "modern" && (
+                                /* ── 实用模式：现代字 / 翻译优先 ── */
+                                <>
+                                  {nameItem.sourceModern && (
+                                    <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
+                                      <span className="font-medium text-[#2C1810]">寓意精髓：</span>
+                                      {nameItem.sourceModern}
+                                    </p>
+                                  )}
+                                  {nameItem.sourceBook && (
+                                    <p className="text-xs text-[#8B7355] leading-relaxed">
+                                      <span className="font-medium text-[#2C1810]">源自：</span>
+                                      {nameItem.sourceBook}
+                                      {nameItem.sourceText && ` · ${nameItem.sourceText}`}
+                                    </p>
+                                  )}
+                                </>
                               )}
-                              {/* 现代翻译 */}
-                              {nameItem.sourceModern && (
-                                <p className="text-xs text-[#5C4A42] leading-relaxed">
-                                  <span className="font-medium text-[#2C1810]">现代翻译：</span>
-                                  {nameItem.sourceModern}
-                                </p>
+                              {(mode === "both" || !mode) && (
+                                /* ── 双轨模式：同时展示古籍原字和现代同义字 ── */
+                                <>
+                                  <div className="flex items-start gap-2 mb-1">
+                                    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                                      古籍原字
+                                    </span>
+                                    <div className="min-w-0">
+                                      {nameItem.sourceBook && (
+                                        <span className="text-xs text-[#5C4A42] leading-relaxed">
+                                          {nameItem.sourceBook}
+                                        </span>
+                                      )}
+                                      {nameItem.sourceText && (
+                                        <span className="text-xs text-[#C84A2A] font-mono ml-1">
+                                          "{nameItem.sourceText}"
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {nameItem.sourceModern && (
+                                    <div className="flex items-start gap-2">
+                                      <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                                        现代同义
+                                      </span>
+                                      <span className="text-xs text-[#5C4A42] leading-relaxed">
+                                        {nameItem.sourceModern}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           );
                         })()}
-
-
 
                       </>
                     )}
