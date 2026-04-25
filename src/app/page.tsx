@@ -308,7 +308,7 @@ export default function Home() {
                   </div>
                   
                   {/* 第二行：出生年月日 + 出生时间 */}
-                  <div className="flex gap-4 mb-3">
+                  <div className="flex gap-4 mb-4">
                     <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
                       className="flex-1 min-w-0 px-4 py-2 text-[14px] rounded"
                       style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.5)', outline: 'none' }}
@@ -319,10 +319,10 @@ export default function Home() {
                     />
                   </div>
                   
-                  {/* 第三行：取名寓意（多选项） */}
-                  <div className="mb-4">
-                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">取名寓意（可多选）</div>
-                    <div className="grid grid-cols-5 gap-2">
+                  {/* 第三行：语义多洗框（多选项） */}
+                  <div className="mb-2">
+                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">起名寓意（可多选）</div>
+                    <div className="grid grid-cols-5 gap-1">
                       {[
                         "平安健康", "聪明智慧", "事业有成", "富贵财富", "品德高尚",
                         "阳光开朗", "美丽俊俏", "勇敢坚强", "幸福美满", "才华艺术"
@@ -332,7 +332,7 @@ export default function Home() {
                             type="checkbox"
                             checked={selectedExpectations.includes(option)}
                             onChange={() => handleExpectationToggle(option)}
-                            className="w-4 h-4"
+                            className="w-3 h-3"
                           />
                           <span className="text-[12px] text-[#5A4334]">{option}</span>
                         </label>
@@ -341,7 +341,7 @@ export default function Home() {
                   </div>
                   
                   {/* 第四行：风格偏好（多选项）+ 策略矩阵提示 */}
-                  <div className="mb-4">
+                  <div className="mb-2">
                     <div className="text-[14px] font-medium text-[#5A4334] mb-2">风格偏好（可多选，影响起名策略）</div>
                     <div className="grid grid-cols-5 gap-2 mb-2">
                       {[
@@ -353,28 +353,16 @@ export default function Home() {
                             type="checkbox"
                             checked={selectedStyles.includes(option)}
                             onChange={() => handleStyleToggle(option)}
-                            className="w-4 h-4"
+                            className="w-3 h-3"
                           />
                           <span className="text-[12px] text-[#5A4334]">{option}</span>
                         </label>
                       ))}
                     </div>
-                    {/* 策略矩阵引导提示 */}
-                    <div className="flex flex-wrap gap-2 text-[11px] text-[#8B7355] leading-relaxed px-1">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700">
-                        🏛 古风典雅→优先典籍原字
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-600">
-                        🔧 现代简约→使用常见字
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-600">
-                        ⚖️ 其他→古今双轨展示
-                      </span>
-                    </div>
                   </div>
                   
                   {/* 第五行：补充说明 */}
-                  <div className="mb-1">
+                  <div className="mb-2">
                     <input
                       type="text"
                       value={additionalNotes}
