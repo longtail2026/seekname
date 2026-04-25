@@ -16,7 +16,10 @@ export default function RenamePage() {
   const [isLoading, setIsLoading] = useState(false);
   // 标记是否正在使用 IME 输入法（如拼音）
   const [isComposing, setIsComposing] = useState(false);
-  
+  // 新增：八字推算 & 五行属性分析开关
+  const [enableBazi, setEnableBazi] = useState(true);
+  const [enableWuxing, setEnableWuxing] = useState(true);
+   
   // 新增状态：多选项
   const [selectedExpectations, setSelectedExpectations] = useState<string[]>([]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
@@ -179,6 +182,21 @@ export default function RenamePage() {
                     >{g}</button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setEnableBazi(!enableBazi)}
+                  className="px-3 py-3 text-[12px] rounded-lg shrink-0 transition-all duration-200"
+                  style={{
+                    background: enableBazi ? "rgba(212, 148, 26, 0.15)" : "rgba(180,160,130,0.15)",
+                    color: enableBazi ? "#D4941A" : "#A09080",
+                    border: `1px solid ${enableBazi ? "rgba(212, 148, 26, 0.4)" : "rgba(180,160,130,0.3)"}`,
+                    cursor: 'pointer',
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {enableBazi ? "✓" : "✕"} 启用八字推算
+                </button>
               </div>
               
               {/* 第二行：出生年月日 + 出生时间 */}
@@ -191,6 +209,21 @@ export default function RenamePage() {
                   className="flex-1 min-w-0 px-4 py-3 text-[15px] rounded-lg"
                   style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setEnableWuxing(!enableWuxing)}
+                  className="px-3 py-3 text-[12px] rounded-lg shrink-0 transition-all duration-200"
+                  style={{
+                    background: enableWuxing ? "rgba(232, 106, 23, 0.15)" : "rgba(180,160,130,0.15)",
+                    color: enableWuxing ? "#E86A17" : "#A09080",
+                    border: `1px solid ${enableWuxing ? "rgba(232, 106, 23, 0.4)" : "rgba(180,160,130,0.3)"}`,
+                    cursor: 'pointer',
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {enableWuxing ? "✓" : "✕"} 启用五行属性
+                </button>
               </div>
               
               {/* 第三行：语义多选框 */}
