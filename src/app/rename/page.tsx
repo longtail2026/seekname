@@ -150,8 +150,8 @@ export default function RenamePage() {
                 boxShadow: "0 4px 24px rgba(44,24,16,0.06)",
               }}
             >
-              {/* 第一行：姓氏 + 性别 */}
-              <div className="flex gap-4 mb-4">
+              {/* 第一行：姓氏 + 男/女 + 启用八字推算（grid等宽各1/3） */}
+              <div className="grid grid-cols-3 gap-4 mb-4">
                 <input
                   type="text"
                   inputMode="text"
@@ -166,14 +166,14 @@ export default function RenamePage() {
                     setSurname(handleInput((e.target as HTMLInputElement).value));
                   }}
                   placeholder="请输入您的姓氏"
-                  className="flex-1 min-w-0 px-4 py-3 text-[15px] rounded-lg"
+                  className="w-full px-4 py-3 text-[15px] rounded-lg"
                   style={{ fontFamily: "'Noto Serif SC', serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
                   autoComplete="off"
                 />
-                <div className="flex rounded-lg overflow-hidden shrink-0" style={{ border: '1px solid rgba(180,160,130,0.4)' }}>
+                <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(180,160,130,0.4)' }}>
                   {(["男", "女"] as const).map((g) => (
                     <button key={g} type="button" onClick={() => setGender(g)}
-                      className="px-8 py-3 text-[15px] font-medium transition-all duration-200"
+                      className="flex-1 px-4 py-3 text-[15px] font-medium transition-all duration-200"
                       style={{
                         background: gender === g ? (g === "男" ? "#4A90D9" : "#E870A0") : "rgba(255, 252, 245, 0.92)",
                         color: gender === g ? "#fff" : "#5A4334",
@@ -185,7 +185,7 @@ export default function RenamePage() {
                 <button
                   type="button"
                   onClick={() => setEnableBazi(!enableBazi)}
-                  className="px-3 py-3 text-[12px] rounded-lg shrink-0 transition-all duration-200"
+                  className="w-full px-2 py-3 text-[12px] rounded-lg transition-all duration-200"
                   style={{
                     background: enableBazi ? "rgba(212, 148, 26, 0.15)" : "rgba(180,160,130,0.15)",
                     color: enableBazi ? "#D4941A" : "#A09080",
@@ -199,20 +199,20 @@ export default function RenamePage() {
                 </button>
               </div>
               
-              {/* 第二行：出生年月日 + 出生时间 */}
-              <div className="flex gap-4 mb-5">
+              {/* 第二行：年月日 + 时分 + 启用五行属性（grid等宽各1/3） */}
+              <div className="grid grid-cols-3 gap-4 mb-5">
                 <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
-                  className="flex-1 min-w-0 px-4 py-3 text-[15px] rounded-lg"
+                  className="w-full px-4 py-3 text-[15px] rounded-lg"
                   style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
                 />
                 <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
-                  className="flex-1 min-w-0 px-4 py-3 text-[15px] rounded-lg"
+                  className="w-full px-4 py-3 text-[15px] rounded-lg"
                   style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.4)', outline: 'none' }}
                 />
                 <button
                   type="button"
                   onClick={() => setEnableWuxing(!enableWuxing)}
-                  className="px-3 py-3 text-[12px] rounded-lg shrink-0 transition-all duration-200"
+                  className="w-full px-2 py-3 text-[12px] rounded-lg transition-all duration-200"
                   style={{
                     background: enableWuxing ? "rgba(232, 106, 23, 0.15)" : "rgba(180,160,130,0.15)",
                     color: enableWuxing ? "#E86A17" : "#A09080",

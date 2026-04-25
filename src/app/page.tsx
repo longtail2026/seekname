@@ -276,8 +276,8 @@ export default function Home() {
                   draggable={false}
                 />
                 <div className="absolute inset-0 flex flex-col justify-center" style={{ padding: '35px 60px' }}>
-                  {/* 第一行：姓氏 + 性别 */}
-                  <div className="flex gap-4 mb-2">
+                  {/* 第一行：姓氏 + 男/女 + 启用八字推算（grid等宽各1/3） */}
+                  <div className="grid grid-cols-3 gap-4 mb-2">
                     <input
                       type="text"
                       inputMode="text"
@@ -292,14 +292,14 @@ export default function Home() {
                         setSurname(handleInput((e.target as HTMLInputElement).value));
                       }}
                       placeholder="请输入您的姓氏"
-                      className="flex-1 min-w-0 px-4 py-2 text-[14px] rounded"
+                      className="w-full px-4 py-2 text-[14px] rounded"
                       style={{ fontFamily: "'Noto Serif SC', serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.5)', outline: 'none' }}
                       autoComplete="off"
                     />
-                    <div className="flex rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(180,160,130,0.5)' }}>
+                    <div className="flex rounded overflow-hidden" style={{ border: '1px solid rgba(180,160,130,0.5)' }}>
                       {(["男", "女"] as const).map((g) => (
                         <button key={g} type="button" onClick={() => setGender(g)}
-                          className="px-6 py-2 text-[14px] font-medium transition-all duration-200"
+                          className="flex-1 px-4 py-2 text-[14px] font-medium transition-all duration-200"
                           style={{
                             background: gender === g ? (g === "男" ? "#4A90D9" : "#E870A0") : "rgba(255, 252, 245, 0.92)",
                             color: gender === g ? "#fff" : "#5A4334",
@@ -311,7 +311,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setEnableBazi(!enableBazi)}
-                      className="px-3 py-2 text-[12px] rounded shrink-0 transition-all duration-200"
+                      className="w-full px-2 py-2 text-[12px] rounded transition-all duration-200"
                       style={{
                         background: enableBazi ? "rgba(212, 148, 26, 0.15)" : "rgba(180,160,130,0.15)",
                         color: enableBazi ? "#D4941A" : "#A09080",
@@ -325,20 +325,20 @@ export default function Home() {
                     </button>
                   </div>
                   
-                  {/* 第二行：出生年月日 + 出生时间 */}
-                  <div className="flex gap-4 mb-4">
+                  {/* 第二行：年月日 + 时分 + 启用五行属性（grid等宽各1/3） */}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
                     <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
-                      className="flex-1 min-w-0 px-4 py-2 text-[14px] rounded"
+                      className="w-full px-4 py-2 text-[14px] rounded"
                       style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.5)', outline: 'none' }}
                     />
                     <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
-                      className="flex-1 min-w-0 px-4 py-2 text-[14px] rounded"
+                      className="w-full px-4 py-2 text-[14px] rounded"
                       style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#2D1B0E', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.5)', outline: 'none' }}
                     />
                     <button
                       type="button"
                       onClick={() => setEnableWuxing(!enableWuxing)}
-                      className="px-3 py-2 text-[12px] rounded shrink-0 transition-all duration-200"
+                      className="w-full px-2 py-2 text-[12px] rounded transition-all duration-200"
                       style={{
                         background: enableWuxing ? "rgba(232, 106, 23, 0.15)" : "rgba(180,160,130,0.15)",
                         color: enableWuxing ? "#E86A17" : "#A09080",
