@@ -272,7 +272,7 @@ export default function Home() {
                   style={{ display: 'block', borderRadius: 4 }}
                   draggable={false}
                 />
-                <div className="absolute inset-0 flex flex-col justify-center" style={{ padding: '45px 60px' }}>
+                <div className="absolute inset-0 flex flex-col justify-center" style={{ padding: '35px 60px' }}>
                   {/* 第一行：姓氏 + 性别 */}
                   <div className="flex gap-4 mb-2">
                     <input
