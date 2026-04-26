@@ -210,7 +210,8 @@ ${strategyPrompt}
 4. 【关键】选字理由必须点名每个字取自哪部典籍哪篇哪段，且必须带引号引用该段原文（如：庄字出自《礼记·乐记》"故听其雅、颂之声，志意得广焉；执其干戚，习其俯仰诎伸，容貌得庄焉；"）；
 5. 典籍出处必须精确到篇章名和原句，不能只说"出自《诗经》"这种笼统表述，也不能只写"象征坚强不屈"却不引用原文；
 6. 名字要体现性别特点：男名宜用刚健、宏大、英武类字，女名宜用柔美、温婉、秀丽类字。
-7. 【重要】每个名字的出处不能重复：请确保50个名字的出处覆盖不同的典籍篇章。`;
+7. 【重要】每个名字的出处不能重复：请确保50个名字的出处覆盖不同的典籍篇章。
+8. 【关键一致性检查】选字理由中引用的每个字（如"庄"字出自…"庄"）必须确实存在于"名字"列中。名字不含的字，理由里不能引用。`;
   }
 
   // ─── 有典籍匹配 ───
@@ -578,6 +579,55 @@ function isChineseCharacter(char: string): boolean {
   return code >= 0x4E00 && code <= 0x9FFF;
 }
 
+/**
+ * 校验并清洗 reason：确保 reason 中引用的汉字都存在于名字中
+ * 如果引用了名字中不存在的字（LLM幻觉），移除包含该字的句子
+ */
+function sanitizeReason(reason: string, givenName: string): string {
+  if (!reason || !givenName) return reason;
+  
+  // 名字中的实际汉字（去掉姓氏后的所有字）
+  const nameChars = new Set<string>();
+  for (const ch of givenName) {
+    if (isChineseCharacter(ch)) {
+      nameChars.add(ch);
+    }
+  }
+  if (nameChars.size === 0) return reason;
+
+  // 按句号、分号、换行分隔句子
+  const sentences = reason.split(/[。；;\n]/).map(s => s.trim()).filter(s => s.length > 0);
+  const cleaned: string[] = [];
+
+  for (const sentence of sentences) {
+    // 提取句子中所有被引用的汉字：
+    // 模式1: "远"字出自 或 "远"出自
+    // 模式2: 远字出自（无引号）
+    const citedChars: string[] = [];
+    const charRefRegex = /["""'『「]?([\u4e00-\u9fff])["""'』」]?(?:字)?(?=出自)/g;
+    let match;
+    while ((match = charRefRegex.exec(sentence)) !== null) {
+      citedChars.push(match[1]);
+    }
+
+    // 如果句子没有引用任何字，保留（可能是解释性文字）
+    if (citedChars.length === 0) {
+      cleaned.push(sentence);
+      continue;
+    }
+
+    // 检查引用的每个字是否都在名字中
+    const hasHallucinated = citedChars.some(c => !nameChars.has(c));
+    if (!hasHallucinated) {
+      cleaned.push(sentence);
+    } else {
+      console.log(`[sanitizeReason] 移除幻觉句子: "${sentence}" (名字="${givenName}", 引用了=${citedChars.join(",")})`);
+    }
+  }
+
+  return cleaned.length > 0 ? cleaned.join('；') : reason;
+}
+
 function parseMarkdownTable(markdown: string): GeneratedName[] {
   const names: GeneratedName[] = [];
   try {
@@ -661,12 +711,15 @@ function parseMarkdownTable(markdown: string): GeneratedName[] {
           const source = cells.length >= 6 ? cells[5] : "";
           const name = givenName;
 
+          // 校验 reason：移除引用了名字中不存在的汉字的部分（LLM幻觉防御）
+          const cleanedReason = sanitizeReason(reason, givenName);
+
           names.push({
             name,
             givenName,
             pinyin,
             meaning,
-            reason,
+            reason: cleanedReason,
             source,
             score: 80,
           });
