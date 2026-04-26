@@ -259,11 +259,16 @@ export async function generateNamesWithDeepSeek(prompt: string): Promise<Generat
       throw new Error("DeepSeek API不可用");
     }
 
-    const systemPrompt = `你是一位专业的中文起名专家，请严格按照要求的格式输出名字列表。
+    const systemPrompt = `你是一位专业的中文起名专家，请严格按照要求的格式输出**至少50个**名字列表。
 输出必须是Markdown表格格式，包含以下列：序号、名字、拼音、寓意说明、选字理由、典籍出处。
-不要添加任何额外的解释或说明文字。`;
 
-    const response = await DeepSeekIntegration.callRaw(systemPrompt, prompt, 0.3, 2000);
+关键要求：
+1. 必须输出50个名字，一个不能少
+2. 每个名字的出处不能重复，覆盖不同典籍篇章
+3. 选字理由和典籍出处要简洁（一句话即可），不要长篇大论
+4. 不要添加任何额外的解释、开头语或结尾语`;
+
+    const response = await DeepSeekIntegration.callRaw(systemPrompt, prompt, 0.3, 4096);
     const names = parseMarkdownTable(response);
 
     console.log(`[DeepSeek] 成功生成 ${names.length} 个名字`);

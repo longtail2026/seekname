@@ -36,7 +36,7 @@ function getApiConfig() {
   return {
     url: "https://api.siliconflow.cn/v1/chat/completions",
     model: "deepseek-ai/DeepSeek-V3",
-    timeout: 9500,
+    timeout: 25000,     // ↑ 从9500提升至25000ms，满足大量名字生成的耗时
     name: "SiliconFlow",
   };
 }
@@ -56,10 +56,10 @@ function parseDeepSeekJson(raw: string): unknown {
   return JSON.parse(jsonStr);
 }
 
-// 30秒超时封装（适应 OpenRouter / Groq 国际 API 延迟）
-async function fetchWithTimeout15(url: string, options: RequestInit): Promise<Response> {
+// 30秒超时封装（适应大量名字生成的耗时）
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return response;
@@ -73,7 +73,7 @@ async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
   temperature: number = 0.3,
-  maxTokens: number = 1000
+  maxTokens: number = 2000
 ): Promise<string> {
   if (!isDeepSeekAvailable()) {
     throw new Error('API密钥未配置，请检查 DEEPSEEK_API_KEY 环境变量');
@@ -90,7 +90,7 @@ async function callDeepSeek(
       Object.assign(headers, cfg.extraHeaders);
     }
 
-    const response = await fetchWithTimeout15(cfg.url, {
+    const response = await fetchWithTimeout(cfg.url, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -103,7 +103,7 @@ async function callDeepSeek(
         max_tokens: maxTokens,
         stream: false,
       }),
-    });
+    }, cfg.timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -114,13 +114,17 @@ async function callDeepSeek(
     return data.choices[0].message.content.trim();
   } catch (error: any) {
     if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-      console.warn(`[${cfg.name}] 请求超时（15s），跳过此次调用`);
+      console.warn(`[${cfg.name}] 请求超时（${cfg.timeout}ms），跳过此次调用`);
       throw new Error(`${cfg.name} API 调用超时，已跳过`);
     }
     console.error(`调用${cfg.name} API失败:`, error);
     throw error;
   }
 }
+
+// ─────────────────────────────────────────────
+// 以下各功能函数保持不变（parseIntent、inferWuxing、polishName、checkSafety等）
+// ─────────────────────────────────────────────
 
 /**
  * 意图解析 - 将用户自然语言输入解析为结构化意图
