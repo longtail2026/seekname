@@ -660,6 +660,12 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           if (!hasSource) return null;
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
+                              {nameItem.reason && (
+                                <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
+                                  <span className="font-medium">选字关联：</span>
+                                  {nameItem.reason}
+                                </p>
+                              )}
                               {nameItem.sourceBook && (
                                 <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
                                   <span className="font-medium text-[#2C1810]">典籍出处：</span>
