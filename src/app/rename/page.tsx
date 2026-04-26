@@ -185,17 +185,17 @@ export default function RenamePage() {
                 <button
                   type="button"
                   onClick={() => setEnableBazi(!enableBazi)}
-                  className="w-full px-2 py-3 text-[12px] rounded-lg transition-all duration-200"
+                  className="w-full px-2 py-3 text-[14px] rounded-lg transition-all duration-200"
                   style={{
                     background: enableBazi ? "rgba(212, 148, 26, 0.15)" : "rgba(180,160,130,0.15)",
-                    color: enableBazi ? "#D4941A" : "#A09080",
+                    color: "#5A4334",
                     border: `1px solid ${enableBazi ? "rgba(212, 148, 26, 0.4)" : "rgba(180,160,130,0.3)"}`,
                     cursor: 'pointer',
                     fontFamily: "'Noto Sans SC', sans-serif",
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {enableBazi ? "✓" : "✕"} 启用八字推算
+                  {enableBazi ? "✓" : "✕"} 是否启用八字推算
                 </button>
               </div>
               
@@ -212,29 +212,29 @@ export default function RenamePage() {
                 <button
                   type="button"
                   onClick={() => setEnableWuxing(!enableWuxing)}
-                  className="w-full px-2 py-3 text-[12px] rounded-lg transition-all duration-200"
+                  className="w-full px-2 py-3 text-[14px] rounded-lg transition-all duration-200"
                   style={{
                     background: enableWuxing ? "rgba(232, 106, 23, 0.15)" : "rgba(180,160,130,0.15)",
-                    color: enableWuxing ? "#E86A17" : "#A09080",
+                    color: "#5A4334",
                     border: `1px solid ${enableWuxing ? "rgba(232, 106, 23, 0.4)" : "rgba(180,160,130,0.3)"}`,
                     cursor: 'pointer',
                     fontFamily: "'Noto Sans SC', sans-serif",
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {enableWuxing ? "✓" : "✕"} 启用五行属性
+                  {enableWuxing ? "✓" : "✕"} 是否启用五行属性分析
                 </button>
               </div>
               
               {/* 第三行：语义多选框 */}
               <div className="mb-4">
                 <div className="text-[14px] font-medium text-[#5A4334] mb-2">起名寓意（可多选）</div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2 justify-items-center">
                   {[
                     "平安健康", "聪明智慧", "事业有成", "富贵财富", "品德高尚",
                     "阳光开朗", "美丽俊俏", "勇敢坚强", "幸福美满", "才华艺术"
                   ].map((option) => (
-                    <label key={option} className="flex items-center gap-1.5 cursor-pointer">
+                    <label key={option} className="flex items-center gap-1.5 cursor-pointer justify-center">
                       <input
                         type="checkbox"
                         checked={selectedExpectations.includes(option)}
@@ -250,12 +250,12 @@ export default function RenamePage() {
               {/* 第四行：风格偏好 */}
               <div className="mb-4">
                 <div className="text-[14px] font-medium text-[#5A4334] mb-2">风格偏好（可多选）</div>
-                <div className="grid grid-cols-5 gap-2 mb-2">
+                <div className="grid grid-cols-5 gap-2 mb-2 justify-items-center">
                   {[
                     "古风典雅", "现代简约", "清新自然", "大气豪迈", "温柔婉约",
                     "独特个性", "可爱灵动", "稳重成熟", "诗意浪漫", "洋气国际"
                   ].map((option) => (
-                    <label key={option} className="flex items-center gap-1.5 cursor-pointer">
+                    <label key={option} className="flex items-center gap-1.5 cursor-pointer justify-center">
                       <input
                         type="checkbox"
                         checked={selectedStyles.includes(option)}

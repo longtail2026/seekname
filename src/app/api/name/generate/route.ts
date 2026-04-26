@@ -32,6 +32,15 @@ import {
   STRATEGY_MATRIX,
   determineStrategy,
 } from "@/lib/naming-strategy";
+import {
+  calculateBaZi,
+  analyzeWuxingPreference,
+  fullBaZiAnalysis,
+  queryCharsWuxing,
+  analyzeNameWuxing,
+  type WuxingPreference,
+  type BaZiResult,
+} from "@/lib/bazi-service";
 
 // 业务类别映射
 const CATEGORY_MAP: Record<string, string> = {
@@ -41,24 +50,54 @@ const CATEGORY_MAP: Record<string, string> = {
   evaluate: "名字测评",
 };
 
-// 根据八字计算五行喜忌（简化版）- 保留用于返回结果
+// 使用真正的八字排盘+五行喜忌分析，替换原来的季节简化版
 function calculateWuxing(birthDate: string, birthTime?: string) {
-  const month = new Date(birthDate).getMonth() + 1;
-  const seasonMap: Record<number, { likes: string[]; avoids: string[] }> = {
-    1: { likes: ["火"], avoids: ["水"] },
-    2: { likes: ["金"], avoids: ["木"] },
-    3: { likes: ["金"], avoids: ["木"] },
-    4: { likes: ["金"], avoids: ["木"] },
-    5: { likes: ["水"], avoids: ["火"] },
-    6: { likes: ["水"], avoids: ["火"] },
-    7: { likes: ["水"], avoids: ["火"] },
-    8: { likes: ["木"], avoids: ["金"] },
-    9: { likes: ["木"], avoids: ["金"] },
-    10: { likes: ["木"], avoids: ["金"] },
-    11: { likes: ["火"], avoids: ["水"] },
-    12: { likes: ["火"], avoids: ["水"] },
-  };
-  return seasonMap[month] || { likes: ["土"], avoids: [] };
+  try {
+    const { bazi, preference } = fullBaZiAnalysis(birthDate, birthTime);
+    return {
+      bazi: bazi.fullBaZi,
+      dayMaster: bazi.dayMaster,
+      dayMasterWuxing: bazi.dayMasterWuxing,
+      wuxingSummary: bazi.wuxingSummary,
+      likes: preference.favorableElements,
+      avoids: preference.unfavorableElements,
+      missing: preference.missingElements,
+      isExcessive: preference.isExcessive,
+      isWeak: preference.isWeak,
+      description: preference.description,
+    };
+  } catch (e) {
+    console.warn("[BaZi] 八字排盘失败，使用季节简化版:", e);
+    // 降级：季节简化版
+    const month = new Date(birthDate).getMonth() + 1;
+    const seasonMap: Record<number, { likes: string[]; avoids: string[] }> = {
+      1: { likes: ["火"], avoids: ["水"] },
+      2: { likes: ["金"], avoids: ["木"] },
+      3: { likes: ["金"], avoids: ["木"] },
+      4: { likes: ["金"], avoids: ["木"] },
+      5: { likes: ["水"], avoids: ["火"] },
+      6: { likes: ["水"], avoids: ["火"] },
+      7: { likes: ["水"], avoids: ["火"] },
+      8: { likes: ["木"], avoids: ["金"] },
+      9: { likes: ["木"], avoids: ["金"] },
+      10: { likes: ["木"], avoids: ["金"] },
+      11: { likes: ["火"], avoids: ["水"] },
+      12: { likes: ["火"], avoids: ["水"] },
+    };
+    const fallback = seasonMap[month] || { likes: ["土"], avoids: [] };
+    return {
+      bazi: "",
+      dayMaster: "",
+      dayMasterWuxing: "",
+      wuxingSummary: `季节:${month}月`,
+      likes: fallback.likes,
+      avoids: fallback.avoids,
+      missing: [],
+      isExcessive: false,
+      isWeak: false,
+      description: "基于季节的简化分析（八字排盘降级）",
+    };
+  }
 }
 
 /**
@@ -338,21 +377,24 @@ export async function POST(request: NextRequest) {
       return true;
     });
 
+    // ── 从 kangxi_dict 批量查询名字中各汉字的五行属性 ──
+    // 收集所有需要查询的汉字
+    const allNameChars = [...new Set(nonDuplicateGivenNames.flatMap(n => n.givenName.split("")))];
+    const charWuxingData = await queryCharsWuxing(allNameChars);
+    // 构建快速查找 Map：字符 → 五行
+    const charWuxingMap = new Map<string, string>();
+    charWuxingData.forEach(cd => {
+      if (cd.wuxing) charWuxingMap.set(cd.character, cd.wuxing);
+    });
+
     // 构建最终 API 格式的名字列表
     const apiNames = nonDuplicateGivenNames.map((resolved: ResolvedName, index: number) => {
       const givenName = resolved.givenName;
       
-      // 为每个名字分配五行
+      // 从数据库查询名字中各字的五行（有缺失时用默认）
       let wuxing = "";
-      if (givenName.length >= 2) {
-        const charWuxingMap: Record<string, string> = {
-          "金": "金", "鑫": "金", "铭": "金", "锦": "金", "钧": "金",
-          "木": "木", "林": "木", "森": "木", "桐": "木", "楠": "木",
-          "水": "水", "涵": "水", "泽": "水", "洋": "水", "涛": "水",
-          "火": "火", "炎": "火", "煜": "火", "炜": "火", "烨": "火",
-          "土": "土", "坤": "土", "培": "土", "基": "土", "城": "土",
-        };
-        const wuxingList = givenName.split('').map(char => charWuxingMap[char] || "").filter(w => w);
+      if (givenName.length >= 1) {
+        const wuxingList = givenName.split('').map(char => charWuxingMap.get(char) || "").filter(w => w);
         wuxing = wuxingList.length > 0 ? wuxingList.join("") : "木火";
       } else {
         wuxing = "木火";

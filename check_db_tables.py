@@ -1,20 +1,6 @@
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres:postgres@localhost:5432/seekname_db')
-cur = conn.cursor()
-cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")
-tables = [r[0] for r in cur.fetchall()]
-print('Tables:', tables)
-if 'naming_classics' in tables:
-    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='naming_classics' ORDER BY ordinal_position")
-    cols = [r[0] for r in cur.fetchall()]
-    print('naming_classics columns:', cols)
-    cur.execute("SELECT COUNT(*) FROM naming_classics")
-    print('naming_classics count:', cur.fetchone()[0])
-else:
-    print('naming_classics table not found')
-if 'classics_entries' in tables:
-    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='classics_entries' ORDER BY ordinal_position")
-    cols = [r[0] for r in cur.fetchall()]
-    print('classics_entries columns:', cols)
-cur.close()
-conn.close()
+# 此文件用于直接检查 SQLite/PostgreSQL 数据库表结构和数据
+# 但当前项目使用的是 PostgreSQL，请使用 Node.js 或 Python 的 psycopg2
+# 此处改用 Node.js 方式检查
+
+import os
+os.system("cd c:\\seekname && node -e \"")
