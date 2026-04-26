@@ -663,7 +663,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                               {nameItem.reason && (
                                 <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
                                   <span className="font-medium">典籍出处：</span>
-                                  {nameItem.reason.replace(/([\u4e00-\u9fff]{1,3})(取自)/g, '"$1"$2')}
+                                  {nameItem.reason.replace(/([\u4e00-\u9fff]{1,3})(取自|出自)/g, '"$1"$2')}
                                 </p>
                               )}
                               {nameItem.sourceModern && (
