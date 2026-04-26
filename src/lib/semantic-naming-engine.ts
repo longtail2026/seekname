@@ -27,6 +27,7 @@ import {
   STRATEGY_LABELS,
 } from "./naming-strategy";
 import { hardFilterNames, HardFilterOptions, summarizeRemoved } from "./hard-filter";
+import { scoreAndSortNames, NameScorerV2, type ScoringContext } from "./name-scorer-v2";
 
 // 用户意图接口
 export interface SemanticNamingRequest {
@@ -433,11 +434,29 @@ export async function semanticNamingFlow(
         `[语义起名-降级] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
       );
 
+      // ✅ 七维加权打分排序
+      const scoringContext: ScoringContext = {
+        expectations: request.expectations || "",
+        styles: request.style || [],
+        matchedClassics: [],
+        gender: request.gender || "M",
+        surname: request.surname,
+      };
+      const scoredNames = await scoreAndSortNames(filterResult.passed, scoringContext, { concurrency: 3 });
+      const finalScored = scoredNames.map(sn => {
+        const { scoreBreakdownV2, ...rest } = sn as any;
+        return { ...rest, score: sn.score, scoreBreakdownV2 };
+      }) as GeneratedName[];
+
+      console.log(
+        `[语义起名-降级] 七维打分排序完成: 前5名 = ${finalScored.slice(0, 5).map(n => `${n.name}(${n.score}分)`).join(", ")}`
+      );
+
       return {
         success: true,
         matches: [],
         generatedNames: taggedNames,
-        filteredNames: filterResult.passed,
+        filteredNames: finalScored,
         filterResult,
         strategyType: strategy,
         message: `成功生成${taggedNames.length}个名字（降级：AI直接生成）`,
@@ -486,23 +505,41 @@ export async function semanticNamingFlow(
       `[语义起名-主路径] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
     );
 
-    if (summarizeRemoved(hardResult.removed).length > 0) {
-      console.log(`[语义起名-主路径] 淘汰详情:\n${summarizeRemoved(hardResult.removed)}`);
-    }
+      if (summarizeRemoved(hardResult.removed).length > 0) {
+        console.log(`[语义起名-主路径] 淘汰详情:\n${summarizeRemoved(hardResult.removed)}`);
+      }
 
-    console.log(
-      `[语义起名] 完成: 策略=${STRATEGY_LABELS[strategy]}, 生成${taggedNames.length}个`
-    );
+      // ✅ 七维加权打分排序（主路径）
+      const mainScoringContext: ScoringContext = {
+        expectations: request.expectations || "",
+        styles: request.style || [],
+        matchedClassics: matches,
+        gender: request.gender || "M",
+        surname: request.surname,
+      };
+      const mainScoredNames = await scoreAndSortNames(filterResult.passed, mainScoringContext, { concurrency: 3 });
+      const mainFinalScored = mainScoredNames.map(sn => {
+        const { scoreBreakdownV2, ...rest } = sn as any;
+        return { ...rest, score: sn.score, scoreBreakdownV2 };
+      }) as GeneratedName[];
 
-    return {
-      success: true,
-      matches,
-      generatedNames: taggedNames,
-      filteredNames: filterResult.passed,
-      filterResult,
-      strategyType: strategy,
-      message: `成功生成${taggedNames.length}个名字`,
-    };
+      console.log(
+        `[语义起名-主路径] 七维打分排序完成: 前5名 = ${mainFinalScored.slice(0, 5).map(n => `${n.name}(${n.score}分)`).join(", ")}`
+      );
+
+      console.log(
+        `[语义起名] 完成: 策略=${STRATEGY_LABELS[strategy]}, 生成${taggedNames.length}个`
+      );
+
+      return {
+        success: true,
+        matches,
+        generatedNames: taggedNames,
+        filteredNames: mainFinalScored,
+        filterResult,
+        strategyType: strategy,
+        message: `成功生成${taggedNames.length}个名字`,
+      };
   } catch (error) {
     console.error("[语义起名] 流程失败:", error);
     return {

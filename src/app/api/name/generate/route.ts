@@ -329,6 +329,8 @@ export async function POST(request: NextRequest) {
       meaning: string;
       reason: string;
       rawSource: string;
+      score: number;
+      scoreBreakdownV2?: Record<string, number>;
     }
 
     const resolvedNames: ResolvedName[] = result.filteredNames.map((name: GeneratedName) => {
@@ -358,6 +360,8 @@ export async function POST(request: NextRequest) {
         meaning: name.meaning,
         reason: name.reason,
         rawSource: cleanedSource,
+        score: name.score ?? 80,
+        scoreBreakdownV2: (name as any).scoreBreakdownV2,
       };
     });
 
@@ -495,7 +499,8 @@ export async function POST(request: NextRequest) {
         meaning: resolved.meaning,
         reason: resolved.reason,
         strokeCount,
-        score: 90 - index * 2,
+        score: resolved.score ?? (90 - index * 2),
+        scoreBreakdownV2: resolved.scoreBreakdownV2,
         source,
       };
     });
@@ -537,7 +542,8 @@ export async function POST(request: NextRequest) {
           meaning: name.meaning,
           reason: name.reason || "",
           strokeCount,
-          score: 80 - index * 2,
+          score: name.score ?? (80 - index * 2),
+          scoreBreakdownV2: (name as any).scoreBreakdownV2,
           source,
         };
       });
