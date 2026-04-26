@@ -532,7 +532,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                 { label: "八字", value: birthDate ? `${new Date(birthDate).getFullYear()}年` : "待输入" },
                 { label: "五行喜用", value: (wuxingResult.likes || []).join("、") || "水木" },
                 { label: "五行忌用", value: (wuxingResult.avoids || []).join("、") || "无" },
-                { label: "推荐用字", value: "补水补木" },
+                { label: "推荐用字", value: wuxingResult?.likes?.length ? `补${wuxingResult.likes.join("补")}` : "补水补木" },
               ].map((item, i) => (
                 <div key={i} className="p-3 bg-white rounded-lg">
                   <div className="text-xs text-[#5C4A42] mb-1">{item.label}</div>
