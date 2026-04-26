@@ -656,21 +656,14 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
 
                         {/* 典籍出处 */}
                         {(() => {
-                          const hasSource = nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern;
+                          const hasSource = nameItem.sourceModern || nameItem.reason;
                           if (!hasSource) return null;
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
                               {nameItem.reason && (
                                 <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
-                                  <span className="font-medium">选字关联：</span>
-                                  {nameItem.reason}
-                                </p>
-                              )}
-                              {nameItem.sourceBook && (
-                                <p className="text-xs text-[#5C4A42] leading-relaxed mb-1">
-                                  <span className="font-medium text-[#2C1810]">典籍出处：</span>
-                                  {nameItem.sourceBook}
-                                  {nameItem.sourceText && `，${nameItem.sourceText}`}
+                                  <span className="font-medium">典籍出处：</span>
+                                  {nameItem.reason.replace(/([\u4e00-\u9fff]{1,3})(取自)/g, '"$1"$2')}
                                 </p>
                               )}
                               {nameItem.sourceModern && (
