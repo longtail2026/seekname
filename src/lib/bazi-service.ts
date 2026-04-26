@@ -1,7 +1,8 @@
 /**
  * 八字分析服务 (BaZi Service)
  *
- * 基于 lunisolar 库进行八字排盘和五行分析。
+ * 纯 JS 实现八字排盘，不依赖 lunisolar 等第三方库。
+ * 八字推算算法参考《渊海子平》《三命通会》标准算法。
  * 五行数据直接查询 kangxi_dict 表（包含 12,000+ 带五行标签的汉字）。
  *
  * 主要功能：
@@ -11,17 +12,13 @@
  * 4. analyzeNameWuxing — 评估名字的五行补益效果
  *
  * 用法示例：
- *   const bazi = await calculateBaZi("2024-03-15", "08:30");
- *   const pref = await analyzeWuxingPreference(bazi);
+ *   const bazi = calculateBaZi("2024-03-15", "08:30");
+ *   const pref = analyzeWuxingPreference(bazi);
  *   const nameEval = await analyzeNameWuxing("明", pref);
  */
 
 import "server-only";
 import { queryRaw } from "@/lib/prisma";
-
-// 动态导入 lunisolar（CommonJS 兼容）
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const lunisolar = require("lunisolar");
 
 // ==================== 常量定义 ====================
 
@@ -40,6 +37,32 @@ const BRANCH_WUXING = [4, 2, 0, 0, 2, 1, 1, 2, 3, 3, 2, 4];
 const GENERATE_NEXT = [1, 2, 3, 4, 0]; // idx 生 (idx+1)%5
 // 五行相克: 木→土, 火→金, 土→水, 金→木, 水→火
 const CONTROL_NEXT = [2, 3, 4, 0, 1];
+
+/**
+ * 节气近似日期偏移（距 2000-01-01 的天数）
+ * 索引0=小寒,1=大寒,2=立春,3=雨水,4=惊蛰,5=春分,
+ *     6=清明,7=谷雨,8=立夏,9=小满,10=芒种,11=夏至,
+ *     12=小暑,13=大暑,14=立秋,15=处暑,16=白露,17=秋分,
+ *     18=寒露,19=霜降,20=立冬,21=小雪,22=大雪,23=冬至
+ * 我们只需要节，忽略气。节=双数索引（0,2,4,...,22）
+ */
+const TERM_OFFSETS_2000: Record<number, number> = {
+  0: 5.59,   // 小寒
+  2: 36.97,  // 立春
+  4: 66.75,  // 惊蛰
+  6: 97.31,  // 清明
+  8: 127.72, // 立夏
+  10: 158.09, // 芒种
+  12: 188.42, // 小暑
+  14: 218.71, // 立秋
+  16: 249.16, // 白露
+  18: 279.42, // 寒露
+  20: 309.58, // 立冬
+  22: 339.88, // 大雪
+};
+
+/** 一年平均天数 */
+const TROPICAL_YEAR = 365.2422;
 
 // ==================== 类型定义 ====================
 
@@ -128,6 +151,98 @@ export interface NameWuxingAnalysis {
   suggestion?: string;
 }
 
+// ==================== 辅助函数 ====================
+
+/**
+ * 获取指定年份某个节气的近似日期
+ * 节气索引：0=小寒, 2=立春, 4=惊蛰, 6=清明, 8=立夏, 10=芒种,
+ *           12=小暑, 14=立秋, 16=白露, 18=寒露, 20=立冬, 22=大雪
+ */
+function getJieApproxDate(year: number, jieIdx: number): { month: number; day: number } {
+  const daysSince2000 = (year - 2000) * TROPICAL_YEAR + TERM_OFFSETS_2000[jieIdx];
+  const d = new Date(2000, 0, Math.round(daysSince2000));
+  return { month: d.getMonth() + 1, day: d.getDate() };
+}
+
+/**
+ * 计算年柱
+ * 年柱以立春为界，立春前属上一年。
+ */
+function calcYearPillar(year: number): { stem: number; branch: number } {
+  const idx = ((year - 4) % 60 + 60) % 60;
+  return { stem: idx % 10, branch: idx % 12 };
+}
+
+/**
+ * 计算日柱
+ * 基准：1900-01-01 = 甲戌日（天干索引0，地支索引10，总体索引10）
+ */
+function calcDayPillar(year: number, month: number, day: number): { stem: number; branch: number; idx: number } {
+  const d1900 = new Date(1900, 0, 1);
+  const dt = new Date(year, month - 1, day);
+  const diff = Math.round((dt.getTime() - d1900.getTime()) / 86400000);
+  const idx = ((diff + 10) % 60 + 60) % 60;
+  return { stem: idx % 10, branch: idx % 12, idx };
+}
+
+/**
+ * 计算月柱
+ * 月支以节气（节）为界。
+ */
+function calcMonthPillar(year: number, month: number, day: number): { stem: number; branch: number } {
+  const monthDay = month * 100 + day;
+  
+  // 找当前日期落在哪个节区间
+  let monthBranch = (month + 1) % 12; // 默认（如果无匹配，按近似）
+  
+  for (let j = 0; j < 12; j++) {
+    const jieIdx = j * 2; // 0=小寒, 2=立春, ..., 22=大雪
+    const jie = getJieApproxDate(year, jieIdx);
+    const nextIdx = j < 11 ? (j + 1) * 2 : 0;
+    const nextY = j < 11 ? year : year + 1;
+    const nextJie = getJieApproxDate(nextY, nextIdx);
+    
+    const startMD = jie.month * 100 + jie.day;
+    const endMD = nextJie.month * 100 + nextJie.day;
+    
+    if (j < 11) {
+      if (monthDay >= startMD && monthDay < endMD) {
+        // 节索引j对应地支: 小寒(0)→丑(1), 立春(2)→寅(2), 惊蛰(4)→卯(3), ...
+        monthBranch = (j + 2) % 12;
+        break;
+      }
+    } else {
+      // 大雪跨年情况
+      if (monthDay >= startMD || monthDay < endMD) {
+        monthBranch = (j + 2) % 12;
+        break;
+      }
+    }
+  }
+  
+  // 月干: (年干 mod 5 * 2 + 月支) mod 10
+  const yearStem = calcYearPillar(year).stem;
+  const monthStem = (Math.floor(yearStem / 2) * 2 + monthBranch) % 10;
+  
+  return { stem: monthStem, branch: monthBranch };
+}
+
+/**
+ * 计算时柱
+ * 时支：23-01 = 子, 01-03 = 丑, ..., 时干由日干推算
+ */
+function calcHourPillar(dayStem: number, hour: number, minute?: number): { stem: number; branch: number } {
+  // 调整：子时是23:00~1:00，h=0或23时为子
+  let adjustedHour = hour;
+  if (hour === 23) {
+    adjustedHour = 0; // 夜子时
+  }
+  const hourBranch = Math.floor((adjustedHour + 1) / 2) % 12;
+  // 时干: (日干 mod 5 * 2 + 时支) mod 10
+  const hourStem = (Math.floor(dayStem / 2) * 2 + hourBranch) % 10;
+  return { stem: hourStem, branch: hourBranch };
+}
+
 // ==================== 核心排盘函数 ====================
 
 /**
@@ -138,35 +253,61 @@ export interface NameWuxingAnalysis {
  * @returns BaZiResult 八字排盘结果
  */
 export function calculateBaZi(birthDate: string, birthTime?: string): BaZiResult {
-  // 1. 构造完整日期字符串给 lunisolar
-  const timeStr = birthTime || "12:00:00";
-  const dateTimeStr = `${birthDate} ${timeStr}`;
-
-  // 2. 调用 lunisolar 排盘
-  const ls = lunisolar(dateTimeStr);
-  const char8 = ls.char8;
-  const list = char8._list || [];
-
-  // 3. 解析四柱
-  const labels = ["年柱", "月柱", "日柱", "时柱"];
-  const pillars: PillarInfo[] = list.map((pillar: any, i: number) => {
-    const stemIdx = pillar.stem.value;  // 0~9
-    const branchIdx = pillar.branch.value; // 0~11
-    return {
-      label: labels[i],
-      stemChar: TIAN_GAN[stemIdx],
-      branchChar: DI_ZHI[branchIdx],
-      stemWuxing: WU_XING[STEM_WUXING[stemIdx]],
-      branchWuxing: WU_XING[BRANCH_WUXING[branchIdx]],
-    };
-  });
-
-  // 4. 日主（日干）
-  const dayPillar = pillars[2];
-  const dayMaster = dayPillar.stemChar;
-  const dayMasterWuxing = dayPillar.stemWuxing;
-
-  // 5. 五行统计（天干+地支共8字）
+  // 1. 解析日期
+  const dateParts = birthDate.split("-").map(Number);
+  if (dateParts.length < 3 || isNaN(dateParts[0]) || isNaN(dateParts[1]) || isNaN(dateParts[2])) {
+    throw new Error(`无效的日期格式: ${birthDate}，请使用 YYYY-MM-DD`);
+  }
+  
+  const [year, month, day] = dateParts;
+  
+  // 2. 解析时间
+  let hour = 12;
+  let minute = 0;
+  if (birthTime) {
+    const timeParts = birthTime.split(":").map(Number);
+    if (timeParts.length >= 2) {
+      hour = timeParts[0];
+      minute = timeParts[1];
+    }
+  }
+  
+  // 3. 年柱（先按立春调整）
+  // 立春通常在2月4日左右，2月4日前属于上一年
+  let effectiveYear = year;
+  const chunJie = getJieApproxDate(year, 2); // 立春
+  if (month < 2 || (month === chunJie.month && day < chunJie.day)) {
+    effectiveYear = year - 1;
+  }
+  
+  // 4. 排四柱
+  const yearPillar = calcYearPillar(effectiveYear);
+  const monthPillar = calcMonthPillar(effectiveYear, month, day);
+  const dayPillar = calcDayPillar(year, month, day);
+  const hourPillar = calcHourPillar(dayPillar.stem, hour, minute);
+  
+  // 5. 构建四柱信息
+  const pillarConfigs = [
+    { label: "年柱", pillar: yearPillar },
+    { label: "月柱", pillar: monthPillar },
+    { label: "日柱", pillar: dayPillar },
+    { label: "时柱", pillar: hourPillar },
+  ];
+  
+  const pillars: PillarInfo[] = pillarConfigs.map(({ label, pillar }) => ({
+    label,
+    stemChar: TIAN_GAN[pillar.stem],
+    branchChar: DI_ZHI[pillar.branch],
+    stemWuxing: WU_XING[STEM_WUXING[pillar.stem]],
+    branchWuxing: WU_XING[BRANCH_WUXING[pillar.branch]],
+  }));
+  
+  // 6. 日主
+  const dayPillarInfo = pillars[2];
+  const dayMaster = dayPillarInfo.stemChar;
+  const dayMasterWuxing = dayPillarInfo.stemWuxing;
+  
+  // 7. 五行统计（天干+地支共8字）
   const wuxingCount: Record<string, number> = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 };
   pillars.forEach((p) => {
     const sIdx = TIAN_GAN.indexOf(p.stemChar as typeof TIAN_GAN[number]);
@@ -174,13 +315,13 @@ export function calculateBaZi(birthDate: string, birthTime?: string): BaZiResult
     if (sIdx >= 0) wuxingCount[WU_XING[STEM_WUXING[sIdx]]]++;
     if (bIdx >= 0) wuxingCount[WU_XING[BRANCH_WUXING[bIdx]]]++;
   });
-
-  // 6. 构建描述
+  
+  // 8. 构建描述
   const fullBaZi = pillars.map((p) => p.stemChar + p.branchChar).join(" ");
   const wxSummary = Object.entries(wuxingCount)
     .map(([wx, count]) => `${wx}:${count}`)
     .join(" ");
-
+  
   return {
     birthDate,
     birthTime,
@@ -210,87 +351,72 @@ export function calculateBaZi(birthDate: string, birthTime?: string): BaZiResult
  * @returns WuxingPreference 五行喜忌分析
  */
 export function analyzeWuxingPreference(bazi: BaZiResult): WuxingPreference {
-  const dmWxIdx = WU_XING.indexOf(bazi.dayMasterWuxing as typeof WU_XING[number]); // 日主五行索引 0~4
-  const dmCount = bazi.wuxingCount[bazi.dayMasterWuxing]; // 日主出现次数
-
-  // 判断旺弱
+  const dmWxIdx = WU_XING.indexOf(bazi.dayMasterWuxing as typeof WU_XING[number]);
+  const dmCount = bazi.wuxingCount[bazi.dayMasterWuxing];
+  
   const isExcessive = dmCount >= 3;
   const isWeak = dmCount <= 1;
   const isBalanced = dmCount === 2;
-
-  // 找出缺失的五行
+  
   const missingElements = Object.entries(bazi.wuxingCount)
     .filter(([_, count]) => count === 0)
     .map(([wx]) => wx);
-
-  // 找出出现最多的（除日主外）
+  
   const sortedByCount = Object.entries(bazi.wuxingCount)
     .filter(([wx]) => wx !== bazi.dayMasterWuxing)
     .sort((a, b) => b[1] - a[1]);
   const mostExcessive = sortedByCount
     .filter(([_, count]) => count >= 3)
     .map(([wx]) => wx);
-
+  
   let favorableElements: string[] = [];
   let unfavorableElements: string[] = [];
   let description = "";
-
+  
   if (isExcessive) {
-    // 日主过旺：喜用克泄耗
-    // 克日主者：controlNext[dmWxIdx]
-    const controlling = WU_XING[CONTROL_NEXT[dmWxIdx]]; // 克日主
-    // 日主生者：generateNext[dmWxIdx] — 日主生的五行
-    const generating = WU_XING[GENERATE_NEXT[dmWxIdx]]; // 日主生
-    // 耗日主者：被日主克 — 日主克的五行
-    const controlled = WU_XING[CONTROL_NEXT.indexOf(dmWxIdx)]; // 日主克
-
+    const controlling = WU_XING[CONTROL_NEXT[dmWxIdx]];
+    const generating = WU_XING[GENERATE_NEXT[dmWxIdx]];
+    const controlled = WU_XING[CONTROL_NEXT.indexOf(dmWxIdx)];
+    
     favorableElements = [controlling, generating, controlled].filter(
       (wx) => wx !== bazi.dayMasterWuxing
     );
-    // 去重
     favorableElements = [...new Set(favorableElements)];
-    // 同时缺失的优先
     favorableElements.sort((a) => (missingElements.includes(a) ? -1 : 1));
-
+    
     unfavorableElements = mostExcessive.length > 0 ? mostExcessive : [bazi.dayMasterWuxing];
-
+    
     description = `日主${bazi.dayMasterWuxing}偏旺（${dmCount}次），宜用${favorableElements.join(
       "、"
     )}来克泄耗，忌补${bazi.dayMasterWuxing}。`;
   } else if (isWeak) {
-    // 日主过弱：喜用生扶
-    // 生日主者：谁克日主？不是... 生是 GENERATE_NEXT[?]=dmWxIdx
-    // 从 GENERATE_NEXT 中找到哪个索引生成 dmWxIdx: generateNext[x] === dmWxIdx
-    const generating = WU_XING[GENERATE_NEXT.indexOf(dmWxIdx)]; // 生日主
-    const sameElement = bazi.dayMasterWuxing; // 同日主（比肩）
-
+    const generating = WU_XING[GENERATE_NEXT.indexOf(dmWxIdx)];
+    const sameElement = bazi.dayMasterWuxing;
+    
     favorableElements = [generating, sameElement];
     unfavorableElements = Object.keys(bazi.wuxingCount).filter(
       (wx) => wx !== bazi.dayMasterWuxing && bazi.wuxingCount[wx] >= 2
     );
-
+    
     description = `日主${bazi.dayMasterWuxing}偏弱（${dmCount}次），宜用${favorableElements.join(
       "、"
     )}来生扶，忌克泄耗过重。`;
   } else {
-    // 中和：补缺
     if (missingElements.length > 0) {
       favorableElements = missingElements;
       description = `日主${bazi.dayMasterWuxing}中和（${dmCount}次），八字缺${missingElements.join(
         "、"
       )}，宜适当补益。`;
     } else {
-      // 五行齐全且中和
       favorableElements = [bazi.dayMasterWuxing];
       description = `日主${bazi.dayMasterWuxing}中和，五行俱全，宜保持平衡。`;
     }
     unfavorableElements = mostExcessive;
   }
-
-  // 确保不出现 undefined
+  
   favorableElements = favorableElements.filter(Boolean);
   unfavorableElements = unfavorableElements.filter(Boolean);
-
+  
   return {
     dayStem: bazi.dayMaster,
     dayStemWuxing: bazi.dayMasterWuxing,
@@ -314,7 +440,7 @@ export function analyzeWuxingPreference(bazi: BaZiResult): WuxingPreference {
  */
 export async function queryCharWuxing(char: string): Promise<CharWuxing | null> {
   if (!char || char.length === 0) return null;
-
+  
   try {
     const rows = await queryRaw<any>(
       `SELECT character, wuxing, pinyin, radical, stroke_count, meaning
@@ -323,9 +449,9 @@ export async function queryCharWuxing(char: string): Promise<CharWuxing | null> 
        LIMIT 1`,
       [char]
     );
-
+    
     if (!rows || rows.length === 0) return null;
-
+    
     return {
       character: rows[0].character,
       wuxing: rows[0].wuxing || null,
@@ -349,12 +475,10 @@ export async function queryCharWuxing(char: string): Promise<CharWuxing | null> 
 export async function queryCharsWuxing(chars: string | string[]): Promise<CharWuxing[]> {
   const charList = typeof chars === "string" ? chars.split("") : chars;
   if (charList.length === 0) return [];
-
-  // 去重
+  
   const uniqueChars = [...new Set(charList)];
-
+  
   try {
-    // 用 SQL IN 一次查询全部
     const placeholders = uniqueChars.map((_, i) => `$${i + 1}`).join(",");
     const rows = await queryRaw<any>(
       `SELECT DISTINCT ON (character) character, wuxing, pinyin, radical, stroke_count, meaning
@@ -362,7 +486,7 @@ export async function queryCharsWuxing(chars: string | string[]): Promise<CharWu
        WHERE character IN (${placeholders})`,
       uniqueChars
     );
-
+    
     const resultMap = new Map<string, CharWuxing>();
     if (rows) {
       rows.forEach((r: any) => {
@@ -376,8 +500,7 @@ export async function queryCharsWuxing(chars: string | string[]): Promise<CharWu
         });
       });
     }
-
-    // 按原顺序返回（查不到的用 null）
+    
     return charList.map((ch) => {
       const found = resultMap.get(ch);
       return (
@@ -416,7 +539,7 @@ export async function queryCharsByWuxing(
   limit: number = 100
 ): Promise<CharWuxing[]> {
   if (!WU_XING.includes(wuxing as any)) return [];
-
+  
   try {
     const rows = await queryRaw<any>(
       `SELECT character, wuxing, pinyin, radical, stroke_count, meaning
@@ -425,7 +548,7 @@ export async function queryCharsByWuxing(
        LIMIT $2`,
       [wuxing, limit]
     );
-
+    
     return (rows || []).map((r: any) => ({
       character: r.character,
       wuxing: r.wuxing || null,
@@ -464,33 +587,27 @@ export async function analyzeNameWuxing(
       description: "名字为空",
     };
   }
-
-  // 1. 查询每个字的五行
+  
   const charsData = await queryCharsWuxing(givenName.split(""));
-
-  // 2. 统计名字中各五行出现次数
+  
   const wuxingCount: Record<string, number> = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 };
   charsData.forEach((cd) => {
     if (cd.wuxing && wuxingCount[cd.wuxing] !== undefined) {
       wuxingCount[cd.wuxing]++;
     }
   });
-
-  // 3. 计算匹配情况
+  
   const complementedElements = preference.favorableElements.filter(
     (wx) => wuxingCount[wx] && wuxingCount[wx] > 0
   );
   const conflictingElements = preference.unfavorableElements.filter(
     (wx) => wuxingCount[wx] && wuxingCount[wx] > 0
   );
-
-  // 4. 评分
-  let score = 50; // 基础分
-  // 每个补益的喜用五行 +15 分
+  
+  let score = 50;
   score += complementedElements.length * 15;
-  // 包含忌讳五行每个 -15 分
   score -= conflictingElements.length * 15;
-  // 如果名字中完全不含喜用以外五行的，+10 分
+  
   const allNameWuxing = Object.entries(wuxingCount)
     .filter(([_, c]) => c > 0)
     .map(([wx]) => wx);
@@ -498,15 +615,14 @@ export async function analyzeNameWuxing(
     (wx) => preference.favorableElements.includes(wx) || !preference.unfavorableElements.includes(wx)
   );
   if (hasOnlyFavorable && allNameWuxing.length > 0) score += 10;
-  // 如果有缺失五行被补上了，+10 分
+  
   const complementedMissing = preference.missingElements.filter(
     (wx) => wuxingCount[wx] && wuxingCount[wx] > 0
   );
   score += complementedMissing.length * 10;
-
+  
   score = Math.max(0, Math.min(100, score));
-
-  // 5. 构建描述
+  
   const isFavorable = complementedElements.length > 0 && conflictingElements.length === 0;
   let description = "";
   if (isFavorable) {
@@ -524,8 +640,7 @@ export async function analyzeNameWuxing(
       .map(([wx]) => wx)
       .join("、")}，建议补充喜用五行。`;
   }
-
-  // 6. 补益建议
+  
   let suggestion: string | undefined;
   if (conflictingElements.length > 0) {
     suggestion = `建议选用含${preference.favorableElements.join("、")}部首的字，避免${conflictingElements.join("、")}。`;
@@ -537,7 +652,7 @@ export async function analyzeNameWuxing(
       suggestion = `八字缺${missingFavorable.join("、")}，建议选用含${missingFavorable.join("、")}部首或五行属${missingFavorable.join("、")}的字。`;
     }
   }
-
+  
   return {
     characters: charsData.map((cd) => ({
       char: cd.character,
