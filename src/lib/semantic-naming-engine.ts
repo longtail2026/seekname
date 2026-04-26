@@ -26,6 +26,7 @@ import {
   getStrategyTag,
   STRATEGY_LABELS,
 } from "./naming-strategy";
+import { hardFilterNames, HardFilterOptions, summarizeRemoved } from "./hard-filter";
 
 // 用户意图接口
 export interface SemanticNamingRequest {
@@ -408,12 +409,31 @@ export async function semanticNamingFlow(
         strategyType: strategy,
       }));
 
+      // ✅ 硬性过滤
+      const hardFilterOptions: HardFilterOptions = {
+        surname: request.surname,
+      };
+      const hardResult = hardFilterNames(taggedNames, hardFilterOptions);
+
+      // 转换 FilterResult 格式
+      const filterResult: FilterResult = {
+        passed: hardResult.passed,
+        removed: hardResult.removed.map((r) => ({
+          name: r.name,
+        reason: r.reasons.map((rr) => rr.reason).join("; "),
+        })),
+      };
+
+      console.log(
+        `[语义起名-降级] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
+      );
+
       return {
         success: true,
         matches: [],
         generatedNames: taggedNames,
-        filteredNames: taggedNames,
-        filterResult: { passed: taggedNames, removed: [] },
+        filteredNames: filterResult.passed,
+        filterResult,
         strategyType: strategy,
         message: `成功生成${taggedNames.length}个名字（降级：AI直接生成）`,
       };
@@ -443,10 +463,27 @@ export async function semanticNamingFlow(
       strategyType: strategy,
     }));
 
-    const filterResult: FilterResult = {
-      passed: [...taggedNames],
-      removed: [],
+    // ✅ 硬性过滤
+    const hardFilterOptions: HardFilterOptions = {
+      surname: request.surname,
     };
+    const hardResult = hardFilterNames(taggedNames, hardFilterOptions);
+
+    const filterResult: FilterResult = {
+      passed: hardResult.passed,
+      removed: hardResult.removed.map((r) => ({
+        name: r.name,
+        reason: r.reasons.map((rr) => rr.reason).join("; "),
+      })),
+    };
+
+    console.log(
+      `[语义起名-主路径] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
+    );
+
+    if (summarizeRemoved(hardResult.removed).length > 0) {
+      console.log(`[语义起名-主路径] 淘汰详情:\n${summarizeRemoved(hardResult.removed)}`);
+    }
 
     console.log(
       `[语义起名] 完成: 策略=${STRATEGY_LABELS[strategy]}, 生成${taggedNames.length}个`
