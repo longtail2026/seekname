@@ -663,7 +663,16 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                               {nameItem.reason && (
                                 <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
                                   <span className="font-medium">典籍出处：</span>
-                                  {nameItem.reason.replace(/([\u4e00-\u9fff]{1,3})(取自|出自)/g, '"$1"$2')}
+                                  {(() => {
+                                    const MAX_LEN = 45;
+                                    let text = nameItem.reason.replace(/([\u4e00-\u9fff])(字?)(?:来自|取自|出自)/g, (m, ch, zi) => `"${ch}"${zi}${m.slice(ch.length + zi.length)}`);
+                                    // 对引号内的原文段落做截断（兼容弯引号\u201c\u201d和直引号"）
+                                    text = text.replace(/[\u201c"]([^\u201d"]{46,})[\u201d"]/g, (match, content) => {
+                                      const quote = match[0];
+                                      return `${quote}${content.slice(0, MAX_LEN)}...${quote === '"' ? '"' : '\u201d'}`;
+                                    });
+                                    return text;
+                                  })()}
                                 </p>
                               )}
                               {nameItem.sourceModern && (
