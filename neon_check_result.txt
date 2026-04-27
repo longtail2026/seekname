@@ -1,0 +1,43 @@
+=== naming_materials columns ===
+  id                             data_type=integer         udt_name=int4
+  phrase                         data_type=character varying udt_name=varchar
+  source                         data_type=character varying udt_name=varchar
+  source_snippet                 data_type=character varying udt_name=varchar
+  meaning                        data_type=character varying udt_name=varchar
+  keywords                       data_type=ARRAY           udt_name=_text
+  style                          data_type=ARRAY           udt_name=_varchar
+  gender                         data_type=character       udt_name=bpchar
+  wuxing                         data_type=character varying udt_name=varchar
+  quality                        data_type=integer         udt_name=int4
+  combos                         data_type=ARRAY           udt_name=_text
+  embedding                      data_type=USER-DEFINED    udt_name=vector
+  created_at                     data_type=timestamp without time zone udt_name=timestamp
+
+pgvector installed: True
+Total rows: 500
+
+embedding column: data_type=USER-DEFINED, udt_name=vector
+
+=== Sample rows ===
+  id=1, phrase=安颐, wuxing=
+  id=2, phrase=康宁, wuxing=
+  id=3, phrase=静和, wuxing=
+  id=4, phrase=佑安, wuxing=
+  id=5, phrase=泰然, wuxing=
+
+=== Vector samples (500 non-null) ===
+  id=1, phrase=安颐, dims=1024
+  id=2, phrase=康宁, dims=1024
+  id=3, phrase=静和, dims=1024
+
+=== Testing pgvector cosine similarity search ===
+  id=210, phrase=颐, similarity=0.935834
+  id=105, phrase=颐, similarity=0.935462
+  id=224, phrase=颐和, similarity=0.789576
+  id=101, phrase=安, similarity=0.594996
+  id=211, phrase=宥, similarity=0.594618
+
+=== Testing with inline vector query ===
+
+ERROR: different vector dimensions 1024 and 10
+
