@@ -1,24 +1,26 @@
 /**
- * 语义匹配起名引擎（OVHcloud BGE-M3 版）
+ * 语义匹配起名引擎（OVHcloud BGE-M3 版）— v3.0 新流程
  * 
- * 核心流程：
- * 1. 客户输入起名意向（如"希望孩子聪明智慧、才华横溢"）
- * 2. 调用 OVHcloud BGE-M3 API（免费、无需 API Key）生成 1024 维语义向量
- * 3. 在 naming_classics 表中做 pgvector 余弦相似度搜索
- * 4. 如果向量搜索结果不足，自动降级到关键词搜索兜底
- * 5. 从匹配到的典籍中提取字词，构建提示词交给 DeepSeek 生成名字
+ * ★ 核心新流程（2026-04 更新）：
+ * 第一步：在 naming_materials 表（已向量化的起名素材表）做语义向量匹配
+ *   → 如果匹配到 ≥5 个候选短语 → 直接给出 20~30 个候选名字构成提示词，交由 AI 润色
+ *   → 如果匹配不到（<5 个）→ 回退到旧流程（naming_classics 典籍搜索 + 传统 prompt）
+ * 
+ * 旧流程（兜底）：
+ * 1. 在 naming_classics 表中做 pgvector 余弦相似度搜索
+ * 2. 从匹配到的典籍中提取字词，构建提示词交给 DeepSeek 生成名字
  * 
  * 策略矩阵集成（v2.0）：
  * - 根据客户风格偏好，自动选择「古典原字优先」「现代实用优先」「古今双轨展示」策略
- * - 策略影响 AI prompt 指令和前端展示方式
  * 
- * 数据库表：naming_classics（典籍词句表，已做 BGE-M3 向量化）
- * 向量列：combined_text_embedding (vector(1024))
- * 索引：idx_naming_classics_embedding (HNSW, cosine_ops)
+ * 数据库表：
+ * - naming_materials（起名素材表，embedding vector(1024)，HNSW 索引）
+ * - naming_classics（典籍词句表，combined_text_embedding vector(1024)）
  */
 
 import { DeepSeekIntegration } from "./deepseek-integration";
 import { searchNamingClassics } from "./semantic-search-naming-classics";
+import { searchNamingMaterials, type NamingMaterialMatch } from "./semantic-search-naming-materials";
 import {
   NamingStrategyType,
   determineStrategy,
@@ -166,7 +168,63 @@ export async function findSemanticMatches(
 }
 
 /**
- * 2. 构建AI提示词（集成策略矩阵）
+ * 2a. 构建AI提示词 - naming_materials 新路径
+ * 当 naming_materials 匹配到候选短语时，直接给出20~30个候选名字构成提示词
+ */
+export function buildNamingMaterialsPrompt(
+  request: SemanticNamingRequest,
+  materials: NamingMaterialMatch[]
+): string {
+  const {
+    surname = "张",
+    gender = "F",
+    expectations = "平安健康，聪明智慧",
+    style = ["古风典雅"],
+    wordCount = 2,
+  } = request;
+
+  const genderText = gender === "M" ? "男" : "女";
+  const styleText = style.join("，");
+
+  // 从 matching materials 中构建候选名字列表
+  const candidateNames = materials
+    .slice(0, 30)
+    .map((m, i) => `  ${i + 1}. 「${m.phrase}」 - ${m.meaning}（出处: ${m.source}，风格: ${m.style.join("/")}，性别倾向: ${m.gender === "M" ? "男" : m.gender === "F" ? "女" : "通用"}）`)
+    .join("\n");
+
+  return `你是一位专业的中文起名专家。
+
+【核心任务】请从以下候选名字素材中精选并润色，生成50个最优的中文名字（每个名字${wordCount}个字）。
+
+【客户需求】
+- 性别：【${genderText}】
+- 姓氏：【${surname}】
+- 期望寓意：【${expectations}】
+- 风格偏好：【${styleText}】
+
+【候选名字素材库】（以下是从语义匹配到的起名素材中提取的候选短语，请从中优先选用和润色）
+${candidateNames}
+以上 30 个候选短语仅供参考，您不必全部使用，而是从中精选最符合客户需求的 20~30 个进行润色，也可以基于这些素材的字意、意境创作新的变体。
+
+【润色要求】
+1. 每个名字应当像完整的词语，有画面感和诗意（如"若溪"如同溪流、"书瑶"如诗书瑶华）
+2. 避免两个抽象字的机械拼接（如"智仁"缺乏画面感）
+3. 注意声调平仄搭配，读起来朗朗上口
+4. 男名宜用刚健、宏大、英武类字，女名宜用柔美、温婉、秀丽类字
+5. 可以基于候选素材的某个字进行同义替换创作（如"若溪"→"若川""若岚"）
+
+【输出格式】用Markdown表格，列包括：序号、名字、拼音、寓意说明、选字理由、典籍出处
+
+【重要】
+1. 必须输出50个名字，一个不能少
+2. 每个名字的出处不能重复
+3. 选字理由必须包含典籍中的具体原文段落（带引号）
+4. 不要添加任何额外的解释、开头语或结尾语
+5. 【关键一致性检查】选字理由中引用的每个字必须确实存在于名字中`;
+}
+
+/**
+ * 2b. 构建AI提示词 - 旧流程（典籍搜索兜底，集成策略矩阵）
  */
 export function buildAIPrompt(
   request: SemanticNamingRequest,
@@ -390,27 +448,33 @@ export async function semanticNamingFlow(
 
     console.log(`[语义起名] 策略选定: ${STRATEGY_LABELS[strategy]}`);
 
-    // 1. 语义匹配 — 根据是否有 intentions 选择搜索模式
-    let searchInput: string | string[];
+    // ================================================================
+    // ★ 新流程第一步：先搜 naming_materials 表（已向量化的起名素材）
+    // ================================================================
+    let currentSearchInput: string;
     if (request.intentions && request.intentions.length > 0) {
-      // 独立搜索模式：每个意向词单独向量化搜索
-      searchInput = request.intentions;
-      console.log(`[语义起名] 使用独立搜索模式: ${request.intentions.length}个意向词`);
+      currentSearchInput = request.intentions.join(" ");
     } else {
-      // 默认混合搜索模式
-      searchInput = request.rawInput || expectations || "";
-      console.log(`[语义起名] 使用混合搜索模式: "${searchInput}"`);
+      currentSearchInput = request.rawInput || expectations || "";
     }
+    console.log(`[语义起名-新流程] ★ 第一步：搜索 naming_materials 表: "${currentSearchInput}"`);
 
-    const matches = await findSemanticMatches(
-      searchInput,
-      10,
-      gender
+    const namingMaterials = await searchNamingMaterials(
+      currentSearchInput,
+      gender,
+      30  // 最多取30个候选
     );
 
-    if (matches.length === 0) {
-      console.log("[语义起名] 未找到典籍匹配，降级为直接使用 DeepSeek 生成名字");
-      const prompt = buildAIPrompt(request, []);
+    if (namingMaterials.length >= 5) {
+      // ================================================================
+      // ★★ 新路径：naming_materials 匹配足够 → 直接构造候选名字让 AI 润色
+      // ================================================================
+      console.log(`[语义起名-新流程] ★★ naming_materials 匹配到 ${namingMaterials.length} 个候选短语 → 走新路径`);
+
+      // 2a. 构建带候选素材的提示词
+      const prompt = buildNamingMaterialsPrompt(request, namingMaterials);
+
+      // 3a. 调用DeepSeek润色生成名字
       const generatedNames = await generateNamesWithDeepSeek(prompt);
 
       if (generatedNames.length === 0) {
@@ -421,11 +485,11 @@ export async function semanticNamingFlow(
           filteredNames: [],
           filterResult: { passed: [], removed: [] },
           strategyType: strategy,
-          message: "未找到匹配的典籍",
+          message: "DeepSeek润色失败（新路径）",
         };
       }
 
-      // 为每个名字标记策略
+      // 4a. 标记策略
       const taggedNames = generatedNames.map((n) => ({
         ...n,
         strategyType: strategy,
@@ -436,18 +500,16 @@ export async function semanticNamingFlow(
         surname: request.surname,
       };
       const hardResult = hardFilterNames(taggedNames, hardFilterOptions);
-
-      // 转换 FilterResult 格式
       const filterResult: FilterResult = {
         passed: hardResult.passed,
         removed: hardResult.removed.map((r) => ({
           name: r.name,
-        reason: r.reasons.map((rr) => rr.reason).join("; "),
+          reason: r.reasons.map((rr) => rr.reason).join("; "),
         })),
       };
 
       console.log(
-        `[语义起名-降级] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
+        `[语义起名-新路径] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
       );
 
       // ✅ 七维加权打分排序
@@ -465,7 +527,7 @@ export async function semanticNamingFlow(
       }) as GeneratedName[];
 
       console.log(
-        `[语义起名-降级] 七维打分排序完成: 前5名 = ${finalScored.slice(0, 5).map(n => `${n.name}(${n.score}分)`).join(", ")}`
+        `[语义起名-新路径] 七维打分排序完成: 前5名 = ${finalScored.slice(0, 5).map(n => `${n.name}(${n.score}分)`).join(", ")}`
       );
 
       return {
@@ -475,14 +537,102 @@ export async function semanticNamingFlow(
         filteredNames: finalScored,
         filterResult,
         strategyType: strategy,
-        message: `成功生成${taggedNames.length}个名字（降级：AI直接生成）`,
+        message: `成功生成${taggedNames.length}个名字（新路径：naming_materials素材润色）`,
       };
     }
 
-    // 2. 构建提示词
+    // ================================================================
+    // ★★ 回退路径：naming_materials 匹配不足（<5）→ 走原来的 naming_classics 搜索流程
+    // ================================================================
+    console.log(`[语义起名-回退] naming_materials 仅匹配到 ${namingMaterials.length} 个（<5），回退到旧典籍搜索流程`);
+
+    // 1. 语义匹配 — 根据是否有 intentions 选择搜索模式
+    let searchInput: string | string[];
+    if (request.intentions && request.intentions.length > 0) {
+      searchInput = request.intentions;
+      console.log(`[语义起名-回退] 使用独立搜索模式: ${request.intentions.length}个意向词`);
+    } else {
+      searchInput = request.rawInput || expectations || "";
+      console.log(`[语义起名-回退] 使用混合搜索模式: "${searchInput}"`);
+    }
+
+    const matches = await findSemanticMatches(
+      searchInput,
+      10,
+      gender
+    );
+
+    if (matches.length === 0) {
+      console.log("[语义起名-回退] 未找到典籍匹配，降级为直接使用 DeepSeek 生成名字");
+      const prompt = buildAIPrompt(request, []);
+      const generatedNames = await generateNamesWithDeepSeek(prompt);
+
+      if (generatedNames.length === 0) {
+        return {
+          success: false,
+          matches: [],
+          generatedNames: [],
+          filteredNames: [],
+          filterResult: { passed: [], removed: [] },
+          strategyType: strategy,
+          message: "未找到匹配的典籍",
+        };
+      }
+
+      const taggedNames = generatedNames.map((n) => ({
+        ...n,
+        strategyType: strategy,
+      }));
+
+      const hardFilterOptions: HardFilterOptions = {
+        surname: request.surname,
+      };
+      const hardResult = hardFilterNames(taggedNames, hardFilterOptions);
+
+      const filterResult: FilterResult = {
+        passed: hardResult.passed,
+        removed: hardResult.removed.map((r) => ({
+          name: r.name,
+          reason: r.reasons.map((rr) => rr.reason).join("; "),
+        })),
+      };
+
+      console.log(
+        `[语义起名-回退-降级] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
+      );
+
+      const scoringContext: ScoringContext = {
+        expectations: request.expectations || "",
+        styles: request.style || [],
+        matchedClassics: [],
+        gender: request.gender || "M",
+        surname: request.surname,
+      };
+      const scoredNames = await scoreAndSortNames(filterResult.passed, scoringContext, { concurrency: 3 });
+      const finalScored = scoredNames.map(sn => {
+        const { scoreBreakdownV2, ...rest } = sn as any;
+        return { ...rest, score: sn.score, scoreBreakdownV2 };
+      }) as GeneratedName[];
+
+      console.log(
+        `[语义起名-回退-降级] 七维打分排序完成: 前5名 = ${finalScored.slice(0, 5).map(n => `${n.name}(${n.score}分)`).join(", ")}`
+      );
+
+      return {
+        success: true,
+        matches: [],
+        generatedNames: taggedNames,
+        filteredNames: finalScored,
+        filterResult,
+        strategyType: strategy,
+        message: `成功生成${taggedNames.length}个名字（回退降级：AI直接生成）`,
+      };
+    }
+
+    // 2b. 构建提示词（旧流程，有典籍匹配）
     const prompt = buildAIPrompt(request, matches);
 
-    // 3. 调用DeepSeek
+    // 3b. 调用DeepSeek
     const generatedNames = await generateNamesWithDeepSeek(prompt);
 
     if (generatedNames.length === 0) {
