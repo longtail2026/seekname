@@ -298,16 +298,57 @@ async function main() {
     `);
     console.log("[setup-db] Table 'subscription' OK");
 
+    // ── 9. naming_materials（起名素材表，带 pgvector 向量支持）───────────────
+    await client.query(`CREATE EXTENSION IF NOT EXISTS vector`).catch(() => {});
+    
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS naming_materials (
+        id              SERIAL        PRIMARY KEY,
+        phrase          VARCHAR(10)   NOT NULL,
+        source          VARCHAR(100),
+        source_snippet  VARCHAR(300),
+        meaning         VARCHAR(200),
+        keywords        TEXT[],
+        style           VARCHAR(50)[],
+        gender          CHAR(1)       DEFAULT 'B',
+        wuxing          VARCHAR(10),
+        quality         INT           DEFAULT 3,
+        combos          TEXT[],
+        embedding       vector(1024),
+        created_at      TIMESTAMPTZ   DEFAULT NOW()
+      )
+    `).catch(async () => {
+      // 如果 vector 类型不可用，用 BYTEA 替代
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS naming_materials (
+          id              SERIAL        PRIMARY KEY,
+          phrase          VARCHAR(10)   NOT NULL,
+          source          VARCHAR(100),
+          source_snippet  VARCHAR(300),
+          meaning         VARCHAR(200),
+          keywords        TEXT[],
+          style           VARCHAR(50)[],
+          gender          CHAR(1)       DEFAULT 'B',
+          wuxing          VARCHAR(10),
+          quality         INT           DEFAULT 3,
+          combos          TEXT[],
+          embedding       BYTEA,
+          created_at      TIMESTAMPTZ   DEFAULT NOW()
+        )
+      `);
+    });
+    console.log("[setup-db] Table 'naming_materials' OK");
+
     // ── 验证所有表都已创建 ──────────────────────────────────────────────────
     const { rows: tables } = await client.query(`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'public'
       AND tablename IN (
         'character_frequency','user','name_record','order',
-        'name_favorite','blog_post','blog_comment','subscription'
+        'name_favorite','blog_post','blog_comment','subscription','naming_materials'
       )
     `);
-    console.log(`[setup-db] Verified ${tables.length}/8 tables exist:`, tables.map(r=>r.tablename).join(', '));
+    console.log(`[setup-db] Verified ${tables.length}/9 tables exist:`, tables.map(r=>r.tablename).join(', '));
 
     client.release();
     await pool.end();
