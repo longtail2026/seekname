@@ -695,8 +695,9 @@ export async function computeScoreV2(
     styleFit.score * WEIGHTS.styleFit
   );
 
-  // 总分最低基线提升到75分（确保不会出现六十几分的低分）
-  total = Math.max(75, total);
+  // 注意：不再设高基线！让评分分布式自然落在40~95分区间
+  // 只设最低40分基线，防止完全无法使用的名字也不至于给0分
+  total = Math.max(40, total);
 
   return {
     semantic,
