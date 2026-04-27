@@ -167,6 +167,84 @@ export async function findSemanticMatches(
   }
 }
 
+// ─── 拼音验证库（常用汉字→拼音映射，用于校验AI生成的拼音是否正确）───
+const COMMON_PINYIN_MAP: Record<string, string> = {
+  "美": "měi", "欣": "xīn", "婉": "wǎn", "如": "rú", "和": "hé",
+  "溪": "xī", "若": "ruò", "书": "shū", "瑶": "yáo", "沐": "mù",
+  "晨": "chén", "语": "yǔ", "晴": "qíng", "雅": "yǎ", "慧": "huì",
+  "婷": "tíng", "静": "jìng", "淑": "shū", "娴": "xián", "德": "dé",
+  "仁": "rén", "义": "yì", "智": "zhì", "信": "xìn", "礼": "lǐ",
+  "毅": "yì", "彤": "tóng", "浩": "hào", "然": "rán", "天": "tiān",
+  "志": "zhì", "远": "yuǎn", "英": "yīng", "杰": "jié", "睿": "ruì",
+  "子": "zǐ", "轩": "xuān", "宇": "yǔ", "涵": "hán", "泽": "zé",
+  "熙": "xī", "宁": "níng", "安": "ān", "乐": "lè", "云": "yún",
+  "月": "yuè", "风": "fēng", "林": "lín", "岚": "lán", "怡": "yí",
+  "桐": "tóng", "瑾": "jǐn", "瑜": "yú", "琪": "qí", "琳": "lín",
+  "璇": "xuán", "萱": "xuān", "雯": "wén", "枫": "fēng", "柏": "bǎi",
+  "筠": "jūn", "菲": "fēi", "蓉": "róng", "薇": "wēi",
+  "芮": "ruì", "芊": "qiān", "芙": "fú", "芷": "zhǐ", "蕙": "huì",
+  "蓝": "lán", "盈": "yíng", "舒": "shū", "媛": "yuàn", "婵": "chán",
+  "昕": "xīn", "昶": "chǎng", "晟": "shèng", "晗": "hán", "曦": "xī",
+  "曜": "yào", "旻": "mín", "昊": "hào", "昱": "yù", "炜": "wěi",
+  "烨": "yè", "熠": "yì", "煜": "yù", "烁": "shuò", "钧": "jūn",
+  "铭": "míng", "锦": "jǐn", "铮": "zhēng", "钺": "yuè", "锐": "ruì",
+  "凯": "kǎi", "博": "bó", "思": "sī", "硕": "shuò", "帆": "fān",
+  "鹏": "péng", "程": "chéng", "鸿": "hóng", "瀚": "hàn", "涛": "tāo",
+  "澜": "lán", "泓": "hóng", "泳": "yǒng", "润": "rùn", "沛": "pèi",
+  "沁": "qìn", "清": "qīng", "澈": "chè", "洁": "jié", "淳": "chún",
+};
+
+/**
+ * 验证并修正AI生成的拼音
+ * AI经常生成错误拼音，如把"美"写成"hé"
+ */
+function validateAndFixPinyin(givenName: string, aiPinyin: string): string {
+  if (!givenName || !aiPinyin) return aiPinyin;
+  
+  // 只取名字部分（不含姓）
+  const nameChars = givenName.split("");
+  const pinyinParts = aiPinyin.trim().split(/\s+/);
+  
+  // 如果字数与拼音段数不匹配，返回原拼音（无法校验）
+  if (nameChars.length !== pinyinParts.length) {
+    // 尝试修正：如果拼音段数多于字数，可能是把出处或别的混进去了
+    if (pinyinParts.length > nameChars.length && nameChars.length > 0) {
+      // 截取最后 N 段（N=字数）
+      const corrected = pinyinParts.slice(-nameChars.length).join(" ");
+      console.log(`[拼音修复] 拼音段数(${pinyinParts.length})>字数(${nameChars.length})，截取后段: "${aiPinyin}" → "${corrected}"`);
+      return corrected;
+    }
+    // 拼音段数少于字数，保持原样
+    return aiPinyin;
+  }
+  
+  // 逐字校验拼音
+  let correctedParts: string[] = [];
+  let hasCorrection = false;
+  
+  for (let i = 0; i < nameChars.length; i++) {
+    const char = nameChars[i];
+    const expectedPinyin = COMMON_PINYIN_MAP[char];
+    const aiPart = pinyinParts[i];
+    
+    if (expectedPinyin && aiPart !== expectedPinyin) {
+      console.log(`[拼音修复] 发现错误拼音: "${char}" → AI="${aiPart}" 应为="${expectedPinyin}"`);
+      correctedParts.push(expectedPinyin);
+      hasCorrection = true;
+    } else {
+      correctedParts.push(aiPart);
+    }
+  }
+  
+  if (hasCorrection) {
+    const result = correctedParts.join(" ");
+    console.log(`[拼音修复] "${givenName}": "${aiPinyin}" → "${result}"`);
+    return result;
+  }
+  
+  return aiPinyin;
+}
+
 /**
  * 2a. 构建AI提示词 - naming_materials 新路径
  * 当 naming_materials 匹配到候选短语时，直接给出20~30个候选名字构成提示词
@@ -365,21 +443,10 @@ export async function generateNamesWithDeepSeek(prompt: string): Promise<Generat
 
 /**
  * 4. 过滤逻辑
+ * 
+ * 注意：不再使用 COMMON_CHARS 白名单过滤（过于严格，会把"梦""紫""雪""韵"等常见好字误杀），
+ * 改为只检查禁忌字黑名单。
  */
-const COMMON_CHARS = new Set([
-  "智", "慧", "仁", "义", "德", "善", "勇", "刚", "强", "成", "功",
-  "健", "康", "安", "宁", "快", "乐", "欣", "悦", "雅", "婉", "淑",
-  "静", "柔", "美", "丽", "婷", "芸", "兰", "芳", "芷", "馨", "怡",
-  "媛", "婕", "娅", "嫣", "伟", "雄", "豪", "杰", "俊", "博", "文",
-  "韬", "略", "宇", "轩", "浩", "泽", "涛", "峰", "岩", "磊", "森",
-  "铭", "锦", "钧", "铮", "铄", "钰", "锐", "锋", "瑞", "璋", "珞",
-  "瑜", "铎", "锡", "铠", "林", "桐", "楠", "梓", "柏", "松", "桦",
-  "柳", "梅", "榆", "槐", "楷", "桂", "枫", "涵", "泽", "洋", "涛",
-  "浩", "清", "源", "沐", "沛", "润", "澜", "淳", "溪", "沁", "瀚",
-  "炎", "煜", "炜", "烨", "熠", "灿", "炅", "煦", "燃", "烽", "焕",
-  "炫", "耀", "辉", "灵", "坤", "培", "基", "城", "垣", "堂", "均",
-  "圣", "壤", "坚", "壁", "堪", "塘", "增", "墨",
-]);
 
 const TABOO_CHARS = new Set([
   "死", "亡", "病", "痛", "伤", "残", "废", "败", "衰", "弱",
@@ -394,44 +461,54 @@ export function filterNames(
   const removed: Array<{ name: string; reason: string }> = [];
 
   for (const name of names) {
-    const givenName = name.name.slice(1);
+    // 注意：name.givenName 已经是去掉姓氏后的名字（由 extractGivenName 处理）
+    // name.name 与 givenName 相同（由 parseMarkdownTable 设置）
+    const givenName = name.givenName || name.name;
     let shouldRemove = false;
     let reason = "";
 
-    for (const char of givenName) {
-      if (TABOO_CHARS.has(char)) {
-        shouldRemove = true;
-        reason = `包含忌讳字: ${char}`;
-        break;
-      }
+    // 1. 性别不适合
+    if (gender === "M" && ["柔", "婉", "淑", "娴", "婷", "嫣", "妍", "娇", "娜", "婵", "媚", "媛"].some(c => givenName.includes(c))) {
+      shouldRemove = true;
+      reason = "名字含女性化字，不适合男性";
+    }
+    if (gender === "F" && ["刚", "强", "雄", "伟", "浩", "毅", "猛", "霸", "彪"].some(c => givenName.includes(c))) {
+      shouldRemove = true;
+      reason = "名字含男性化字，不适合女性";
+    }
+
+    // 2. 负面含义（逐个字符检查）
+    if ([...givenName].some(c => TABOO_CHARS.has(c))) {
+      shouldRemove = true;
+      reason = "含负面含义的字";
+    }
+
+    // 3. 长度检查：名字只能是1~2个字（不包含姓氏）
+    if (givenName.length > 2 || givenName.length < 1) {
+      shouldRemove = true;
+      reason = `名字长度异常（${givenName.length}个字），正常应为1~2个字`;
     }
 
     if (shouldRemove) {
       removed.push({ name: name.name, reason });
-      continue;
+    } else {
+      passed.push(name);
     }
-
-    for (const char of givenName) {
-      if (!COMMON_CHARS.has(char)) {
-        shouldRemove = true;
-        reason = `包含生僻字: ${char}`;
-        break;
-      }
-    }
-
-    if (shouldRemove) {
-      removed.push({ name: name.name, reason });
-      continue;
-    }
-
-    passed.push(name);
   }
 
   return { passed, removed };
 }
 
 /**
- * 5. 主函数：完整的语义匹配起名流程（集成策略矩阵）
+ * 完整的语义起名流程
+ * 
+ * ★ 新流程（两步走）：
+ *   第一步：搜索 naming_materials 表
+ *     → 匹配到 ≥5 个 → 走新路径（素材润色）
+ *     → 匹配不到 → 回退到 naming_classics 搜索
+ * 
+ * ★ 旧流程（兜底）：
+ *   搜索 naming_classics → 构建提示词 → DeepSeek 生成 → 评分排序
  */
 export async function semanticNamingFlow(
   request: SemanticNamingRequest
@@ -441,30 +518,29 @@ export async function semanticNamingFlow(
   generatedNames: GeneratedName[];
   filteredNames: GeneratedName[];
   filterResult: FilterResult;
-  /** 本次使用的策略类型 */
   strategyType: NamingStrategyType;
-  message?: string;
+  message: string;
 }> {
+  const startTime = Date.now();
+  console.log("[语义起名] ========== 开始 ==========");
+  console.log("[语义起名] 输入参数:", JSON.stringify(request, null, 2));
+
+  const { gender = "F" } = request;
+  const strategy = request.strategyType || determineStrategy(request.style || [], request.expectations?.split(/[,，、\s]+/));
+  console.log(`[语义起名] 策略矩阵: 策略=${STRATEGY_LABELS[strategy]}`);
+
   try {
-    console.log("[语义起名] 开始流程...");
-
-    // 确定策略
-    const gender = request.gender || "M";
-    const expectations = request.expectations || "";
-    const styles = request.style || [];
-    const strategy = request.strategyType || determineStrategy(styles, expectations?.split(/[,，、\s]+/));
-    request.strategyType = strategy;
-
-    console.log(`[语义起名] 策略选定: ${STRATEGY_LABELS[strategy]}`);
-
     // ================================================================
-    // ★ 新流程第一步：先搜 naming_materials 表（已向量化的起名素材）
+    // ★ 第一步：搜索 naming_materials 表（新流程）
     // ================================================================
+    console.log("[语义起名-新流程] ★ 第一步：搜索 naming_materials 表");
+
+    // 构建搜索词：优先用 expections + style 组合，其次用 rawInput
     let currentSearchInput: string;
-    if (request.intentions && request.intentions.length > 0) {
-      currentSearchInput = request.intentions.join(" ");
+    if (request.expectations && request.style && request.style.length > 0) {
+      currentSearchInput = `${request.expectations} ${request.style.join(" ")}`;
     } else {
-      currentSearchInput = request.rawInput || expectations || "";
+      currentSearchInput = request.rawInput || request.expectations || "";
     }
     console.log(`[语义起名-新流程] ★ 第一步：搜索 naming_materials 表: "${currentSearchInput}"`);
 
@@ -561,7 +637,7 @@ export async function semanticNamingFlow(
       searchInput = request.intentions;
       console.log(`[语义起名-回退] 使用独立搜索模式: ${request.intentions.length}个意向词`);
     } else {
-      searchInput = request.rawInput || expectations || "";
+      searchInput = request.rawInput || request.expectations || "";
       console.log(`[语义起名-回退] 使用混合搜索模式: "${searchInput}"`);
     }
 
@@ -647,7 +723,7 @@ export async function semanticNamingFlow(
     if (generatedNames.length === 0) {
       return {
         success: false,
-        matches,
+        matches: [],
         generatedNames: [],
         filteredNames: [],
         filterResult: { passed: [], removed: [] },
@@ -801,112 +877,223 @@ function sanitizeReason(reason: string, givenName: string): string {
   return cleaned.length > 0 ? cleaned.join('；') : reason;
 }
 
+/**
+ * 检测表格是否有某列。通过检查前几行数据的列数分布，推断实际列数
+ * 解决AI输出列数不定（有时6列有时7列）导致列索引错位的问题
+ */
+function detectColumnCount(tableLines: string[]): number {
+  // 取前10行数据行，统计列数分布
+  const colCounts: number[] = [];
+  for (const line of tableLines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("|")) {
+      const cells = trimmed.split("|").filter(c => c.trim().length > 0);
+      if (cells.length >= 4) {
+        colCounts.push(cells.length);
+      }
+    }
+  }
+  
+  if (colCounts.length === 0) return 7; // 默认7列
+  
+  // 取众数作为实际列数
+  const freq: Record<number, number> = {};
+  for (const c of colCounts) {
+    freq[c] = (freq[c] || 0) + 1;
+  }
+  
+  let detectedCols = 7;
+  let maxFreq = 0;
+  for (const [cols, count] of Object.entries(freq)) {
+    if (count > maxFreq) {
+      maxFreq = count;
+      detectedCols = parseInt(cols);
+    }
+  }
+  
+  return detectedCols;
+}
+
+/**
+ * 增强版表格解析
+ * 
+ * 核心改进：检测AI输出的实际列数（6列或7列），自适应调整列索引
+ * - 如果检测到7列 → 标准模式：序号、名字、拼音、寓意、理由、出处、现代译文
+ * - 如果检测到6列（缺少现代译文列）→ 调整模式：序号、名字、拼音、寓意、理由、出处
+ * - 如果检测到5列 → 降级模式：序号、名字、拼音、寓意、理由+出处混合
+ */
 function parseMarkdownTable(markdown: string): GeneratedName[] {
   const names: GeneratedName[] = [];
   try {
     const lines = markdown.split("\n");
     let inTable = false;
+    let detectedCols = 7;
+    const dataLines: string[] = [];
 
+    // 第一遍：收集所有表格行并检测列数
     for (const line of lines) {
       const trimmed = line.trim();
-
       if (trimmed.startsWith("|") && trimmed.includes("名字") && trimmed.includes("拼音")) {
         inTable = true;
         continue;
       }
-
       if (inTable && trimmed.startsWith("|") && trimmed.includes("---")) {
         continue;
       }
-
       if (inTable && trimmed.startsWith("|")) {
-        const cells = trimmed
-          .split("|")
-          .map((cell) => cell.trim())
-          .filter((cell) => cell);
+        dataLines.push(trimmed);
+      }
+    }
+    
+    // 检测实际列数
+    detectedCols = detectColumnCount(dataLines);
+    console.log(`[解析表格] 检测到列数: ${detectedCols}（数据行数: ${dataLines.length}）`);
 
-        if (cells.length >= 5) {
-          const rawName = cells[1];
-          let givenName = rawName;
+    // 第二遍：按检测到的列数解析
+    for (const line of dataLines) {
+      const cells = line
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter((cell) => cell);
 
-          // 常见姓氏列表
-          const commonSurnames = new Set([
-            "赵","钱","孙","李","周","吴","郑","王","冯","陈","褚","卫","蒋","沈","韩","杨",
-            "朱","秦","尤","许","何","吕","施","张","孔","曹","严","华","金","魏","陶","姜",
-            "戚","谢","邹","喻","柏","水","窦","章","云","苏","潘","葛","奚","范","彭","郎",
-            "鲁","韦","昌","马","苗","凤","花","方","俞","任","袁","柳","酆","鲍","史","唐",
-            "费","廉","岑","薛","雷","贺","倪","汤","滕","殷","罗","毕","郝","邬","安","常",
-            "乐","于","时","傅","皮","卞","齐","康","伍","余","元","卜","顾","孟","平","黄",
-            "和","穆","萧","尹","姚","邵","湛","汪","祁","毛","禹","狄","米","贝","明","臧",
-            "计","伏","成","戴","谈","宋","茅","庞","熊","纪","舒","屈","项","祝","董","梁",
-            "杜","阮","蓝","闵","席","季","麻","强","贾","路","娄","危","江","童","颜","郭",
-            "梅","盛","林","刁","钟","徐","邱","骆","高","夏","蔡","田","樊","胡","凌","霍",
-            "虞","万","支","柯","昝","管","卢","莫","经","房","裘","缪","干","解","应","宗",
-            "丁","宣","贲","邓","郁","单","杭","洪","包","诸","左","石","崔","吉","钮","龚",
-            "程","嵇","邢","滑","裴","陆","荣","翁","荀","羊","於","惠","甄","曲","家","封",
-            "芮","羿","储","靳","汲","邴","糜","松","井","段","富","巫","乌","焦","巴","弓",
-            "牧","隗","山","谷","车","侯","宓","蓬","全","郗","班","仰","秋","仲","伊","宫",
-            "宁","仇","栾","暴","甘","钭","厉","戎","祖","武","符","刘","景","詹","束","龙",
-            "叶","幸","司","韶","郜","黎","蓟","薄","印","宿","白","怀","蒲","邰","从","鄂",
-            "索","咸","籍","赖","卓","蔺","屠","蒙","池","乔","阴","郁","胥","能","苍","双",
-            "闻","莘","党","翟","谭","贡","劳","逄","姬","申","扶","堵","冉","宰","郦","雍",
-            "郤","璩","桑","桂","濮","牛","寿","通","边","扈","燕","冀","郏","浦","尚","农",
-            "温","别","庄","晏","柴","瞿","阎","充","慕","连","茹","习","宦","艾","鱼","容",
-            "向","古","易","慎","戈","廖","庾","终","暨","居","衡","步","都","耿","满","弘",
-            "匡","国","文","寇","广","禄","阙","东","欧","殳","沃","利","蔚","越","夔","隆",
-            "师","巩","厍","聂","晁","勾","敖","融","冷","訾","辛","阚","那","简","饶","空",
-            "曾","毋","沙","乜","养","鞠","须","丰","巢","关","蒯","相","查","后","荆","红",
-            "游","竺","权","逯","盖","益","桓","公","万俟","司马","上官","欧阳","夏侯","诸葛",
-            "闻人","东方","赫连","皇甫","尉迟","公羊","澹台","公冶","宗政","濮阳","淳于","单于",
-            "太叔","申屠","公孙","仲孙","轩辕","令狐","钟离","宇文","长孙","慕容","鲜于","闾丘",
-            "司徒","司空","亓官","司寇","仉","督","子车","颛孙","端木","巫马","公西","漆雕",
-            "乐正","壤驷","公良","拓跋","夹谷","宰父","谷梁","晋","楚","闫","法","汝","鄢","涂",
-            "钦","段干","百里","东郭","南门","呼延","归","海","羊舌","微生","岳","帅","缑","亢",
-            "况","后","有","琴","梁丘","左丘","东门","西门","商","牟","佘","佴","伯","赏","南宫",
-            "墨","哈","谯","笪","年","爱","阳","佟","第五","言","福",
-          ]);
+      if (cells.length < 5) continue; // 至少需要5列
 
-          if (/^[\u4e00-\u9fff]{3,}$/.test(rawName)) {
-            const potentialDoubleSurname = rawName.slice(0, 2);
-            if (commonSurnames.has(potentialDoubleSurname)) {
-              givenName = rawName.slice(2);
-            } else {
-              const potentialSingleSurname = rawName.slice(0, 1);
-              if (commonSurnames.has(potentialSingleSurname) && rawName.length >= 3) {
-                givenName = rawName.slice(1);
-              }
-            }
-          }
+      // ── 自适应列映射 ──
+      // 实际列数 >= 7 → 7列标准模式
+      // 实际列数 = 6 → 无现代译文模式
+      // 实际列数 = 5 → 降级模式（出处合并在理由中）
+      
+      let givenName: string;
+      let pinyin: string;
+      let meaning: string;
+      let reason: string;
+      let source: string;
+      let modernText: string;
 
-          const pinyin = cells[2];
-          const meaning = cells[3];
-          const reason = cells[4];
-          const source = cells.length >= 6 ? cells[5] : "";
-          const modernText = cells.length >= 7 ? cells[6] : "";
-          const name = givenName;
-
-          // 校验 reason：移除引用了名字中不存在的汉字的部分（LLM幻觉防御）
-          const cleanedReason = sanitizeReason(reason, givenName);
-
-          names.push({
-            name,
-            givenName,
-            pinyin,
-            meaning,
-            reason: cleanedReason,
-            source,
-            modernText,
-            score: 80,
-          });
+      if (cells.length >= 7) {
+        // 标准7列模式: 序号、名字、拼音、寓意说明、选字理由、典籍出处、现代译文
+        const rawName = cells[1];
+        givenName = extractGivenName(rawName);
+        pinyin = cells[2];
+        meaning = cells[3];
+        reason = cells[4];
+        source = cells[5];
+        modernText = cells[6];
+      } else if (cells.length === 6) {
+        // 6列模式（缺现代译文）: 序号、名字、拼音、寓意说明、选字理由、典籍出处
+        const rawName = cells[1];
+        givenName = extractGivenName(rawName);
+        pinyin = cells[2];
+        meaning = cells[3];
+        reason = cells[4];
+        source = cells[5];
+        modernText = ""; // 无现代译文
+      } else {
+        // 5列降级模式: 序号、名字、拼音、寓意说明、选字理由+出处混合
+        const rawName = cells[1];
+        givenName = extractGivenName(rawName);
+        pinyin = cells[2];
+        meaning = cells[3];
+        // 尝试从理由中分离出处
+        const combined = cells[4];
+        const sourceMatch = combined.match(/[（(]?出自.*?[）)]?/);
+        if (sourceMatch) {
+          source = sourceMatch[0];
+          reason = combined.replace(sourceMatch[0], "").trim();
+        } else {
+          reason = combined;
+          source = "";
         }
+        modernText = "";
       }
 
-      if (names.length >= 50) break;
+      // ✅ 关键修复：校验并修正拼音
+      pinyin = validateAndFixPinyin(givenName, pinyin);
+
+      // ✅ 关键修复：过滤4字名（含姓3字或4字都不行）
+      if (givenName.length > 2 || givenName.length < 1) {
+        console.log(`[解析表格] 跳过长度异常的名字: "${givenName}"（${givenName.length}个字）`);
+        continue;
+      }
+
+      // ✅ 校验 reason：移除引用了名字中不存在的汉字的部分（LLM幻觉防御）
+      const cleanedReason = sanitizeReason(reason, givenName);
+
+      names.push({
+        name: givenName,
+        givenName,
+        pinyin,
+        meaning,
+        reason: cleanedReason,
+        source,
+        modernText,
+        score: 80,
+      });
     }
+
+    console.log(`[解析表格] 解析完成: 共 ${names.length} 个名字`);
   } catch (error) {
     console.error("[解析表格] 失败:", error);
   }
   return names;
+}
+
+/**
+ * 从可能的"姓氏+名字"格式中提取名字（givenName）
+ * 处理 "张美欣" → "美欣"，"李毅" → "毅"
+ */
+function extractGivenName(rawName: string): string {
+  // 常见姓氏列表
+  const commonSurnames = new Set([
+    "赵","钱","孙","李","周","吴","郑","王","冯","陈","褚","卫","蒋","沈","韩","杨",
+    "朱","秦","尤","许","何","吕","施","张","孔","曹","严","华","金","魏","陶","姜",
+    "戚","谢","邹","喻","柏","水","窦","章","云","苏","潘","葛","奚","范","彭","郎",
+    "鲁","韦","昌","马","苗","凤","花","方","俞","任","袁","柳","酆","鲍","史","唐",
+    "费","廉","岑","薛","雷","贺","倪","汤","滕","殷","罗","毕","郝","邬","安","常",
+    "乐","于","时","傅","皮","卞","齐","康","伍","余","元","卜","顾","孟","平","黄",
+    "和","穆","萧","尹","姚","邵","湛","汪","祁","毛","禹","狄","米","贝","明","臧",
+    "计","伏","成","戴","谈","宋","茅","庞","熊","纪","舒","屈","项","祝","董","梁",
+    "杜","阮","蓝","闵","席","季","麻","强","贾","路","娄","危","江","童","颜","郭",
+    "梅","盛","林","刁","钟","徐","邱","骆","高","夏","蔡","田","樊","胡","凌","霍",
+    "虞","万","支","柯","昝","管","卢","莫","经","房","裘","缪","干","解","应","宗",
+    "丁","宣","贲","邓","郁","单","杭","洪","包","诸","左","石","崔","吉","钮","龚",
+    "程","嵇","邢","滑","裴","陆","荣","翁","荀","羊","於","惠","甄","曲","家","封",
+    "芮","羿","储","靳","汲","邴","糜","松","井","段","富","巫","乌","焦","巴","弓",
+    "牧","隗","山","谷","车","侯","宓","蓬","全","郗","班","仰","秋","仲","伊","宫",
+    "宁","仇","栾","暴","甘","钭","厉","戎","祖","武","符","刘","景","詹","束","龙",
+    "叶","幸","司","韶","郜","黎","蓟","薄","印","宿","白","怀","蒲","邰","从","鄂",
+    "索","咸","籍","赖","卓","蔺","屠","蒙","池","乔","阴","郁","胥","能","苍","双",
+    "闻","莘","党","翟","谭","贡","劳","逄","姬","申","扶","堵","冉","宰","郦","雍",
+    "郤","璩","桑","桂","濮","牛","寿","通","边","扈","燕","冀","郏","浦","尚","农",
+    "温","别","庄","晏","柴","瞿","阎","充","慕","连","茹","习","宦","艾","鱼","容",
+    "向","古","易","慎","戈","廖","庾","终","暨","居","衡","步","都","耿","满","弘",
+    "匡","国","文","寇","广","禄","阙","东","欧","殳","沃","利","蔚","越","夔","隆",
+    "师","巩","厍","聂","晁","勾","敖","融","冷","訾","辛","阚","那","简","饶","空",
+    "曾","毋","沙","乜","养","鞠","须","丰","巢","关","蒯","相","查","后","荆","红",
+    "游","竺","权","逯","盖","益","桓","公","万俟","司马","上官","欧阳","夏侯","诸葛",
+    "闻人","东方","赫连","皇甫","尉迟","公羊","澹台","公冶","宗政","濮阳","淳于","单于",
+    "太叔","申屠","公孙","仲孙","轩辕","令狐","钟离","宇文","长孙","慕容","鲜于","闾丘",
+    "司徒","司空","亓官","司寇","仉","督","子车","颛孙","端木","巫马","公西","漆雕",
+    "乐正","壤驷","公良","拓跋","夹谷","宰父","谷梁","晋","楚","闫","法","汝","鄢","涂",
+    "钦","段干","百里","东郭","南门","呼延","归","海","羊舌","微生","岳","帅","缑","亢",
+    "况","后","有","琴","梁丘","左丘","东门","西门","商","牟","佘","佴","伯","赏","南宫",
+    "墨","哈","谯","笪","年","爱","阳","佟","第五","言","福",
+  ]);
+
+  if (!rawName) return "";
+
+  // 尝试去掉常见姓氏
+  const potentialDoubleSurname = rawName.slice(0, 2);
+  if (commonSurnames.has(potentialDoubleSurname)) {
+    return rawName.slice(2);
+  }
+  const potentialSingleSurname = rawName.slice(0, 1);
+  if (commonSurnames.has(potentialSingleSurname) && rawName.length >= 2) {
+    return rawName.slice(1);
+  }
+  
+  // 如果实际传入的 fullName 里没有姓（可能AI没有加姓），直接作为 givenName
+  return rawName;
 }
 
 // 导出
