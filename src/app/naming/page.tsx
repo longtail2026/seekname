@@ -264,6 +264,11 @@ function NamingResultContent() {
               reasonVal = n.reason;
             }
 
+            // 新增：modernText 字段映射
+            if (n?.modernText && typeof n.modernText === "string") {
+              sourceModernVal = n.modernText;
+            }
+
             if (n?.source) {
               if (typeof n.source === "string") {
                 sourceValue = n.source;
@@ -677,7 +682,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                               )}
                               {nameItem.sourceModern && (
                                 <p className="text-xs text-[#8B7355] leading-relaxed">
-                                  <span className="font-medium text-[#2C1810]">现代翻译：</span>
+                                  <span className="font-medium text-[#2C1810]">现代译文：</span>
                                   {nameItem.sourceModern}
                                 </p>
                               )}
