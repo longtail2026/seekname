@@ -47,6 +47,8 @@ interface NameItem {
   sourceText?: string;
   sourceModern?: string;
   reason?: string;
+  charWuxingDetails?: Array<{ char: string; wuxing: string; matchStatus: "喜用" | "忌用" | "中性" | "未知" }>;
+  wuxingPrefReason?: string;
   culturalScore?: number;
   harmonyScore?: number;
   uniqueness?: string;
@@ -75,7 +77,18 @@ function NamingResultContent() {
 
   const [loading, setLoading] = useState(true);
   const [names, setNames] = useState<NameItem[]>([]);
-  const [wuxingResult, setWuxingResult] = useState<{ likes: string[]; avoids: string[] } | null>(null);
+  const [wuxingResult, setWuxingResult] = useState<{
+    likes: string[];
+    avoids: string[];
+    bazi?: string;
+    dayMaster?: string;
+    dayMasterWuxing?: string;
+    wuxingSummary?: string;
+    missing?: string[];
+    isExcessive?: boolean;
+    isWeak?: boolean;
+    description?: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(SITE_CONFIG.paywall.enabled);
   const [unlocked, setUnlocked] = useState(false);
@@ -300,6 +313,8 @@ function NamingResultContent() {
               sourceText: sourceTextVal,
               sourceModern: sourceModernVal,
               reason: reasonVal,
+              charWuxingDetails: n?.charWuxingDetails as Array<{ char: string; wuxing: string; matchStatus: "喜用" | "忌用" | "中性" | "未知" }> | undefined,
+              wuxingPrefReason: n?.wuxingPrefReason as string | undefined,
               culturalScore: typeof n?.scoreBreakdown?.cultural === "number" ? n.scoreBreakdown.cultural : undefined,
               harmonyScore: typeof n?.scoreBreakdown?.harmony === "number" ? n.scoreBreakdown.harmony : undefined,
               uniqueness: (n?.uniqueness || "medium") as "high" | "medium" | "low",
@@ -525,23 +540,91 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* 用户输入信息 */}
+        <div className="ancient-card p-5 mb-6 bg-gradient-to-r from-[#F0F7F4] to-[#FDFAF4] border-l-4 border-l-[#2C5F4A]">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-[#2C5F4A]" />
+            <span className="font-semibold text-[#2C1810] text-sm">起名条件</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white/70 rounded-lg p-2.5 text-center">
+              <div className="text-xs text-[#5C4A42] mb-0.5">姓氏</div>
+              <div className="font-bold text-[#2C1810]">{surname}</div>
+            </div>
+            <div className="bg-white/70 rounded-lg p-2.5 text-center">
+              <div className="text-xs text-[#5C4A42] mb-0.5">性别</div>
+              <div className="font-bold text-[#2C1810]">{gender === 'M' ? '男' : '女'}</div>
+            </div>
+            <div className="bg-white/70 rounded-lg p-2.5 text-center">
+              <div className="text-xs text-[#5C4A42] mb-0.5">出生</div>
+              <div className="font-bold text-[#2C1810] text-sm">
+                {birthDate ? `${new Date(birthDate).getFullYear()}年${new Date(birthDate).getMonth() + 1}月${new Date(birthDate).getDate()}日` : '未填写'}
+              </div>
+            </div>
+            <div className="bg-white/70 rounded-lg p-2.5 text-center">
+              <div className="text-xs text-[#5C4A42] mb-0.5">出生时间</div>
+              <div className="font-bold text-[#2C1810] text-sm">{birthTime || '未填写'}</div>
+            </div>
+          </div>
+          {/* 期望和意向 */}
+          {(expectations || intentions.length > 0 || styles.length > 0) && (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {expectations && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-[#2C5F4A]/10 text-[#2C5F4A]">
+                  <Sparkles className="w-3 h-3" />
+                  期望：{expectations}
+                </span>
+              )}
+              {(intentions || []).map((intent: string, i: number) => (
+                <span key={`intent-${i}`} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-[#C9A84C]/15 text-[#8B6914]">
+                  {intent}
+                </span>
+              ))}
+              {(styles || []).map((st: string, i: number) => (
+                <span key={`style-${i}`} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-[#C84A2A]/10 text-[#C84A2A]">
+                  {st}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* 八字五行分析 */}
         {wuxingResult && (
-          <div className="ancient-card p-6 mb-8 bg-gradient-to-r from-[#F8F3EA] to-[#FDFAF4]">
+          <div className="ancient-card p-6 mb-6 bg-gradient-to-r from-[#F8F3EA] to-[#FDFAF4]">
             <div className="flex items-center gap-2 mb-4">
               <BookOpen className="w-5 h-5 text-[#C9A84C]" />
               <span className="font-medium text-[#2C1810]">八字五行分析</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               {[
-                { label: "八字", value: birthDate ? `${new Date(birthDate).getFullYear()}年` : "待输入" },
-                { label: "五行喜用", value: (wuxingResult.likes || []).join("、") || "水木" },
-                { label: "五行忌用", value: (wuxingResult.avoids || []).join("、") || "无" },
-                { label: "推荐用字", value: wuxingResult?.likes?.length ? `补${wuxingResult.likes.join("补")}` : "补水补木" },
+                { 
+                  label: "八字", 
+                  value: birthDate ? `${new Date(birthDate).getFullYear()}年` : "待输入",
+                  detail: wuxingResult.bazi ? `日主${wuxingResult.dayMaster}（${wuxingResult.dayMasterWuxing}）` : undefined
+                },
+                { 
+                  label: "五行喜用", 
+                  value: (wuxingResult.likes || []).join("、") || "水木",
+                  detail: wuxingResult.description ? wuxingResult.description.slice(0, 20) : undefined
+                },
+                { 
+                  label: "五行忌用", 
+                  value: (wuxingResult.avoids || []).join("、") || "无",
+                  detail: wuxingResult.missing?.length ? `缺${wuxingResult.missing.join("、")}` : undefined
+                },
+                { 
+                  label: "推荐用字", 
+                  value: wuxingResult?.likes?.length ? `补${wuxingResult.likes.join("补")}` : "补水补木",
+                  detail: wuxingResult.isExcessive ? "身强宜泄" : wuxingResult.isWeak ? "身弱宜补" : undefined
+                },
               ].map((item, i) => (
                 <div key={i} className="p-3 bg-white rounded-lg">
                   <div className="text-xs text-[#5C4A42] mb-1">{item.label}</div>
                   <div className="font-medium text-[#2C1810] text-sm">{item.value}</div>
+                  {item.detail && (
+                    <div className="text-[10px] text-[#8B7355] mt-0.5">{item.detail}</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -695,6 +778,51 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                             </div>
                           );
                         })()}
+
+                        {/* 逐字五行分析 */}
+                        {nameItem.charWuxingDetails && nameItem.charWuxingDetails.length > 0 && (
+                          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] text-[#5C4A42] mr-1">五行匹配：</span>
+                            {nameItem.charWuxingDetails.map((cd, i) => (
+                              <span
+                                key={i}
+                                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  cd.matchStatus === "喜用"
+                                    ? "bg-green-100 text-green-700"
+                                    : cd.matchStatus === "忌用"
+                                    ? "bg-red-100 text-red-600"
+                                    : cd.matchStatus === "中性"
+                                    ? "bg-gray-100 text-gray-500"
+                                    : "bg-yellow-50 text-yellow-600"
+                                }`}
+                              >
+                                {cd.char}
+                                {cd.wuxing && (
+                                  <span
+                                    className="text-[9px]"
+                                    style={{ color: wuxingColors[cd.wuxing] || "#999" }}
+                                  >
+                                    {cd.wuxing}
+                                  </span>
+                                )}
+                                <span className="text-[9px] opacity-70">({cd.matchStatus})</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 五行喜忌理由 */}
+                        {nameItem.wuxingPrefReason && (
+                          <div className="p-2 bg-[#F0F7F4] rounded-lg border-l-2 border-[#2C5F4A]">
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <Sparkles className="w-3 h-3 text-[#2C5F4A]" />
+                              <span className="text-[10px] font-medium text-[#2C5F4A]">五行喜忌匹配</span>
+                            </div>
+                            <p className="text-[10px] text-[#5C4A42] leading-relaxed">
+                              {nameItem.wuxingPrefReason}
+                            </p>
+                          </div>
+                        )}
 
                       </>
                     )}

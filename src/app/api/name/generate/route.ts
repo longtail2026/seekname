@@ -411,8 +411,25 @@ export async function POST(request: NextRequest) {
       
       // 从数据库查询名字中各字的五行（有缺失时用默认）
       let wuxing = "";
+      // 逐字五行分析：每个字符的五行 + 匹配喜忌状态
+      const charWuxingDetails: Array<{ char: string; wuxing: string; matchStatus: "喜用" | "忌用" | "中性" | "未知" }> = [];
       if (givenName.length >= 1) {
-        const wuxingList = givenName.split('').map(char => charWuxingMap.get(char) || "").filter(w => w);
+        const chars = givenName.split('');
+        chars.forEach(char => {
+          const wx = charWuxingMap.get(char) || "";
+          let matchStatus: "喜用" | "忌用" | "中性" | "未知" = "中性";
+          if (wx && wuxingResult.likes?.includes(wx)) {
+            matchStatus = "喜用";
+          } else if (wx && wuxingResult.avoids?.includes(wx)) {
+            matchStatus = "忌用";
+          } else if (wx) {
+            matchStatus = "中性";
+          } else {
+            matchStatus = "未知";
+          }
+          charWuxingDetails.push({ char, wuxing: wx, matchStatus });
+        });
+        const wuxingList = chars.map(char => charWuxingMap.get(char) || "").filter(w => w);
         wuxing = wuxingList.length > 0 ? wuxingList.join("") : "木火";
       } else {
         wuxing = "木火";
@@ -469,14 +486,7 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // 如果没有匹配到，使用第一个数据库匹配的原文和译文
-        if (!matchedModernText && result.matches.length > 0) {
-          const firstMatch = result.matches[0];
-          matchedModernText = firstMatch.modernText || "";
-          if (firstMatch.ancientText && !matchedAncientText) {
-            matchedAncientText = firstMatch.ancientText;
-          }
-        }
+        // 如果没有匹配到译文的，保持为空字符串，不强制使用第一个匹配的译文（防止所有名字译文雷同）
         
         source = {
           book: displayBook,
@@ -506,11 +516,34 @@ export async function POST(request: NextRequest) {
       // 拼接姓氏（保证不重复）
       const fullName = surname + givenName;
 
+      // 构建五行喜忌理由文本
+      const wuxingMatchCount = charWuxingDetails.filter(d => d.matchStatus === "喜用").length;
+      const wuxingAvoidCount = charWuxingDetails.filter(d => d.matchStatus === "忌用").length;
+      const wuxingReasonParts: string[] = [];
+      charWuxingDetails.forEach(d => {
+        if (d.wuxing) {
+          wuxingReasonParts.push(`"${d.char}"属${d.wuxing}，为${d.matchStatus}字`);
+        } else {
+          wuxingReasonParts.push(`"${d.char}"五行未知`);
+        }
+      });
+      let wuxingConclusion = "";
+      if (wuxingMatchCount > wuxingAvoidCount) {
+        wuxingConclusion = `名字整体匹配喜用五行（${wuxingResult.likes?.join("、") || "未定"}），有助于补益八字`;
+      } else if (wuxingAvoidCount > 0) {
+        wuxingConclusion = `建议优先选择喜用五行（${wuxingResult.likes?.join("、") || "未定"}）的字`;
+      } else {
+        wuxingConclusion = `名字五行与八字喜忌协调，属中性选择`;
+      }
+      const wuxingPrefReason = wuxingReasonParts.join("；") + (wuxingReasonParts.length > 0 ? `。${wuxingConclusion}` : "");
+
       return {
         name: fullName,
         givenName: givenName,
         pinyin: resolved.pinyin,
         wuxing,
+        charWuxingDetails,
+        wuxingPrefReason,
         meaning: resolved.meaning,
         reason: resolved.reason,
         strokeCount,
@@ -560,11 +593,39 @@ export async function POST(request: NextRequest) {
         // 使用真实打分（result.filteredNames中有评分），而不是默认80分
         const realScore = name.score ?? 80;
 
+        // 逐字五行分析
+        const additionalChars = givenName.split('');
+        const additionalCharWuxingDetails: Array<{ char: string; wuxing: string; matchStatus: "喜用" | "忌用" | "中性" | "未知" }> = [];
+        additionalChars.forEach(char => {
+          const wx = charWuxingMap.get(char) || "";
+          let matchStatus: "喜用" | "忌用" | "中性" | "未知" = "中性";
+          if (wx && wuxingResult.likes?.includes(wx)) {
+            matchStatus = "喜用";
+          } else if (wx && wuxingResult.avoids?.includes(wx)) {
+            matchStatus = "忌用";
+          } else if (wx) {
+            matchStatus = "中性";
+          } else {
+            matchStatus = "未知";
+          }
+          additionalCharWuxingDetails.push({ char, wuxing: wx, matchStatus });
+        });
+        const additionalWuxingParts: string[] = [];
+        additionalCharWuxingDetails.forEach(d => {
+          if (d.wuxing) {
+            additionalWuxingParts.push(`"${d.char}"属${d.wuxing}，为${d.matchStatus}字`);
+          }
+        });
+        const additionalWuxingConclusion = `名字五行（${wuxing}）与八字喜忌匹配`;
+        const additionalWuxingPrefReason = additionalWuxingParts.join("；") + (additionalWuxingParts.length > 0 ? `。${additionalWuxingConclusion}` : "");
+
         return {
           name: fullName,
           givenName: name.givenName,
           pinyin: name.pinyin,
           wuxing,
+          charWuxingDetails: additionalCharWuxingDetails,
+          wuxingPrefReason: additionalWuxingPrefReason,
           meaning: name.meaning,
           reason: name.reason || "",
           strokeCount,
