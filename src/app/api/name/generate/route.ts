@@ -321,13 +321,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] 语义匹配成功: 匹配典籍${result.matches.length}个，生成名字${result.generatedNames.length}个，过滤后保留${result.filteredNames.length}个`);
 
-    // ── 后处理：分散用字（同一汉字最多出现2次，同音字最多出现2次）──
-    // 作为 AI prompt 之外的安全兜底，防止 AI 不遵守用字分散要求
-    const diversifyResult = SemanticNamingEngine.diversifyNames(result.filteredNames, 2, 2);
-    if (diversifyResult.removed.length > 0) {
-      console.log(`[API-分散后处理] 共移除${diversifyResult.removed.length}个名字，理由:`, diversifyResult.removed);
+    // ── 后处理：分散用字 ──
+    // 作为 AI prompt 之外的安全兜底。只用当名字足够多(>20)时才启用，
+    // 且 maxRepeat=3 以避免过于严苛剔除所有名字，
+    // 同音字 maxHomophoneRepeat=3 同样放宽。
+    let diversifiedNames = result.filteredNames;
+    if (result.filteredNames.length > 20) {
+      const diversifyResult = SemanticNamingEngine.diversifyNames(result.filteredNames, 3, 3);
+      if (diversifyResult.removed.length > 0) {
+        console.log(`[API-分散后处理] 共移除${diversifyResult.removed.length}个名字，理由:`, diversifyResult.removed);
+      }
+      diversifiedNames = diversifyResult.diversified;
     }
-    const diversifiedNames = diversifyResult.diversified;
 
     // ── 转换结果为API格式 ──
     // 先将 DeepSeek 返回的名字解析为 (givenName, rawSource) 对
