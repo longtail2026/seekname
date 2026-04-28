@@ -343,6 +343,7 @@ export async function POST(request: NextRequest) {
       meaning: string;
       reason: string;
       rawSource: string;
+      modernText: string;
       score: number;
       scoreBreakdownV2?: Record<string, number>;
     }
@@ -374,6 +375,7 @@ export async function POST(request: NextRequest) {
         meaning: name.meaning,
         reason: name.reason,
         rawSource: cleanedSource,
+        modernText: name.modernText || "",
         score: name.score ?? 80,
         scoreBreakdownV2: (name as any).scoreBreakdownV2,
       };
@@ -486,7 +488,34 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // 如果没有匹配到译文的，保持为空字符串，不强制使用第一个匹配的译文（防止所有名字译文雷同）
+        // 第一优先：使用 DeepSeek 原始返回的现代译文
+        if (!matchedModernText && resolved.modernText) {
+          matchedModernText = resolved.modernText;
+        }
+        
+        // 如果没有精准匹配到译文，尝试宽松匹配：用第一个同书名的典籍译文
+        if (!matchedModernText && result.matches.length > 0 && rawBookName) {
+          const cleanRawBook = rawBookName.replace(/[《》\s]/g, '');
+          for (let i = 0; i < result.matches.length; i++) {
+            const match = result.matches[i];
+            const cleanMatchBook = match.bookName.replace(/[《》\s]/g, '');
+            // 书名包含或被包含就算匹配（宽松版）
+            if (cleanRawBook.includes(cleanMatchBook) || cleanMatchBook.includes(cleanRawBook)) {
+              matchedModernText = match.modernText || "";
+              break;
+            }
+          }
+        }
+        
+        // 如果仍无匹配，选择第一个有 modernText 的典籍（避免空译文）
+        if (!matchedModernText && result.matches.length > 0) {
+          for (const match of result.matches) {
+            if (match.modernText) {
+              matchedModernText = match.modernText;
+              break;
+            }
+          }
+        }
         
         source = {
           book: displayBook,
@@ -684,6 +713,8 @@ export async function POST(request: NextRequest) {
             reason: n.reason,
             source: n.source,
             score: n.score,
+            charWuxingDetails: n.charWuxingDetails,
+            wuxingPrefReason: n.wuxingPrefReason,
           })),
         }
       : null;
