@@ -19,6 +19,7 @@
  */
 
 import { DeepSeekIntegration } from "./deepseek-integration";
+import { pinyin } from "pinyin-pro";
 import { searchNamingClassics } from "./semantic-search-naming-classics";
 import { searchNamingMaterials, type NamingMaterialMatch } from "./semantic-search-naming-materials";
 import {
@@ -167,47 +168,14 @@ export async function findSemanticMatches(
   }
 }
 
-// ─── 拼音验证库（常用汉字→拼音映射，用于校验AI生成的拼音是否正确）───
-const COMMON_PINYIN_MAP: Record<string, string> = {
-  "美": "měi", "欣": "xīn", "婉": "wǎn", "如": "rú", "和": "hé",
-  "溪": "xī", "若": "ruò", "书": "shū", "瑶": "yáo", "沐": "mù",
-  "晨": "chén", "语": "yǔ", "晴": "qíng", "雅": "yǎ", "慧": "huì",
-  "婷": "tíng", "静": "jìng", "淑": "shū", "娴": "xián", "德": "dé",
-  "仁": "rén", "义": "yì", "智": "zhì", "信": "xìn", "礼": "lǐ",
-  "毅": "yì", "彤": "tóng", "浩": "hào", "然": "rán", "天": "tiān",
-  "志": "zhì", "远": "yuǎn", "英": "yīng", "杰": "jié", "睿": "ruì",
-  "子": "zǐ", "轩": "xuān", "宇": "yǔ", "涵": "hán", "泽": "zé",
-  "熙": "xī", "宁": "níng", "安": "ān", "乐": "lè", "云": "yún",
-  "月": "yuè", "风": "fēng", "林": "lín", "岚": "lán", "怡": "yí",
-  "桐": "tóng", "瑾": "jǐn", "瑜": "yú", "琪": "qí", "琳": "lín",
-  "璇": "xuán", "萱": "xuān", "雯": "wén", "枫": "fēng", "柏": "bǎi",
-  "筠": "jūn", "菲": "fēi", "蓉": "róng", "薇": "wēi",
-  "芮": "ruì", "芊": "qiān", "芙": "fú", "芷": "zhǐ", "蕙": "huì",
-  "蓝": "lán", "盈": "yíng", "舒": "shū", "媛": "yuàn", "婵": "chán",
-  "昕": "xīn", "昶": "chǎng", "晟": "shèng", "晗": "hán", "曦": "xī",
-  "曜": "yào", "旻": "mín", "昊": "hào", "昱": "yù", "炜": "wěi",
-  "烨": "yè", "熠": "yì", "煜": "yù", "烁": "shuò", "钧": "jūn",
-  "铭": "míng", "锦": "jǐn", "铮": "zhēng", "钺": "yuè", "锐": "ruì",
-  "凯": "kǎi", "博": "bó", "思": "sī", "硕": "shuò", "帆": "fān",
-  "鹏": "péng", "程": "chéng", "鸿": "hóng", "瀚": "hàn", "涛": "tāo",
-  "澜": "lán", "泓": "hóng", "泳": "yǒng", "润": "rùn", "沛": "pèi",
-  "沁": "qìn", "清": "qīng", "澈": "chè", "洁": "jié", "淳": "chún",
-  "昫": "xù", "禔": "zhī", "珝": "xǔ", "琸": "zhuó",
-  "甯": "nìng", "嬛": "huán", "翛": "xiāo", "瓅": "lì", "璥": "jǐng",
-  "昉": "fǎng", "昈": "hù", "昍": "xuān", "昑": "qǐn", "昖": "yán",
-  "昞": "bǐng", "昢": "pò", "昣": "zhěn", "昪": "biàn",
-  "昮": "zòng", "昰": "shì", "昲": "fèi", "昳": "dié",
-  "昴": "mǎo", "昷": "wēn", "昸": "dōng", "昹": "ǎi",
-  "昺": "bǐng", "昻": "áng", "昽": "lóng", "昿": "kuàng", "晀": "tiǎo",
-  "晁": "cháo", "時": "shí", "晃": "huǎng", "晄": "huǎng", "晅": "xuān",
-  "朗": "lǎng", "晈": "jiǎo", "晉": "jìn", "晊": "zhì", "晋": "jìn",
-  "晌": "shǎng", "晍": "tóng", "晎": "hǒng", "起": "qǐ", "晑": "xiǎng",
-  "晏": "yàn", "晛": "xiàn", "晜": "kūn", "晞": "xī",
-};
+// ─── 拼音校验（基于 pinyin-pro 库，支持所有汉字，无需手写映射表）───
+// 用 pinyin-pro 库动态查询拼音，覆盖 GBK/GB2312 所有汉字及生僻字
 
 /**
  * 验证并修正AI生成的拼音
- * AI经常生成错误拼音，如把"美"写成"hé"
+ * 使用 pinyin-pro 库动态查询每个汉字的拼音（带声调符号），
+ * 覆盖所有 GBK/GB2312 汉字及生僻字，无需手写映射表。
+ * 相比硬编码映射表，pinyin-pro 不会漏字，不会产生拼音错误。
  */
 function validateAndFixPinyin(givenName: string, aiPinyin: string): string {
   if (!givenName || !aiPinyin) return aiPinyin;
@@ -229,21 +197,46 @@ function validateAndFixPinyin(givenName: string, aiPinyin: string): string {
     return aiPinyin;
   }
   
-  // 逐字校验拼音
+  // 逐字校验拼音：使用 pinyin-pro 动态查询每个字的正确读音
   let correctedParts: string[] = [];
   let hasCorrection = false;
   
   for (let i = 0; i < nameChars.length; i++) {
     const char = nameChars[i];
-    const expectedPinyin = COMMON_PINYIN_MAP[char];
     const aiPart = pinyinParts[i];
     
-    if (expectedPinyin && aiPart !== expectedPinyin) {
-      console.log(`[拼音修复] 发现错误拼音: "${char}" → AI="${aiPart}" 应为="${expectedPinyin}"`);
-      correctedParts.push(expectedPinyin);
-      hasCorrection = true;
-    } else {
+    // 用 pinyin-pro 获取该字的正确拼音（带声调符号）
+    let expectedPinyin: string;
+    try {
+      expectedPinyin = pinyin(char, { toneType: 'symbol' });
+    } catch (e) {
+      // pinyin-pro 查询失败时保留 AI 原值
       correctedParts.push(aiPart);
+      continue;
+    }
+    
+    // 如果 pinyin-pro 返回了空字符串或与原音相同，保留 AI 原值
+    if (!expectedPinyin || expectedPinyin === aiPart) {
+      correctedParts.push(aiPart);
+      continue;
+    }
+    
+    // 发现 AI 拼音错误 → 修正
+    if (expectedPinyin !== aiPart) {
+      // 但要注意多音字情况：如果仅声调不同，说明是多音字，谨慎处理
+      // 去掉声调后比较基础拼音
+      const baseExpected = expectedPinyin.replace(/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g, '');
+      const baseAI = aiPart.replace(/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g, '');
+      
+      if (baseExpected === baseAI) {
+        // 只有声调不同 → 多音字，保留 AI 的声调（可能 AI 选择了正确的多音读法）
+        correctedParts.push(aiPart);
+      } else {
+        // 基础拼音不同 → 确实是错误拼音，修正
+        console.log(`[拼音修复] 发现错误拼音: "${char}" → AI="${aiPart}" 正确="${expectedPinyin}"`);
+        correctedParts.push(expectedPinyin);
+        hasCorrection = true;
+      }
     }
   }
   
@@ -301,6 +294,8 @@ ${candidateNames}
 3. 注意声调平仄搭配，读起来朗朗上口
 4. 男名宜用刚健、宏大、英武类字，女名宜用柔美、温婉、秀丽类字
 5. 可以基于候选素材的某个字进行同义替换创作（如"若溪"→"若川""若岚"）
+6. 【★ 关键】用字必须多样化、分散：同一个汉字在全表50个名字中至多出现2次（包括双字名的2个字均算）。举例：如果"婉"字已经用于"婉如"、"婉妡"，则"婉"不能再出现第3次。必须不断换用其他同义字（如"婉"可换成"婌""嫣""娇""娴""姝"等）；
+7. 【★ 关键】两个同音字不能在多于2个名字中出现。例如"欣"和"昕"同音，总计出现不超过2次。
 
 【输出格式】用Markdown表格，列包括：序号、名字、拼音、寓意说明、选字理由、典籍出处、现代译文
 
@@ -365,7 +360,9 @@ ${strategyPrompt}
 9. 【重要】每个名字的出处不能重复：请确保50个名字的出处覆盖不同的典籍篇章；
 10. 现代译文列必须用通俗易懂的白话文解释名字的意境；
 11. 名字数量分配：请确保约1/4的名字是单名（即名字只有一个字，如"李毅""陈彤"），其余为双字名；
-12. 【关键一致性检查】选字理由中引用的每个字（如"庄"字出自…"庄"）必须确实存在于"名字"列中。名字不含的字，理由里不能引用。`;
+12. 【关键一致性检查】选字理由中引用的每个字（如"庄"字出自…"庄"）必须确实存在于"名字"列中。名字不含的字，理由里不能引用。
+13. 【★ 关键】用字必须多样化、分散：同一个汉字在全表50个名字中至多出现2次（包括双字名的2个字均算）。如果"婉"字已经用于"婉如"、"婉妡"，则"婉"不能再出现第3次。必须不断换用其他同义字；
+14. 【★ 关键】两个同音字不能在多于2个名字中出现。例如"欣"和"昕"同音（都读xīn），总计出现不超过2次。`;
   }
 
   // ─── 有典籍匹配 ───
@@ -439,7 +436,9 @@ export async function generateNamesWithDeepSeek(prompt: string): Promise<Generat
 5. 现代译文列用通俗易懂的白话文解释名字的意境；
 6. 名字数量分配：约1/4的名字是单名（即名字只有一个字，如"毅""彤"），其余为双字名；
 7. 不要添加任何额外的解释、开头语或结尾语
-8. 【重要】名字必须是完整的词语组合（如"若溪"），而不是两个抽象字的机械拼接（如"智仁"就没意义——它们的组合没有画面感）。`;
+8. 【重要】名字必须是完整的词语组合（如"若溪"），而不是两个抽象字的机械拼接（如"智仁"就没意义——它们的组合没有画面感）。
+9. 【★ 关键】用字必须多样化、分散：同一个汉字在全部50个名字中至多出现2次。如果"婉"字已经用于"婉如"、"婉妡"，则"婉"不能再出现第3次。必须不断换用其他同义字（如"婉"可换成"婌""嫣""娇""娴""姝"等）；
+10. 【★ 关键】两个同音字不能在多于2个名字中出现。例如"欣"和"昕"同音，总计出现不超过2次。`;
 
     const response = await DeepSeekIntegration.callRaw(systemPrompt, prompt, 0.3, 4096);
     const names = parseMarkdownTable(response);
@@ -1126,6 +1125,111 @@ function extractGivenName(rawName: string): string {
   return rawName;
 }
 
+/**
+ * 后处理去重/分散逻辑：确保同一汉字在同批名字中至多出现 MAX_REPEAT 次
+ * 作为 AI prompt 之外的安全兜底——即使 AI 没有遵守 prompt 中关于用字分散的要求，
+ * 本函数也会自动替换重复使用的字，确保最终输出的名字不至于滥用某一字。
+ * 
+ * 原理：统计每个汉字在所有名字中出现的总次数（双字名中2个字各算一次），
+ * 如果某个字出现次数超过 maxRepeat，则按评分从低到高逐步剔除包含该字的名字。
+ */
+function diversifyNames(
+  names: GeneratedName[],
+  maxRepeat: number = 2,
+  maxHomophoneRepeat: number = 2
+): { diversified: GeneratedName[]; removed: Array<{ name: string; reason: string }> } {
+  if (names.length <= 10) {
+    return { diversified: names, removed: [] }; // 名字太少时不做分散处理
+  }
+
+  // 按分数降序排列（高分在前，优先保留）
+  const sorted = [...names].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const removed: Array<{ name: string; reason: string }> = [];
+  
+  // ─── 第一步：按汉字频次去重 ───
+  const charCount = new Map<string, number>();
+  const result1: GeneratedName[] = [];
+
+  for (const name of sorted) {
+    const givenName = name.givenName || name.name;
+    if (!givenName) {
+      result1.push(name);
+      continue;
+    }
+
+    // 先模拟如果添加这个名，各字出现次数
+    const newChars = [...givenName].filter(c => isChineseCharacter(c));
+    let wouldExceed = false;
+    
+    for (const ch of newChars) {
+      const current = charCount.get(ch) ?? 0;
+      if (current >= maxRepeat) {
+        wouldExceed = true;
+        removed.push({ name: name.name || givenName, reason: `字"${ch}"已出现${current}次（上限${maxRepeat}次），需分散用字` });
+        console.log(`[分散后处理] 剔除"${givenName}"：字"${ch}"已出现${current}次`);
+        break;
+      }
+    }
+
+    if (!wouldExceed) {
+      // 增加计数
+      for (const ch of newChars) {
+        charCount.set(ch, (charCount.get(ch) ?? 0) + 1);
+      }
+      result1.push(name);
+    }
+  }
+
+  // ─── 第二步：按同音字去重（使用 pinyin-pro 查询读音，避免靠手写映射表）───
+  const homophoneCount = new Map<string, number>();
+  const result2: GeneratedName[] = [];
+
+  for (const name of result1) {
+    const givenName = name.givenName || name.name;
+    if (!givenName) {
+      result2.push(name);
+      continue;
+    }
+
+    const newChars = [...givenName].filter(c => isChineseCharacter(c));
+    let wouldExceed = false;
+
+    for (const ch of newChars) {
+      try {
+        const py = pinyin(ch, { toneType: 'none' }); // 不带声调的同音判断
+        if (py) {
+          const current = homophoneCount.get(py) ?? 0;
+          if (current >= maxHomophoneRepeat) {
+            wouldExceed = true;
+            removed.push({ name: name.name || givenName, reason: `读音"${py}"已出现${current}次（上限${maxHomophoneRepeat}次），需分散读音` });
+            break;
+          }
+        }
+      } catch {
+        // 拼音查询失败则跳过
+      }
+    }
+
+    if (!wouldExceed) {
+      for (const ch of newChars) {
+        try {
+          const py = pinyin(ch, { toneType: 'none' });
+          if (py) {
+            homophoneCount.set(py, (homophoneCount.get(py) ?? 0) + 1);
+          }
+        } catch {}
+      }
+      result2.push(name);
+    }
+  }
+
+  if (removed.length > 0) {
+    console.log(`[分散后处理] 去重完成: 原${names.length}个 → 汉字去重后${result1.length}个 → 同音去重后${result2.length}个, 移除${removed.length}个`);
+  }
+
+  return { diversified: result2, removed };
+}
+
 // 导出
 export const SemanticNamingEngine = {
   findSemanticMatches,
@@ -1133,4 +1237,5 @@ export const SemanticNamingEngine = {
   generateNamesWithDeepSeek,
   filterNames,
   semanticNamingFlow,
+  diversifyNames,
 };

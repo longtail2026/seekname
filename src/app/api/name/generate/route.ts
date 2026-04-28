@@ -23,7 +23,8 @@ import {
   SemanticNamingRequest, 
   semanticNamingFlow,
   GeneratedName,
-  ClassicsMatch 
+  ClassicsMatch,
+  SemanticNamingEngine 
 } from "@/lib/semantic-naming-engine";
 import {
   NamingStrategyType,
@@ -320,6 +321,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] 语义匹配成功: 匹配典籍${result.matches.length}个，生成名字${result.generatedNames.length}个，过滤后保留${result.filteredNames.length}个`);
 
+    // ── 后处理：分散用字（同一汉字最多出现2次，同音字最多出现2次）──
+    // 作为 AI prompt 之外的安全兜底，防止 AI 不遵守用字分散要求
+    const diversifyResult = SemanticNamingEngine.diversifyNames(result.filteredNames, 2, 2);
+    if (diversifyResult.removed.length > 0) {
+      console.log(`[API-分散后处理] 共移除${diversifyResult.removed.length}个名字，理由:`, diversifyResult.removed);
+    }
+    const diversifiedNames = diversifyResult.diversified;
+
     // ── 转换结果为API格式 ──
     // 先将 DeepSeek 返回的名字解析为 (givenName, rawSource) 对
     // 同时检测并修复虚构典籍
@@ -333,7 +342,7 @@ export async function POST(request: NextRequest) {
       scoreBreakdownV2?: Record<string, number>;
     }
 
-    const resolvedNames: ResolvedName[] = result.filteredNames.map((name: GeneratedName) => {
+    const resolvedNames: ResolvedName[] = diversifiedNames.map((name: GeneratedName) => {
       // 确保 givenName 不包含姓氏（parseMarkdownTable 已处理，但二次防御）
       let givenName = name.givenName;
       if (givenName.startsWith(surname)) {
