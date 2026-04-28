@@ -168,85 +168,49 @@ export async function findSemanticMatches(
   }
 }
 
-// ─── 拼音校验（基于 pinyin-pro 库，支持所有汉字，无需手写映射表）───
-// 用 pinyin-pro 库动态查询拼音，覆盖 GBK/GB2312 所有汉字及生僻字
+// ─── 拼音生成（基于 pinyin-pro 库，直接为每个汉字生成标准拼音）───
+// 注意：从 v3.1 起，不再「修正」AI 输出的拼音，而是直接用 pinyin-pro 库重新生成。
+// 因为 AI 输出的拼音错误率较高，且 pinyin-pro 对单音字能返回唯一正确读音，
+// 对多音字也能返回最常用的读音（如"乐"→lè、"重"→zhòng），这在起名场景中足够准确。
+// 相比「修正」策略，直接生成避免了多音字判断逻辑的各类 bug（如"诗"→shī vs shì 无法区分）。
 
 /**
- * 验证并修正AI生成的拼音
- * 使用 pinyin-pro 库动态查询每个汉字的拼音（带声调符号），
- * 覆盖所有 GBK/GB2312 汉字及生僻字，无需手写映射表。
- * 相比硬编码映射表，pinyin-pro 不会漏字，不会产生拼音错误。
+ * 直接用 pinyin-pro 库为 givenName 生成标准拼音（带声调符号）
+ * 
+ * 这是 v3.1 的核心改进：不再「修正」AI 的拼音，而是完全用 pinyin-pro 重新生成。
+ * 原因：
+ * 1. AI 输出拼音的错误率高达 5-10%（如"诗"→shì、"婉"→yuán），修正逻辑复杂且易漏
+ * 2. pinyin-pro 对所有单音字能返回唯一正确读音，不会出错
+ * 3. 对多音字返回最常用读音，在起名场景中足够准确（如"乐"→lè、"重"→zhòng、"朝"→zhāo）
+ * 4. 对生僻字（如"妡""旸""昫"）也能准确返回读音
+ * 
+ * @param givenName 名字（不含姓氏）
+ * @returns 每个字拼音以空格分隔，带声调符号，如 "shī yǔ"
  */
-function validateAndFixPinyin(givenName: string, aiPinyin: string): string {
-  if (!givenName || !aiPinyin) return aiPinyin;
+function generatePinyinFromPro(givenName: string): string {
+  if (!givenName) return "";
   
-  // 只取名字部分（不含姓）
   const nameChars = givenName.split("");
-  const pinyinParts = aiPinyin.trim().split(/\s+/);
+  const pinyinParts: string[] = [];
   
-  // 如果字数与拼音段数不匹配，返回原拼音（无法校验）
-  if (nameChars.length !== pinyinParts.length) {
-    // 尝试修正：如果拼音段数多于字数，可能是把出处或别的混进去了
-    if (pinyinParts.length > nameChars.length && nameChars.length > 0) {
-      // 截取最后 N 段（N=字数）
-      const corrected = pinyinParts.slice(-nameChars.length).join(" ");
-      console.log(`[拼音修复] 拼音段数(${pinyinParts.length})>字数(${nameChars.length})，截取后段: "${aiPinyin}" → "${corrected}"`);
-      return corrected;
-    }
-    // 拼音段数少于字数，保持原样
-    return aiPinyin;
-  }
-  
-  // 逐字校验拼音：使用 pinyin-pro 动态查询每个字的正确读音
-  let correctedParts: string[] = [];
-  let hasCorrection = false;
-  
-  for (let i = 0; i < nameChars.length; i++) {
-    const char = nameChars[i];
-    const aiPart = pinyinParts[i];
-    
-    // 用 pinyin-pro 获取该字的正确拼音（带声调符号）
-    let expectedPinyin: string;
+  for (const char of nameChars) {
     try {
-      expectedPinyin = pinyin(char, { toneType: 'symbol' });
-    } catch (e) {
-      // pinyin-pro 查询失败时保留 AI 原值
-      correctedParts.push(aiPart);
-      continue;
-    }
-    
-    // 如果 pinyin-pro 返回了空字符串或与原音相同，保留 AI 原值
-    if (!expectedPinyin || expectedPinyin === aiPart) {
-      correctedParts.push(aiPart);
-      continue;
-    }
-    
-    // 发现 AI 拼音错误 → 修正
-    if (expectedPinyin !== aiPart) {
-      // 但要注意多音字情况：如果仅声调不同，说明是多音字，谨慎处理
-      // 去掉声调后比较基础拼音
-      const baseExpected = expectedPinyin.replace(/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g, '');
-      const baseAI = aiPart.replace(/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g, '');
-      
-      if (baseExpected === baseAI) {
-        // 只有声调不同 → 多音字，保留 AI 的声调（可能 AI 选择了正确的多音读法）
-        correctedParts.push(aiPart);
+      const py = pinyin(char, { toneType: 'symbol' });
+      if (py && py.trim().length > 0) {
+        pinyinParts.push(py.trim());
       } else {
-        // 基础拼音不同 → 确实是错误拼音，修正
-        console.log(`[拼音修复] 发现错误拼音: "${char}" → AI="${aiPart}" 正确="${expectedPinyin}"`);
-        correctedParts.push(expectedPinyin);
-        hasCorrection = true;
+        // pinyin-pro 未返回结果，记录日志但保留原字符位
+        console.warn(`[拼音生成] pinyin-pro 未返回字符"${char}"的拼音`);
+        pinyinParts.push(char);
       }
+    } catch (e) {
+      console.warn(`[拼音生成] pinyin-pro 查询"${char}"失败:`, e);
+      pinyinParts.push(char);
     }
   }
   
-  if (hasCorrection) {
-    const result = correctedParts.join(" ");
-    console.log(`[拼音修复] "${givenName}": "${aiPinyin}" → "${result}"`);
-    return result;
-  }
-  
-  return aiPinyin;
+  const result = pinyinParts.join(" ");
+  return result;
 }
 
 /**
@@ -1036,8 +1000,8 @@ function parseMarkdownTable(markdown: string): GeneratedName[] {
         modernText = "";
       }
 
-      // ✅ 关键修复：校验并修正拼音
-      pinyin = validateAndFixPinyin(givenName, pinyin);
+      // ✅ v3.1 改进：完全用 pinyin-pro 重新生成拼音，不再修正 AI 输出
+      pinyin = generatePinyinFromPro(givenName);
 
       // ✅ 关键修复：过滤4字名（含姓3字或4字都不行）
       if (givenName.length > 2 || givenName.length < 1) {

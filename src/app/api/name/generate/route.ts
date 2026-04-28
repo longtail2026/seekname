@@ -480,13 +480,14 @@ export async function POST(request: NextRequest) {
           reason: resolved.reason || "",
         };
       } else if (result.matches.length > 0) {
+        // 按索引循环分配典籍出处，避免所有名字都用同一个结果
         const matchIndex = index % result.matches.length;
         const match = result.matches[matchIndex];
         source = {
           book: `《${match.bookName}》`,
           text: match.ancientText || "",
           modernText: match.modernText || "",
-          reason: resolved.reason || match.meaning || "",
+          reason: match.meaning || resolved.reason || "",
         };
       } else {
         source = {
