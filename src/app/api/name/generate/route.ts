@@ -590,7 +590,15 @@ export async function POST(request: NextRequest) {
       // 获取已有 givenName 集合，防止重复
       const existingGivenNames = new Set(apiNames.map(n => n.givenName));
       
-      const additionalNames = result.generatedNames
+      // 在 result.generatedNames 内部也按 givenName 去重（只保留第一次出现的）
+      const seenInGenerated = new Set<string>();
+      const dedupedGenerated = result.generatedNames.filter((name: GeneratedName) => {
+        if (seenInGenerated.has(name.givenName)) return false;
+        seenInGenerated.add(name.givenName);
+        return true;
+      });
+      
+      const additionalNames = dedupedGenerated
         // 跳过已经存在的 givenName
         .filter((name: GeneratedName) => !existingGivenNames.has(name.givenName))
         .slice(0, 10 - apiNames.length)
