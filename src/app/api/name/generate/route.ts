@@ -509,7 +509,15 @@ export async function POST(request: NextRequest) {
     let finalNames = apiNames;
     if (apiNames.length < 5 && result.generatedNames.length > 0) {
       console.log(`[API] 过滤后名字不足(${apiNames.length})，使用部分未过滤名字`);
-    const additionalNames = result.generatedNames.slice(0, 10 - apiNames.length).map((name: GeneratedName, index: number) => {
+      
+      // 获取已有 givenName 集合，防止重复
+      const existingGivenNames = new Set(apiNames.map(n => n.givenName));
+      
+      const additionalNames = result.generatedNames
+        // 跳过已经存在的 givenName
+        .filter((name: GeneratedName) => !existingGivenNames.has(name.givenName))
+        .slice(0, 10 - apiNames.length)
+        .map((name: GeneratedName, index: number) => {
         const givenName = name.givenName;
         let wuxing = "木火";
         const strokeCount = givenName.length * 8;
@@ -534,6 +542,9 @@ export async function POST(request: NextRequest) {
           };
         }
 
+        // 使用真实打分（result.filteredNames中有评分），而不是默认80分
+        const realScore = name.score ?? 80;
+
         return {
           name: fullName,
           givenName: name.givenName,
@@ -542,7 +553,7 @@ export async function POST(request: NextRequest) {
           meaning: name.meaning,
           reason: name.reason || "",
           strokeCount,
-          score: name.score ?? (80 - index * 2),
+          score: realScore,
           scoreBreakdownV2: (name as any).scoreBreakdownV2,
           source,
         };
@@ -550,6 +561,9 @@ export async function POST(request: NextRequest) {
       
       finalNames = [...apiNames, ...additionalNames];
     }
+
+    // ✅ 按分数从高到低排序
+    finalNames.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
     // 限制最多10个名字
     finalNames = finalNames.slice(0, 10);

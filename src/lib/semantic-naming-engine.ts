@@ -192,6 +192,17 @@ const COMMON_PINYIN_MAP: Record<string, string> = {
   "鹏": "péng", "程": "chéng", "鸿": "hóng", "瀚": "hàn", "涛": "tāo",
   "澜": "lán", "泓": "hóng", "泳": "yǒng", "润": "rùn", "沛": "pèi",
   "沁": "qìn", "清": "qīng", "澈": "chè", "洁": "jié", "淳": "chún",
+  "昫": "xù", "禔": "zhī", "珝": "xǔ", "琸": "zhuó",
+  "甯": "nìng", "嬛": "huán", "翛": "xiāo", "瓅": "lì", "璥": "jǐng",
+  "昉": "fǎng", "昈": "hù", "昍": "xuān", "昑": "qǐn", "昖": "yán",
+  "昞": "bǐng", "昢": "pò", "昣": "zhěn", "昪": "biàn",
+  "昮": "zòng", "昰": "shì", "昲": "fèi", "昳": "dié",
+  "昴": "mǎo", "昷": "wēn", "昸": "dōng", "昹": "ǎi",
+  "昺": "bǐng", "昻": "áng", "昽": "lóng", "昿": "kuàng", "晀": "tiǎo",
+  "晁": "cháo", "時": "shí", "晃": "huǎng", "晄": "huǎng", "晅": "xuān",
+  "朗": "lǎng", "晈": "jiǎo", "晉": "jìn", "晊": "zhì", "晋": "jìn",
+  "晌": "shǎng", "晍": "tóng", "晎": "hǒng", "起": "qǐ", "晑": "xiǎng",
+  "晏": "yàn", "晛": "xiàn", "晜": "kūn", "晞": "xī",
 };
 
 /**
@@ -284,7 +295,7 @@ export function buildNamingMaterialsPrompt(
 ${candidateNames}
 以上 30 个候选短语仅供参考，您不必全部使用，而是从中精选最符合客户需求的 20~30 个进行润色，也可以基于这些素材的字意、意境创作新的变体。
 
-【润色要求】
+        【润色要求】
 1. 每个名字应当像完整的词语，有画面感和诗意（如"若溪"如同溪流、"书瑶"如诗书瑶华）
 2. 避免两个抽象字的机械拼接（如"智仁"缺乏画面感）
 3. 注意声调平仄搭配，读起来朗朗上口
@@ -296,12 +307,12 @@ ${candidateNames}
 【重要】
 1. 必须输出50个名字，一个不能少
 2. 每个名字的出处不能重复
-3. 选字理由必须包含典籍中的具体原文段落（带引号）
-4. 典籍出处必须精确到篇章名和原句，不能只说"出自《诗经》"这种笼统表述；
-5. 现代译文列用通俗易懂的白话文解释名字的意境；
+3. 【关键】选字理由必须包含典籍中的具体篇章名和原文段落（带引号），格式为："某"字出自《某书·某篇》"……原文……"。不能只说"出自《诗经》"这种缺少篇章名和原文的笼统表述；
+4. 【关键】典籍出处列必须精确到篇章名和原文句子，不能只说"《诗经》「明朗」、「开朗」"这种缺少篇章名和原文的表述；正确示例："《诗经·大雅·文王》"於昭于天""
+5. 【关键】现代译文列必须用通俗易懂的白话文完整翻译名字的意境，不能为空；
 6. 名字数量分配：约1/4的名字是单名（即名字只有一个字，如"毅""彤"），其余为双字名；
 7. 不要添加任何额外的解释、开头语或结尾语
-8. 【关键一致性检查】选字理由中引用的每个字必须确实存在于名字中`;
+8. 【关键一致性检查】选字理由中引用的每个字必须确实存在于名字中`
 }
 
 /**
@@ -550,6 +561,25 @@ export async function semanticNamingFlow(
       30  // 最多取30个候选
     );
 
+    // ════════════════════════════════════════════════════════════════
+    // 在新路径下也搜索 naming_classics，用于充实 modernText 和典籍来源
+    // ════════════════════════════════════════════════════════════════
+    console.log("[语义起名-新流程] ★★ 同步搜索 naming_classics 表，用于充实典籍出处和现代译文");
+    
+    // 合并意向词和原始输入进行典籍搜索
+    let classicsSearchInput = currentSearchInput;
+    if (request.intentions && request.intentions.length > 0) {
+      classicsSearchInput = `${currentSearchInput} ${request.intentions.join(" ")}`;
+    }
+    
+    let classicsMatches: ClassicsMatch[] = [];
+    try {
+      classicsMatches = await findSemanticMatches(classicsSearchInput, 10, gender);
+      console.log(`[语义起名-新流程] naming_classics 找到 ${classicsMatches.length} 条典籍记录`);
+    } catch (e) {
+      console.warn("[语义起名-新流程] naming_classics 搜索失败:", e);
+    }
+
     if (namingMaterials.length >= 5) {
       // ================================================================
       // ★★ 新路径：naming_materials 匹配足够 → 直接构造候选名字让 AI 润色
@@ -565,7 +595,7 @@ export async function semanticNamingFlow(
       if (generatedNames.length === 0) {
         return {
           success: false,
-          matches: [],
+          matches: classicsMatches,
           generatedNames: [],
           filteredNames: [],
           filterResult: { passed: [], removed: [] },
@@ -597,11 +627,11 @@ export async function semanticNamingFlow(
         `[语义起名-新路径] 硬性过滤: ${taggedNames.length} → 通过${filterResult.passed.length}, 移除${filterResult.removed.length}`
       );
 
-      // ✅ 七维加权打分排序
+      // ✅ 七维加权打分排序（附带典籍匹配用于文化维度评分）
       const scoringContext: ScoringContext = {
         expectations: request.expectations || "",
         styles: request.style || [],
-        matchedClassics: [],
+        matchedClassics: classicsMatches,
         gender: request.gender || "M",
         surname: request.surname,
       };
@@ -617,7 +647,7 @@ export async function semanticNamingFlow(
 
       return {
         success: true,
-        matches: [],
+        matches: classicsMatches,  // ✅ 传回典籍匹配列表，供 API route 用于充实 modernText
         generatedNames: taggedNames,
         filteredNames: finalScored,
         filterResult,

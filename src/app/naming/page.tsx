@@ -661,18 +661,19 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
 
                         {/* 典籍出处 */}
                         {(() => {
-                          const hasSource = nameItem.sourceModern || nameItem.reason;
+                          const hasSource = nameItem.sourceModern || nameItem.reason || nameItem.sourceText || nameItem.source;
                           if (!hasSource) return null;
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
-                              {nameItem.reason && (
+                              {/* 先展示典籍原文（sourceText 或 reason 中的典籍引用） */}
+                              {(nameItem.sourceText || nameItem.reason) && (
                                 <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
                                   <span className="font-medium">典籍出处：</span>
                                   {(() => {
+                                    const displayText = nameItem.sourceText || nameItem.reason || "";
                                     const MAX_LEN = 45;
-                                    let text = nameItem.reason.replace(/([\u4e00-\u9fff])(字?)(?:来自|取自|出自)/g, (m, ch, zi) => `"${ch}"${zi}${m.slice(ch.length + zi.length)}`);
                                     // 对引号内的原文段落做截断（兼容弯引号\u201c\u201d和直引号"）
-                                    text = text.replace(/[\u201c"]([^\u201d"]{46,})[\u201d"]/g, (match, content) => {
+                                    let text = displayText.replace(/[\u201c"]([^\u201d"]{46,})[\u201d"]/g, (match, content) => {
                                       const quote = match[0];
                                       return `${quote}${content.slice(0, MAX_LEN)}...${quote === '"' ? '"' : '\u201d'}`;
                                     });
