@@ -305,17 +305,24 @@ export async function POST(request: NextRequest) {
     });
     console.log(`[API] ★ Phase 1: 预加载 ${prefetchedCharWuxingMap.size} 个汉字的五行数据`);
 
-    // ── 构建语义匹配请求 ──
-    // 组合 expectations 和 intentions 作为 rawInput
+    // ── 构建语义匹配请求（去重）──
+    // 组合 expectations 和 intentions 作为 rawInput，避免重复
     const rawInputParts: string[] = [];
     if (expectations) rawInputParts.push(expectations);
-    if (intentions.length > 0) rawInputParts.push(intentions.join("，"));
+    
+    // 如果 intentions 的内容已经被 expectations 所包含，不再重复添加
+    const intentionsStr = intentions.length > 0 ? intentions.join("，") : "";
+    const expectationsIncludesIntentions = expectations && intentionsStr && 
+      expectations.includes(intentionsStr);
+    if (intentions.length > 0 && !expectationsIncludesIntentions) {
+      rawInputParts.push(intentionsStr);
+    }
     
     const rawInput = rawInputParts.join("，") || "美好寓意";
     
-    // 组合 style 和 styles 作为风格偏好
+    // 组合 style 和 styles 作为风格偏好（去重）
     const styleList: string[] = [];
-    if (style) styleList.push(style);
+    if (style && !styles.includes(style)) styleList.push(style);
     if (styles.length > 0) styleList.push(...styles);
     
     const semanticRequest: SemanticNamingRequest = {

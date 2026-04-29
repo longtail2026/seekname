@@ -1,24 +1,10 @@
-# 起名性别特征优化任务
+# 优化任务进度
 
-## 问题
-- "张智慧"95分但老土，"张婉婷"60分但更像女孩名
-- 直白匹配用户期望词的"口号名"得分过高
-- 性别特征权重不足，女性气质未充分体现
-
-## 优化方案（四层联动）
-
-### 1. gender-chars.ts 字库调整
-- [ ] "慧"从FEMALE_LEANING移入MALE_LEANING（与"智"联合使用时加重惩罚）
-- [ ] checkOvertName 加强：新增"智慧""智丽""智美"等专用惩罚组合
-- [ ] buildGenderPromptBlock 强化AI提示警告
-
-### 2. name-scorer-v2.ts 评分调整
-- [ ] scoreGenderFit：直白口号名额外罚30分，总分上限限制
-- [ ] scoreSemanticMatch：直白惩罚上限40→60，精准匹配惩罚加重
-- [ ] 性别权重15%→20%，语义权重20%→15%（互换权重）
-
-### 3. semantic-naming-engine.ts AI提示
-- [ ] 强化buildNamingMaterialsPrompt和buildAIPrompt中的禁用词警告
-
-### 4. 编译验证
-- [ ] 验证TypeScript编译通过
+## 待完成
+- [x] 分析日志中的根本问题
+- [ ] 优化1: 修复意气匹配v2中"浪漫诗意"不兼容词的误扣分
+- [ ] 优化2: 强化AI Prompt, 禁止直白命名, 要求含蓄典雅
+- [ ] 优化3: 增加叠字名的文化内涵评分惩罚
+- [ ] 优化4: 七维打分器中增加名字"典雅度"加分机制
+- [ ] 优化5: AI prompt要求典籍多样性
+- [ ] 验证所有修改

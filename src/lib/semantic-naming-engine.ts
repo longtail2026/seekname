@@ -1628,6 +1628,18 @@ const INTENTION_TO_SPIRIT_MAP: Record<string, string[]> = {
   // 谦和
   "礼貌": ["谦逊温和", "品德高尚"],
   "谦让": ["谦逊温和"],
+  // ★★★ 新增：常用风格词 → 意气类别映射（用户选"温柔婉约"时仅扫描相关类别）★★★
+  "温柔": ["谦逊温和", "温文儒雅", "浪漫诗意"],
+  "温柔婉约": ["谦逊温和", "温文儒雅", "浪漫诗意"],
+  "温婉": ["谦逊温和", "温文儒雅", "浪漫诗意"],
+  "清新": ["自然灵动", "豁达旷远"],
+  "清新自然": ["自然灵动", "豁达旷远"],
+  "诗意浪漫": ["浪漫诗意"],
+  "浪漫": ["浪漫诗意", "自然灵动"],
+  "稳重": ["品德高尚", "坚毅刚强"],
+  "大气": ["豪迈大气", "豁达旷远"],
+  "古典": ["温文儒雅", "品德高尚"],
+  "时尚": ["洋气国际", "阳光开朗"],
 };
 
 /**
@@ -1675,23 +1687,66 @@ function detectNameSpirit(meaning: string): string[] {
 }
 
 /**
- * 智能检测典籍译文的意气类别
+ * 获取用户风格对应的相关意气类别列表
+ * 用于：detectClassicsSpirit 只扫描与用户选择风格相关的类别
+ * 避免"温柔婉约"场景下触发"豪迈大气"的不兼容检测
  */
-function detectClassicsSpirit(modernText: string, ancientText: string): string[] {
+function getRelevantSpiritCategories(styles?: string[]): string[] | null {
+  if (!styles || styles.length === 0) return null; // null = 扫描全部
+  
+  const relevant = new Set<string>();
+  for (const style of styles) {
+    const trimmed = style.trim();
+    // 从意向词映射找对应类别
+    const cats = INTENTION_TO_SPIRIT_MAP[trimmed];
+    if (cats) {
+      cats.forEach(c => relevant.add(c));
+    }
+    // 从 SPIRIT_CATEGORIES 的 intentionTriggers 中查找
+    for (const [cat, config] of Object.entries(SPIRIT_CATEGORIES)) {
+      if (config.intentionTriggers.includes(trimmed)) {
+        relevant.add(cat);
+      }
+    }
+  }
+  
+  // 如果用户风格没映射到任何意气类别，放行全部（兼容旧数据）
+  if (relevant.size === 0) return null;
+  
+  return [...relevant];
+}
+
+/**
+ * 智能检测典籍译文的意气类别
+ * @param modernText 现代译文
+ * @param ancientText 经典原文
+ * @param relevantCategories 限定的意气类别列表（null=扫描全部）— 由用户勾选的风格决定，避免触发无关类别的不兼容检测
+ */
+function detectClassicsSpirit(modernText: string, ancientText: string, relevantCategories: string[] | null = null): string[] {
   const textToCheck = `${modernText || ""} ${ancientText || ""}`.toLowerCase();
   if (!textToCheck.trim()) return ["通用"];
   
-  // ── 通用负面检测：如果典籍译文包含任何通用负面词 → 直接标记不兼容，后续整体否决 ──
-  for (const term of GENERAL_NEGATIVE_TERMS) {
-    if (textToCheck.includes(term)) {
-      console.log(`[意气检测-通用负面] 典籍译文含"${term}"，标记为不兼容:通用`);
-      return [`不兼容:通用`]; // 直接返回，不再做任何正面匹配
+  // ── 通用负面检测（仅当扫描全部类别时触发）──
+  // 如果限定了相关类别（用户选择了具体风格），不再对通用负面词做整体否决，
+  // 因为负面词可能在典籍译文中出现但不影响用户所选维度的意气匹配
+  if (relevantCategories === null) {
+    for (const term of GENERAL_NEGATIVE_TERMS) {
+      if (textToCheck.includes(term)) {
+        console.log(`[意气检测-通用负面] 典籍译文含"${term}"，标记为不兼容:通用`);
+        return [`不兼容:通用`]; // 直接返回，不再做任何正面匹配
+      }
     }
   }
   
   const matchedCategories: string[] = [];
   
-  for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
+  // ★★ 核心修复：只扫描相关类别（如用户选"温柔婉约"，只扫"谦逊温和""温文儒雅""浪漫诗意"）
+  const categoriesToCheck = relevantCategories || Object.keys(SPIRIT_CATEGORIES);
+  
+  for (const category of categoriesToCheck) {
+    const config = SPIRIT_CATEGORIES[category];
+    if (!config) continue;
+    
     for (const keyword of config.classicsMatch) {
       if (textToCheck.includes(keyword)) {
         matchedCategories.push(category);
@@ -1700,8 +1755,11 @@ function detectClassicsSpirit(modernText: string, ancientText: string): string[]
     }
   }
   
-  // 检测不兼容词
-  for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
+  // 检测不兼容词 — ★★ 只扫描相关类别的不兼容词，不扫描全部
+  for (const category of categoriesToCheck) {
+    const config = SPIRIT_CATEGORIES[category];
+    if (!config) continue;
+    
     for (const keyword of config.incompatible) {
       if (textToCheck.includes(keyword)) {
         // 标记为"不兼容此类别"，用于排除
@@ -1754,10 +1812,14 @@ function calculateSpiritScore(
   ancientText: string,
   expectations?: string,
   intentions?: string[],
-  similarity?: number
+  similarity?: number,
+  styles?: string[]  // ★ 新增：用户选择的风格，用于限定意气类别扫描范围
 ): number {
+  // ★★ 根据用户风格确定需要扫描的相关意气类别，避免触发无关类别的不兼容检测
+  const relevantCategories = getRelevantSpiritCategories(styles);
+  
   const nameSpirits = detectNameSpirit(meaning);
-  const classicSpirits = detectClassicsSpirit(modernText, ancientText);
+  const classicSpirits = detectClassicsSpirit(modernText, ancientText, relevantCategories);
   
   // ── 通用负面：典籍译文包含负面词 → 直接否决 ──
   if (classicSpirits.includes("不兼容:通用")) {
@@ -1888,11 +1950,12 @@ export function findBestClassicsMatch(
   reason: string,
   matches: Array<{ bookName: string; ancientText: string; modernText: string; similarity?: number }>,
   expectations?: string,
-  intentions?: string[]
+  intentions?: string[],
+  styles?: string[]  // ★ 新增：用户选择的风格，传递给 calculateSpiritScore 用于限定意气类别扫描范围
 ): { bookName: string; ancientText: string; modernText: string; spiritScore: number } | null {
   if (!matches || matches.length === 0) return null;
   
-  // 为每个典籍计算意气匹配得分（v2 加权版，传入 intentions 和 similarity）
+  // 为每个典籍计算意气匹配得分（v2 加权版，传入 intentions 和 similarity，styles）
   const scored = matches.map(m => ({
     ...m,
     spiritScore: calculateSpiritScore(
@@ -1901,7 +1964,8 @@ export function findBestClassicsMatch(
       m.ancientText || "",
       expectations,
       intentions,
-      m.similarity  // 传入典籍的 pgvector 语义相似度
+      m.similarity,  // 传入典籍的 pgvector 语义相似度
+      styles         // ★ 传递用户风格，限定意气类别扫描范围
     ),
   }));
   
