@@ -48,6 +48,19 @@ export interface SemanticNamingRequest {
   intentions?: string[];
   /** 多选风格词数组 */
   styles?: string[];
+  /** ★ Phase 1: 五行喜忌偏好 - 提前注入，用于 prompt 引导和 hardFilter */
+  wuxingPreference?: {
+    likes: string[];    // 喜用五行
+    avoids: string[];   // 忌用五行
+    missing: string[];  // 缺失五行
+    dayMaster: string;  // 日主天干
+    dayMasterWuxing: string; // 日主五行
+    bazi: string;       // 完整八字
+    isExcessive: boolean;
+    isWeak: boolean;
+  };
+  /** ★ Phase 1: 逐字五行映射表（char → wuxing），用于引擎内部的五行 hardFilter */
+  charWuxingMap?: Map<string, string>;
 }
 
 // 典籍匹配结果
@@ -232,6 +245,21 @@ export function buildNamingMaterialsPrompt(
   const genderText = gender === "M" ? "男" : "女";
   const styleText = style.join("，");
 
+  // ★ Phase 1: 五行喜忌段落
+  let wuxingBlock = "";
+  if (request.wuxingPreference) {
+    const { likes, avoids, missing, dayMaster, dayMasterWuxing, bazi } = request.wuxingPreference;
+    const likesStr = likes.length > 0 ? likes.join("、") : "无特殊偏好";
+    const avoidsStr = avoids.length > 0 ? avoids.join("、") : "无";
+    const missingStr = missing.length > 0 ? missing.join("、") : "五行俱全";
+    wuxingBlock = `\n\n【八字五行喜忌】
+- 八字：${bazi}
+- 日主：${dayMaster}（${dayMasterWuxing}）
+- 喜用五行：【${likesStr}】★ 起名时应优先使用喜用五行的字
+- 忌用五行：【${avoidsStr}】★ 起名时应避免使用忌用五行的字
+- 缺失五行：【${missingStr}】如果缺失五行与喜用五行一致，可适当补益`;
+  }
+
   // 从 matching materials 中构建候选名字列表
   const candidateNames = materials
     .slice(0, 30)
@@ -239,6 +267,7 @@ export function buildNamingMaterialsPrompt(
     .join("\n");
 
   return `你是一位专业的中文起名专家。
+${wuxingBlock}
 
 【核心任务】请从以下候选名字素材中精选并润色，生成50个最优的中文名字（每个名字${wordCount}个字）。
 
@@ -298,9 +327,27 @@ export function buildAIPrompt(
   const genderText = gender === "M" ? "男" : "女";
   const styleText = style.join("，");
 
+  // ★ Phase 1: 五行喜忌段落
+  let wuxingBlock = "";
+  if (request.wuxingPreference) {
+    const { likes, avoids, missing, dayMaster, dayMasterWuxing, bazi } = request.wuxingPreference;
+    const likesStr = likes.length > 0 ? likes.join("、") : "无特殊偏好";
+    const avoidsStr = avoids.length > 0 ? avoids.join("、") : "无";
+    const missingStr = missing.length > 0 ? missing.join("、") : "五行俱全";
+    wuxingBlock = `\n\n【八字五行喜忌】
+- 八字：${bazi}
+- 日主：${dayMaster}（${dayMasterWuxing}）
+- 喜用五行：【${likesStr}】★ 起名时应优先使用喜用五行的字
+- 忌用五行：【${avoidsStr}】★ 起名时应避免使用忌用五行的字
+- 缺失五行：【${missingStr}】如果缺失五行与喜用五行一致，可适当补益
+
+请在选字时强烈优先考虑喜用五行的字，避免使用忌用五行的字。`;
+  }
+
   // ─── 降级模式 ───
   if (matches.length === 0) {
       return `你是一位专业的中文起名专家。
+${wuxingBlock}
 请根据以下客户需求，生成50个中文名字（每个名字${wordCount}个字）。
 
 ${strategyPrompt}
@@ -433,7 +480,13 @@ const TABOO_CHARS = new Set([
 
 export function filterNames(
   names: GeneratedName[],
-  gender: "M" | "F" = "F"
+  gender: "M" | "F" = "F",
+  /** ★ Phase 1: 可选五行走势过滤 */
+  wuxingOptions?: {
+    charWuxingMap: Map<string, string>;
+    avoids: string[];
+    likes: string[];
+  }
 ): FilterResult {
   const passed: GeneratedName[] = [];
   const removed: Array<{ name: string; reason: string }> = [];
@@ -465,6 +518,20 @@ export function filterNames(
     if (givenName.length > 2 || givenName.length < 1) {
       shouldRemove = true;
       reason = `名字长度异常（${givenName.length}个字），正常应为1~2个字`;
+    }
+
+    // 4. ★ Phase 1: 五行 hardFilter — 所有字全部忌用时直接淘汰
+    if (!shouldRemove && wuxingOptions && wuxingOptions.avoids.length > 0) {
+      const chars = [...givenName].filter(c => isChineseCharacter(c));
+      const avoidMatches = chars.filter(c => {
+        const wx = wuxingOptions.charWuxingMap.get(c);
+        return wx && wuxingOptions.avoids.includes(wx);
+      });
+      // 如果名字所有字都是忌用五行 → 直接淘汰
+      if (avoidMatches.length === chars.length && chars.length > 0) {
+        shouldRemove = true;
+        reason = `所有字均为忌用五行（${avoidMatches.map(c => `"${c}"属${wuxingOptions.charWuxingMap.get(c)}`).join("、")}）`;
+      }
     }
 
     if (shouldRemove) {
@@ -1114,7 +1181,10 @@ function diversifyNames(
   const sorted = [...names].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const removed: Array<{ name: string; reason: string }> = [];
   
-  // ─── 第一步：按汉字频次去重 ───
+  // ★ Phase 2: 分级限制 — Top10 内不允许重复字，整体候补池允许少量重复（≤2次）
+  const top10Set = new Set(sorted.slice(0, 10));
+  const restSet = new Set(sorted.slice(10));
+  
   const charCount = new Map<string, number>();
   const result1: GeneratedName[] = [];
 
@@ -1125,30 +1195,73 @@ function diversifyNames(
       continue;
     }
 
-    // 先模拟如果添加这个名，各字出现次数
     const newChars = [...givenName].filter(c => isChineseCharacter(c));
     let wouldExceed = false;
-    
+    let exceedReason = "";
+
     for (const ch of newChars) {
       const current = charCount.get(ch) ?? 0;
+
+      // ★ Phase 2: 分级限制
+      // Top10 内：一旦重复就剔除
+      if (top10Set.has(name) && current >= 1) {
+        wouldExceed = true;
+        exceedReason = `字"${ch}"在Top10中出现过，Top10内不允许重复字`;
+        break;
+      }
+      // 整体候补池：允许≤2次
       if (current >= maxRepeat) {
         wouldExceed = true;
-        removed.push({ name: name.name || givenName, reason: `字"${ch}"已出现${current}次（上限${maxRepeat}次），需分散用字` });
-        console.log(`[分散后处理] 剔除"${givenName}"：字"${ch}"已出现${current}次`);
+        exceedReason = `字"${ch}"已出现${current}次（整体上限${maxRepeat}次）`;
         break;
       }
     }
 
-    if (!wouldExceed) {
-      // 增加计数
-      for (const ch of newChars) {
-        charCount.set(ch, (charCount.get(ch) ?? 0) + 1);
+    if (wouldExceed) {
+      // ★ Phase 2: 替换而非剔除 — 检查候补池是否有可替换的名字
+      // 如果是Top10内的名字被重复字阻挡，不直接剔除，而是尝试从候补池找评分次高的替代
+      if (top10Set.has(name)) {
+        // 从 restSet 中找一个含不同字的新名字来替换
+        const replacement = sorted.slice(10).find(n => {
+          if (restSet.has(n)) {
+            const restGiven = n.givenName || n.name;
+            const restChars = [...restGiven].filter(c => isChineseCharacter(c));
+            // 重复字不能在替换名中出现
+            return !restChars.some(c => {
+              const count = charCount.get(c) ?? 0;
+              return count >= maxRepeat;
+            });
+          }
+          return false;
+        });
+        
+        if (replacement) {
+          restSet.delete(replacement);
+          const replGiven = replacement.givenName || replacement.name;
+          const replChars = [...replGiven].filter(c => isChineseCharacter(c));
+          for (const rc of replChars) {
+            charCount.set(rc, (charCount.get(rc) ?? 0) + 1);
+          }
+          result1.push(replacement);
+          removed.push({ name: name.name || givenName, reason: `Top10内字重复"${exceedReason}"，替换为"${replacement.name}"` });
+          continue;
+        }
       }
-      result1.push(name);
+      
+      // 没有合适的替代 → 直接剔除
+      removed.push({ name: name.name || givenName, reason: exceedReason });
+      console.log(`[分散后处理] 剔除"${givenName}"：${exceedReason}`);
+      continue;
     }
+
+    // 增加计数
+    for (const ch of newChars) {
+      charCount.set(ch, (charCount.get(ch) ?? 0) + 1);
+    }
+    result1.push(name);
   }
 
-  // ─── 第二步：按同音字去重（使用 pinyin-pro 查询读音，避免靠手写映射表）───
+  // ─── 第二步：按同音字去重（★ Phase 2: 仅声调相同的同音字做限制，不同声调保留）───
   const homophoneCount = new Map<string, number>();
   const result2: GeneratedName[] = [];
 
@@ -1161,15 +1274,17 @@ function diversifyNames(
 
     const newChars = [...givenName].filter(c => isChineseCharacter(c));
     let wouldExceed = false;
+    let homophoneReason = "";
 
     for (const ch of newChars) {
       try {
-        const py = pinyin(ch, { toneType: 'none' }); // 不带声调的同音判断
-        if (py) {
-          const current = homophoneCount.get(py) ?? 0;
+        // ★ Phase 2: 带声调的同音判断（不同声调不冲突）
+        const pyWithTone = pinyin(ch, { toneType: 'symbol' });
+        if (pyWithTone) {
+          const current = homophoneCount.get(pyWithTone) ?? 0;
           if (current >= maxHomophoneRepeat) {
             wouldExceed = true;
-            removed.push({ name: name.name || givenName, reason: `读音"${py}"已出现${current}次（上限${maxHomophoneRepeat}次），需分散读音` });
+            homophoneReason = `同音字"${ch}"读音"${pyWithTone}"已出现${current}次（上限${maxHomophoneRepeat}次，含同音同调）`;
             break;
           }
         }
@@ -1181,13 +1296,16 @@ function diversifyNames(
     if (!wouldExceed) {
       for (const ch of newChars) {
         try {
-          const py = pinyin(ch, { toneType: 'none' });
-          if (py) {
-            homophoneCount.set(py, (homophoneCount.get(py) ?? 0) + 1);
+          // 使用带声调的同音判断
+          const pyWithTone = pinyin(ch, { toneType: 'symbol' });
+          if (pyWithTone) {
+            homophoneCount.set(pyWithTone, (homophoneCount.get(pyWithTone) ?? 0) + 1);
           }
         } catch {}
       }
       result2.push(name);
+    } else {
+      removed.push({ name: name.name || givenName, reason: homophoneReason });
     }
   }
 
