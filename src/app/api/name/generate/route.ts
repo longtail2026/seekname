@@ -394,6 +394,10 @@ export async function POST(request: NextRequest) {
       if (n.givenName.length === 2 && n.givenName[0] === n.givenName[1]) {
         return false; // 过滤叠字名
       }
+      // 增补过滤：givenName 包含姓氏（如 AI 生成的"朗杨""娇杨"中的"杨"在末尾）
+      if (surname.length >= 1 && (n.givenName.includes(surname) || n.givenName.endsWith(surname))) {
+        return false; // 过滤与姓氏重复的名字
+      }
       return true;
     });
 
@@ -605,6 +609,14 @@ export async function POST(request: NextRequest) {
       const additionalNames = dedupedGenerated
         // 跳过已经存在的 givenName
         .filter((name: GeneratedName) => !existingGivenNames.has(name.givenName))
+        // 增补过滤：回退路径也过滤掉包含姓氏的名字
+        .filter((name: GeneratedName) => {
+          const givenName = name.givenName;
+          if (surname.length >= 1 && (givenName.includes(surname) || givenName.endsWith(surname))) {
+            return false; // 过滤与姓氏重复的名字
+          }
+          return true;
+        })
         .slice(0, 10 - apiNames.length)
         .map((name: GeneratedName, index: number) => {
         const givenName = name.givenName;
@@ -612,23 +624,47 @@ export async function POST(request: NextRequest) {
         const strokeCount = givenName.length * 8;
         const fullName = surname + givenName;
         
-        let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
-        if (result.matches.length > 0) {
-          const matchIndex = (apiNames.length + index) % result.matches.length;
-          const match = result.matches[matchIndex];
+        // ── 回退路径：同样用意气匹配后处理典籍出处 ──
+        let source = { book: "", text: "", modernText: "", reason: "" };
+        
+        // 第一步：用意气匹配从数据库真实 matches 找最佳典籍
+        const fallbackSpiritMatch = SemanticNamingEngine.findBestClassicsMatch(
+          name.meaning,
+          name.reason,
+          result.matches,
+          expectations
+        );
+
+        if (fallbackSpiritMatch) {
           source = {
-            book: `《${match.bookName}》`,
-            text: match.ancientText || "",
-            modernText: match.modernText || "",
-            reason: name.reason || match.meaning || "",
-          };
-        } else if (name.source && name.source.length > 0) {
-          source = {
-            book: "",
-            text: name.source,
-            modernText: "",
+            book: `《${fallbackSpiritMatch.bookName}》`,
+            text: fallbackSpiritMatch.ancientText || "",
+            modernText: fallbackSpiritMatch.modernText || "",
             reason: name.reason || "",
           };
+        } else if (result.matches.length > 0) {
+          // ⚠️ 无意气匹配 → 不用数据库出处（宁可留空也不要错误的）
+          // 继续保持空 source
+        } else if (name.source && name.source.length > 0) {
+          // 对于 AI 原文做负面内容检测
+          const checkText = (name.source || "").toLowerCase();
+          const generalNegativeTerms = [
+            "骄溢", "骄躁", "急躁", "表里不一", "心术不正",
+            "奸诈", "虚伪", "粗俗", "浮滑",
+            "困苦", "危难", "险恶", "动荡",
+            "愚钝", "昏聩", "浅薄", "鄙陋",
+            "哀愁", "悲戚", "凄凉", "怨愤",
+            "平庸", "平凡", "庸俗", "卑微",
+          ];
+          if (!generalNegativeTerms.some(t => checkText.includes(t))) {
+            source = {
+              book: "",
+              text: name.source,
+              modernText: "",
+              reason: name.reason || "",
+            };
+          }
+          // else: 含负面内容 → 留空不展示
         }
 
         // 使用真实打分（result.filteredNames中有评分），而不是默认80分
