@@ -34,14 +34,15 @@ export interface DimensionScore {
   detail: string;     // 评分说明
 }
 
-/** 七维评分分解 */
+/** 八维评分分解（七维+性别） */
 export interface ScoreBreakdownV2 {
   semantic: DimensionScore;   // 语义匹配度 25%
   phonetic: DimensionScore;   // 音律美感 20%
   cultural: DimensionScore;   // 文化内涵 15%
   glyph: DimensionScore;      // 字形结构 10%
   wuxing: DimensionScore;     // 五行平衡 15%
-  uniqueness: DimensionScore; // 独特性 10%
+  uniqueness: DimensionScore; // 独特性 5%
+  gender: DimensionScore;     // 性别契合度 5%
   styleFit: DimensionScore;   // 风格契合度 5%
   total: number;              // 加权总分 0-100
 }
@@ -72,8 +73,9 @@ const WEIGHTS = {
   cultural: 0.15,   // 15%
   glyph: 0.10,      // 10%
   wuxing: 0.15,     // 15%
-  uniqueness: 0.10, // 10%
+  uniqueness: 0.05, // 5%  ← 从10%降到5%
   styleFit: 0.05,   // 5%
+  gender: 0.05,     // 5%  ← 新增性别契合度
 } as const;
 
 // ============================================================
@@ -500,7 +502,148 @@ export async function scoreUniqueness(
 }
 
 // ============================================================
-// 7. 风格契合度 (5%)
+// 7. 性别契合度 (5%)  ← 新增性别评分维度
+// ============================================================
+
+/**
+ * 评估名字与性别的契合度
+ * 
+ * 核心逻辑：
+ * - 定义女性偏好字（婉/淑/娴/婷/娜/妍/姝/嫣/娉/婀/倩/慧/清/雅/韵/瑶/瑾/璐/沁/湉等）
+ * - 定义男性偏好字（刚/健/雄/英/豪/杰/伟/毅/勇/猛/强/力/武/斌/浩/然/志/远/光/安/恒/坚等）
+ * - 女宝宝名字包含男性偏好字 → 扣分（轻则-10%，重则-30%）
+ * - 女宝宝名字包含女性偏好字 → 加分
+ * - 男宝宝反之
+ * - 双字名中两个都是异性别字 → 重罚
+ */
+export function scoreGenderFit(
+  givenName: string,
+  context: ScoringContext
+): DimensionScore {
+  const chars = extractChars(givenName);
+  if (chars.length === 0) {
+    return { score: 0, detail: "名字为空" };
+  }
+
+  const gender = context.gender;
+  if (!gender) {
+    return { score: 60, detail: "未指定性别，采用中性评分" };
+  }
+
+  // ── 女性偏好字（强烈女性化特征） ──
+  const FEMALE_CHARS = new Set([
+    "婉", "淑", "娴", "婷", "娜", "妍", "姝", "嫣", "娉", "婀", "倩",
+    "慧", "清", "雅", "韵", "瑶", "瑾", "璐", "沁", "湉", "涓", "漪",
+    "涵", "菲", "芳", "芬", "馥", "兰", "菊", "莲", "荷", "蕊", "蕾",
+    "玫", "瑰", "瑛", "玲", "珑", "璎", "珮", "环", "黛", "碧",
+    "云", "月", "雪", "霞", "虹", "霓", "露", "冰", "霜", "霖",
+    "娟", "婵", "妙", "妮", "娃", "婴", "婴", "妃", "媛", "姬",
+    "悦", "恬", "怡", "惬", "愫", "慈", "惠", "爱", "怜", "惜",
+    "绮", "绣", "彩", "艳", "灿", "绚", "素", "纯", "洁", "静",
+    "莺", "燕", "凤", "凰", "鸾", "鹊", "蝶", "萤", "霓", "霞",
+    "美", "丽", "秀", "娇", "柔", "顺", "安", "宁", "静", "幽",
+  ]);
+
+  // ── 男性偏好字（强烈男性化特征） ──
+  const MALE_CHARS = new Set([
+    "刚", "健", "雄", "英", "豪", "杰", "伟", "毅", "勇", "猛",
+    "强", "力", "武", "斌", "浩", "然", "志", "远", "光", "安",
+    "恒", "坚", "锋", "锐", "剑", "戈", "矛", "盾", "甲", "铠",
+    "龙", "虎", "豹", "鹰", "鹏", "鲲", "麒", "麟", "驹", "骏",
+    "雄", "霸", "王", "帝", "皇", "君", "国", "家", "邦", "域",
+    "德", "仁", "义", "正", "直", "诚", "信", "忠", "孝", "廉",
+    "博", "深", "渊", "瀚", "宏", "伟", "壮", "丽", "富", "强",
+    "振", "兴", "昌", "盛", "荣", "耀", "辉", "煌", "昊", "晟",
+    "峰", "峦", "岳", "岗", "岭", "岩", "石", "铁", "钢", "金",
+    "海", "江", "河", "湖", "洋", "波", "浪", "涛", "潮", "滔",
+    "明", "亮", "旦", "旭", "晨", "曦", "曙", "曜", "旷", "广",
+  ]);
+
+  // ── 中性偏好字（男女皆可） ──
+  const NEUTRAL_CHARS = new Set([
+    "子", "之", "一", "小", "天", "文", "华", "瑞", "祥", "福",
+    "欣", "乐", "欢", "喜", "嘉", "庆", "哲", "思", "宇", "书",
+    "若", "如", "亦", "以", "与", "其", "所", "为", "因", "可",
+    "言", "语", "音", "知", "识", "见", "闻", "声", "意", "情",
+  ]);
+
+  // 分析名字中每个字的性别倾向
+  let femaleCount = 0;
+  let maleCount = 0;
+  let totalScored = 0;
+
+  for (const ch of chars) {
+    if (FEMALE_CHARS.has(ch)) {
+      femaleCount++;
+      totalScored++;
+    } else if (MALE_CHARS.has(ch)) {
+      maleCount++;
+      totalScored++;
+    }
+    // NEUTRAL_CHARS 不计数也不扣分
+  }
+
+  // 如果名字中没有任何性别特征字，给予中等偏上分数（允许中性名存在）
+  if (totalScored === 0) {
+    return { score: 60, detail: "名字无明显性别特征，中性评分" };
+  }
+
+  // 计算性别匹配度
+  const femaleRatio = femaleCount / chars.length;
+  const maleRatio = maleCount / chars.length;
+
+  let genderMatchRatio: number;
+  let detail: string;
+
+  if (gender === "F") {
+    // 女性期望：女性字越多越好，男性字越少越好
+    if (maleCount > 0 && femaleCount === 0) {
+      // 全是男性字 → 严重不匹配
+      genderMatchRatio = 0.1;
+      detail = `含男性特征字（${maleCount}个），严重偏离女性气质`;
+    } else if (maleCount > femaleCount) {
+      // 男性字多于女性字
+      genderMatchRatio = 0.3;
+      detail = `男性特征偏多（男${maleCount}女${femaleCount}），女性气质不足`;
+    } else if (maleCount > 0 && maleCount <= femaleCount) {
+      // 男女搭配但女性字为主
+      genderMatchRatio = 0.7;
+      detail = `女性字占优（女${femaleCount}男${maleCount}），基本符合女性特征`;
+    } else {
+      // 全是女性字
+      genderMatchRatio = 1.0;
+      detail = `含女性特征字（${femaleCount}个），完美契合女性气质`;
+    }
+  } else {
+    // 男性期望：男性字越多越好，女性字越少越好
+    if (femaleCount > 0 && maleCount === 0) {
+      // 全是女性字 → 严重不匹配
+      genderMatchRatio = 0.1;
+      detail = `含女性特征字（${femaleCount}个），严重偏离男性气质`;
+    } else if (femaleCount > maleCount) {
+      // 女性字多于男性字
+      genderMatchRatio = 0.3;
+      detail = `女性特征偏多（女${femaleCount}男${maleCount}），男性气质不足`;
+    } else if (femaleCount > 0 && femaleCount <= maleCount) {
+      // 男女搭配但男性字为主
+      genderMatchRatio = 0.7;
+      detail = `男性字占优（男${maleCount}女${femaleCount}），基本符合男性特征`;
+    } else {
+      // 全是男性字
+      genderMatchRatio = 1.0;
+      detail = `含男性特征字（${maleCount}个），完美契合男性气质`;
+    }
+  }
+
+  // 性别分映射到 0-100 区间
+  // 完美匹配 = 90~100，严重不匹配 = 10~20
+  const score = clampScore(Math.round(30 + genderMatchRatio * 70));
+
+  return { score, detail };
+}
+
+// ============================================================
+// 8. 风格契合度 (5%)
 // ============================================================
 
 /**
@@ -674,7 +817,9 @@ export async function computeScoreV2(
   const { givenName, surname, name: fullName } = nameObj;
 
   // 并行计算七维分数
-  const [semantic, phonetic, cultural, glyph, wuxing, uniqueness, styleFit] = await Promise.all([
+  const gender = Promise.resolve(scoreGenderFit(givenName, context));
+
+  const [semantic, phonetic, cultural, glyph, wuxing, uniqueness, styleFit, genderScore] = await Promise.all([
     scoreSemanticMatch(givenName, context),
     Promise.resolve(scorePhonetic(givenName, context)),
     scoreCultural(givenName, context),
@@ -682,6 +827,7 @@ export async function computeScoreV2(
     scoreWuxing(givenName, context),
     scoreUniqueness(givenName, fullName, surname, context.gender),
     scoreStyleFit(givenName, context),
+    gender,
   ]);
 
   // 加权总分
@@ -692,7 +838,8 @@ export async function computeScoreV2(
     glyph.score * WEIGHTS.glyph +
     wuxing.score * WEIGHTS.wuxing +
     uniqueness.score * WEIGHTS.uniqueness +
-    styleFit.score * WEIGHTS.styleFit
+    styleFit.score * WEIGHTS.styleFit +
+    genderScore.score * WEIGHTS.gender
   );
 
   // 注意：不再设高基线！让评分分布式自然落在40~95分区间
@@ -706,6 +853,7 @@ export async function computeScoreV2(
     glyph,
     wuxing,
     uniqueness,
+    gender: genderScore,
     styleFit,
     total,
   };
@@ -799,6 +947,7 @@ function createDefaultBreakdown(detail: string): ScoreBreakdownV2 {
     glyph: defaultDim(60),
     wuxing: defaultDim(50),
     uniqueness: defaultDim(60),
+    gender: defaultDim(60),
     styleFit: defaultDim(60),
     total: 60,
   };

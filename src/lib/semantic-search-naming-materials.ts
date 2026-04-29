@@ -405,10 +405,10 @@ export async function searchNamingMaterials(
   try {
     console.log(`[材料搜索] 开始: "${userInput}", gender=${gender}`);
 
-    // 注入性别信号增强搜索
+    // 注入性别信号增强搜索（加强版：女性信号更丰富，权重更高）
     const genderKeywords: Record<string, string> = {
-      M: "刚健英武雄壮阳刚俊朗豪迈宏大气魄",
-      F: "柔美温婉娴淑秀丽优雅婉约婀娜",
+      M: "刚健英武雄壮阳刚俊朗豪迈宏大气魄男子汉气概伟岸英姿飒爽",
+      F: "柔美温婉娴淑秀丽优雅婉约婀娜女子气韵温柔细腻温婉可人淑女风范甜美可爱",
     };
     const genderedInput = `${userInput} ${genderKeywords[gender] || ""}`;
 
