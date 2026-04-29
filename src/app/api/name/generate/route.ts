@@ -500,7 +500,8 @@ export async function POST(request: NextRequest) {
         resolved.meaning,
         resolved.reason,
         result.matches,
-        expectations
+        expectations,
+        intentions  // 传入用户勾选的意向词，参与意气类别映射加权
       );
 
       // 典籍多样化：如果推荐的典籍已被其他名字使用，且还有其他选择，尝试换一个
@@ -641,7 +642,8 @@ export async function POST(request: NextRequest) {
           name.meaning,
           name.reason,
           result.matches,
-          expectations
+          expectations,
+          intentions  // 传入用户勾选的意向词，参与意气类别映射加权
         );
 
         if (fallbackSpiritMatch && fallbackSpiritMatch.spiritScore > 0) {

@@ -1334,55 +1334,187 @@ const GENERAL_NEGATIVE_TERMS = [
 ];
 
 // 意气类别与关键词映射表
+// 扩展至 14 大类，覆盖更细分的意气风格
 const SPIRIT_CATEGORIES: Record<string, {
   keywords: string[];
   nameMatch: string[];
   classicsMatch: string[];
   incompatible: string[];
+  // 用户意向词 → 该分类的映射（用户选择这些词时，优先匹配该分类）
+  intentionTriggers: string[];
 }> = {
   "豪迈大气": {
-    keywords: ["豪迈", "大气", "雄壮", "宏伟", "刚健", "刚强", "强大", "霸业", "威武", "壮志", "奋发", "激昂", "昂扬"],
+    keywords: ["豪迈", "大气", "雄壮", "宏伟", "刚健", "刚强", "强大", "霸业", "威武", "壮志", "奋发", "激昂", "昂扬", "磅礴", "恢弘"],
     nameMatch: ["豪迈大气", "大气豪迈", "豪迈", "雄壮", "威武"],
-    classicsMatch: ["壮志", "奋发", "刚强", "宏大", "雄壮", "豪迈", "气势", "奋发图强"],
-    incompatible: ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心", "柔顺", "怯弱"],
+    classicsMatch: ["壮志", "奋发", "刚强", "宏大", "雄壮", "豪迈", "气势", "奋发图强", "气势磅礴", "天地", "四海"],
+    incompatible: ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心", "柔顺", "怯弱", "卑微", "退缩"],
+    intentionTriggers: ["豪迈", "大气", "霸气", "雄伟", "强大", "成功", "领袖"],
   },
   "阳光开朗": {
-    keywords: ["阳光", "开朗", "明亮", "明媚", "曙光", "光明", "灿烂", "温暖", "朝气", "活力", "乐观"],
+    keywords: ["阳光", "开朗", "明亮", "明媚", "曙光", "光明", "灿烂", "温暖", "朝气", "活力", "乐观", "向上", "积极"],
     nameMatch: ["阳光开朗", "开朗", "阳光", "明亮", "温暖"],
-    classicsMatch: ["光明", "灿烂", "温暖", "阳光", "晨曦", "朝霞"],
-    incompatible: ["阴郁", "低沉", "忧伤", "哀愁", "肃杀", "哀戚", "悲凉", "愁苦"],
+    classicsMatch: ["光明", "灿烂", "温暖", "阳光", "晨曦", "朝霞", "春晖", "和煦", "晴空"],
+    incompatible: ["阴郁", "低沉", "忧伤", "哀愁", "肃杀", "哀戚", "悲凉", "愁苦", "阴暗", "消沉"],
+    intentionTriggers: ["阳光", "开朗", "积极", "乐观", "温暖", "活力", "快乐"],
   },
   "品德高尚": {
-    keywords: ["品德", "高尚", "仁德", "正直", "高洁", "廉洁", "谦和", "诚信", "忠诚", "仁义", "君子", "贤德"],
+    keywords: ["品德", "高尚", "仁德", "正直", "高洁", "廉洁", "谦和", "诚信", "忠诚", "仁义", "君子", "贤德", "明德", "至善"],
     nameMatch: ["品德高尚", "高尚", "仁德", "正直", "君子", "贤德"],
-    classicsMatch: ["仁德", "正直", "高洁", "诚信", "谦和", "仁义"],
+    classicsMatch: ["仁德", "正直", "高洁", "诚信", "谦和", "仁义", "君子", "贤德", "明德", "修身"],
     incompatible: ["武力", "权谋", "战争", "奸诈", "诡计", "骄溢", "心术不正", "表里不一", "刚愎", "虚伪", "骄躁", "傲慢", "暴戾", "苛责", "严酷"],
+    intentionTriggers: ["善良", "正直", "诚信", "仁爱", "高尚", "品德", "道德", "忠诚"],
   },
   "温文儒雅": {
-    keywords: ["温文", "儒雅", "谦和", "恬淡", "从容", "文雅", "淡泊", "优雅", "书卷", "文采", "风雅"],
+    keywords: ["温文", "儒雅", "谦和", "恬淡", "从容", "文雅", "淡泊", "优雅", "书卷", "文采", "风雅", "温润"],
     nameMatch: ["温文儒雅", "儒雅", "文雅", "优雅", "书卷气"],
-    classicsMatch: ["从容", "谦和", "恬淡", "文雅", "优雅", "风雅"],
+    classicsMatch: ["从容", "谦和", "恬淡", "文雅", "优雅", "风雅", "温润", "君子如玉"],
     incompatible: ["雄壮", "霸业", "武力", "战争", "刚猛", "粗俗", "浮滑", "骄溢", "心术不正"],
+    intentionTriggers: ["儒雅", "文雅", "温和", "谦和", "书卷气", "优雅", "从容"],
   },
   "事业有成": {
-    keywords: ["事业", "有成", "进取", "功业", "成就", "奋发", "勉励", "建功", "立业", "卓越", "腾达"],
+    keywords: ["事业", "有成", "进取", "功业", "成就", "奋发", "勉励", "建功", "立业", "卓越", "腾达", "青云", "鹏程"],
     nameMatch: ["事业有成", "进取", "功业", "成就", "奋发"],
-    classicsMatch: ["进取", "功业", "勉励", "奋发", "励志"],
+    classicsMatch: ["进取", "功业", "勉励", "奋发", "励志", "青云", "鹏程", "远大", "鸿图"],
     incompatible: ["退隐", "消极", "无为", "出世", "遁世", "困苦", "失败", "落魄", "蹉跎", "失意"],
+    intentionTriggers: ["事业", "成功", "进取", "功名", "成就", "卓越", "大志"],
   },
   "独特个性": {
-    keywords: ["独特", "个性", "与众不同", "特别", "创新", "独特魅力"],
+    keywords: ["独特", "个性", "与众不同", "特别", "创新", "独特魅力", "不群"],
     nameMatch: ["独特个性", "独特", "个性"],
-    classicsMatch: ["创新", "独特", "独立"],
-    incompatible: ["平庸", "随俗", "从众", "平凡", "庸俗", "普通"],
+    classicsMatch: ["创新", "独特", "独立", "不群", "超然"],
+    incompatible: ["平庸", "随俗", "从众", "平凡", "庸俗", "普通", "随波逐流"],
+    intentionTriggers: ["独特", "个性", "与众不同", "创新", "自由", "不凡"],
   },
   "洋气国际": {
-    keywords: ["洋气", "国际", "时尚", "现代", "潮流", "国际化"],
+    keywords: ["洋气", "国际", "时尚", "现代", "潮流", "国际化", "新潮"],
     nameMatch: ["洋气国际", "国际", "时尚", "洋气"],
-    classicsMatch: ["时尚", "现代", "国际"],
+    classicsMatch: ["时尚", "现代", "国际", "新潮"],
     incompatible: ["守旧", "陈腐", "传统", "古板", "迂腐", "陈旧", "保守"],
+    intentionTriggers: ["时尚", "国际", "洋气", "现代", "潮流", "新潮"],
+  },
+
+  // ============ 新增 7 类 ============
+
+  "谦逊温和": {
+    keywords: ["谦逊", "温和", "谦让", "温厚", "和善", "谦卑", "恭谨", "平易", "近人", "虚怀", "若谷"],
+    nameMatch: ["谦逊温和", "谦逊", "温和", "和善", "温厚"],
+    classicsMatch: ["谦逊", "温和", "谦让", "温厚", "和善", "虚怀", "若谷", "谦逊有礼", "温良"],
+    incompatible: ["骄傲", "傲慢", "自负", "张扬", "骄溢", "骄躁", "狂妄", "目中无人"],
+    intentionTriggers: ["谦逊", "温和", "谦让", "和善", "谦卑", "礼貌", "谦虚"],
+  },
+  "聪慧敏捷": {
+    keywords: ["聪慧", "敏捷", "聪明", "睿智", "智慧", "颖悟", "智谋", "明察", "机敏", "灵秀", "冰雪"],
+    nameMatch: ["聪慧敏捷", "聪慧", "敏捷", "聪明", "睿智", "智慧"],
+    classicsMatch: ["聪慧", "睿智", "智慧", "明察", "智谋", "颖悟", "好学", "博闻", "审问", "明辨"],
+    incompatible: ["愚钝", "昏聩", "浅薄", "鄙陋", "蠢笨", "呆滞", "迟钝", "愚昧"],
+    intentionTriggers: ["智慧", "聪明", "聪慧", "睿智", "机敏", "才华", "才学"],
+  },
+  "家国情怀": {
+    keywords: ["家国", "天下", "报国", "济世", "苍生", "社稷", "爱国", "经世", "致用", "忧国", "忧民", "担当"],
+    nameMatch: ["家国情怀", "家国", "天下", "报国", "济世"],
+    classicsMatch: ["天下", "报国", "济世", "苍生", "社稷", "爱国", "忧民", "经世", "山河", "黎民", "国泰民安"],
+    incompatible: ["自私", "自利", "颓废", "逃避", "隐居", "独善", "出世", "遁世"],
+    intentionTriggers: ["爱国", "家国", "天下", "担当", "责任", "报国", "奉献"],
+  },
+  "自然灵动": {
+    keywords: ["自然", "灵动", "山水", "清幽", "秀美", "飘逸", "清新", "灵动", "雅致", "天然", "云淡", "风轻"],
+    nameMatch: ["自然灵动", "自然", "灵动", "飘逸", "清新", "雅致"],
+    classicsMatch: ["山水", "清幽", "秀美", "飘逸", "清新", "自然", "云淡风轻", "林泉", "山川", "草木", "清泉"],
+    incompatible: ["浮华", "喧闹", "功利", "做作", "矫饰", "庸俗", "繁杂", "浮躁"],
+    intentionTriggers: ["自然", "灵动", "清新", "飘逸", "淡雅", "山水", "诗意"],
+  },
+  "坚毅刚强": {
+    keywords: ["坚毅", "刚强", "坚韧", "不屈", "刚正", "毅力", "坚定", "执着", "永恒", "磨砺", "磐石"],
+    nameMatch: ["坚毅刚强", "坚毅", "刚强", "坚韧", "不屈", "刚正"],
+    classicsMatch: ["坚毅", "刚强", "坚韧", "不屈", "坚定", "磨砺", "磐石", "如松", "持之以恒", "锲而不舍"],
+    incompatible: ["软弱", "怯弱", "犹豫", "退缩", "动摇", "懦弱", "优柔寡断", "半途而废"],
+    intentionTriggers: ["勇气", "坚毅", "坚强", "勇敢", "毅力", "果敢", "坚韧"],
+  },
+  "豁达旷远": {
+    keywords: ["豁达", "旷远", "开阔", "旷达", "洒脱", "超脱", "释然", "达观", "坦然", "潇洒", "放达"],
+    nameMatch: ["豁达旷远", "豁达", "旷远", "洒脱", "超脱", "达观"],
+    classicsMatch: ["豁达", "旷达", "洒脱", "超脱", "达观", "坦然", "潇洒", "旷远", "天地广阔", "心旷神怡"],
+    incompatible: ["狭隘", "小气", "斤斤计较", "偏执", "拘谨", "钻牛角尖", "吝啬", "刻薄"],
+    intentionTriggers: ["豁达", "洒脱", "旷达", "乐观", "超脱", "放达", "潇洒"],
+  },
+  "浪漫诗意": {
+    keywords: ["浪漫", "诗意", "唯美", "柔情", "缱绻", "风月", "醉人", "梦幻", "绮丽", "诗意", "美好"],
+    nameMatch: ["浪漫诗意", "浪漫", "诗意", "唯美", "柔情", "绮丽"],
+    classicsMatch: ["浪漫", "诗意", "唯美", "柔情", "风月", "梦幻", "绮丽", "相思", "美丽", "动人", "如画"],
+    incompatible: ["刻板", "乏味", "枯燥", "冷硬", "古板", "严肃", "呆板", "干涩"],
+    intentionTriggers: ["浪漫", "诗意", "唯美", "柔情", "梦幻", "美好", "温柔"],
   },
 };
+
+/**
+ * 用户意向词 → 优先意气类别映射表
+ * 用于：当用户勾选了某个意向词（如"勇气"），自动提升"坚毅刚强"类的典籍匹配权重
+ */
+const INTENTION_TO_SPIRIT_MAP: Record<string, string[]> = {
+  // 豪迈大气
+  "霸业": ["豪迈大气"],
+  "领袖": ["豪迈大气", "家国情怀"],
+  "雄伟": ["豪迈大气", "豁达旷远"],
+  // 阳光开朗
+  "快乐": ["阳光开朗"],
+  "积极": ["阳光开朗", "豁达旷远"],
+  // 品德高尚
+  "善良": ["品德高尚", "谦逊温和", "温文儒雅"],
+  "正直": ["品德高尚", "坚毅刚强"],
+  "诚信": ["品德高尚"],
+  "仁爱": ["品德高尚", "家国情怀"],
+  // 温文儒雅
+  "书卷气": ["温文儒雅"],
+  // 事业有成
+  "成功": ["事业有成", "豪迈大气"],
+  "大志": ["事业有成", "家国情怀"],
+  // 独特个性
+  "不凡": ["独特个性"],
+  // 智慧/才学
+  "智慧": ["聪慧敏捷"],
+  "才华": ["聪慧敏捷", "浪漫诗意"],
+  // 家国
+  "爱国": ["家国情怀"],
+  "担当": ["家国情怀", "坚毅刚强"],
+  "责任": ["家国情怀"],
+  "奉献": ["家国情怀", "品德高尚"],
+  // 自然
+  "诗意": ["浪漫诗意", "自然灵动"],
+  "淡雅": ["自然灵动", "温文儒雅"],
+  // 勇敢
+  "勇气": ["坚毅刚强", "豪迈大气"],
+  "坚强": ["坚毅刚强"],
+  // 洒脱
+  "潇洒": ["豁达旷远", "浪漫诗意"],
+  // 浪漫
+  "温馨": ["浪漫诗意", "阳光开朗"],
+  // 谦和
+  "礼貌": ["谦逊温和", "品德高尚"],
+  "谦让": ["谦逊温和"],
+};
+
+/**
+ * 获取意向词对应的推荐意气类别（去重）
+ */
+function getSpiritCategoriesForIntentions(intentions?: string[]): string[] {
+  if (!intentions || intentions.length === 0) return [];
+  const categories = new Set<string>();
+  for (const intent of intentions) {
+    const trimmed = intent.trim();
+    // 先在映射表中查找
+    const mapped = INTENTION_TO_SPIRIT_MAP[trimmed];
+    if (mapped) {
+      mapped.forEach(c => categories.add(c));
+    }
+    // 再在 SPIRIT_CATEGORIES 的 intentionTriggers 中查找
+    for (const [cat, config] of Object.entries(SPIRIT_CATEGORIES)) {
+      if (config.intentionTriggers.includes(trimmed)) {
+        categories.add(cat);
+      }
+    }
+  }
+  return [...categories];
+}
 
 /**
  * 智能检测名字寓意的意气类别
@@ -1446,55 +1578,161 @@ function detectClassicsSpirit(modernText: string, ancientText: string): string[]
 }
 
 /**
- * 计算意气匹配得分
- * 得分越高，名字寓意和典籍译文越匹配
+ * 在典籍译文中搜索特定类别的关键词，返回匹配数量
+ * 用于加权计算：匹配的关键词越多，得分越高
  */
-function calculateSpiritScore(meaning: string, modernText: string, ancientText: string, expectations?: string): number {
+function countKeywordMatches(text: string, keywords: string[]): number {
+  if (!text || keywords.length === 0) return 0;
+  let count = 0;
+  const textLower = text.toLowerCase();
+  for (const keyword of keywords) {
+    if (textLower.includes(keyword)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * 计算意气匹配得分（v2 - 加权向量相似度版本）
+ * 
+ * 相比 v1 的改进：
+ * 1. 加分力度提升：直接匹配从 +3 提升到 +5～+15（根据关键词命中数加权）
+ * 2. 意向词参与匹配：用户勾选的意向词直接映射到意气类别，获得额外加分
+ * 3. 不兼容惩罚力度适度：从 -10 调整为 -8，避免过于严苛淘汰
+ * 4. 语义相似度（典籍原文的 pgvector 得分）参与加权
+ * 5. 返回范围扩大：-100（通用负面）~ 0（无匹配）~ +50（完美匹配）
+ * 
+ * @param meaning 名字寓意描述
+ * @param modernText 典籍现代译文
+ * @param ancientText 典籍原文
+ * @param expectations 用户期望文本（可选）
+ * @param intentions 用户勾选的意向词数组（可选），直接参与意气类别映射
+ * @param similarity 典籍的语义相似度得分（可选），0-1
+ * @returns 意气匹配加权得分，范围 -100 ~ +50
+ */
+function calculateSpiritScore(
+  meaning: string,
+  modernText: string,
+  ancientText: string,
+  expectations?: string,
+  intentions?: string[],
+  similarity?: number
+): number {
   const nameSpirits = detectNameSpirit(meaning);
-  const classicsSpirits = detectClassicsSpirit(modernText, ancientText);
+  const classicSpirits = detectClassicsSpirit(modernText, ancientText);
   
   // ── 通用负面：典籍译文包含负面词 → 直接否决 ──
-  if (classicsSpirits.includes("不兼容:通用")) {
-    console.log(`[意气得分] 典籍含通用负面内容，直接否决（-100分）`);
+  if (classicSpirits.includes("不兼容:通用")) {
+    console.log(`[意气得分 v2] 典籍含通用负面内容，直接否决（-100分）`);
     return -100;
   }
   
+  // ── 意向词 → 推荐意气类别 ──
+  const intentionSpirits = getSpiritCategoriesForIntentions(intentions);
+  
+  const textToCheck = `${modernText || ""} ${ancientText || ""}`.toLowerCase();
   let score = 0;
   
-  // 1. 直接匹配：名字意气类别与典籍意气类别一致
-  for (const nameSpirit of nameSpirits) {
-    for (const classicsSpirit of classicsSpirits) {
-      if (nameSpirit === classicsSpirit) {
-        score += 3; // 直接匹配高分
-      }
-    }
-  }
+  // ================================================================
+  // 因子1: 直接意气匹配（核心因子，加权上限 +25 分）
+  // ================================================================
   
-  // 2. 不兼容检测：如果典籍有不兼容词
-  for (const classicsSpirit of classicsSpirits) {
-    if (classicsSpirit.startsWith("不兼容:")) {
-      const incompatibleCat = classicsSpirit.replace("不兼容:", "");
-      for (const nameSpirit of nameSpirits) {
-        if (nameSpirit === incompatibleCat || nameSpirit === "通用") {
-          score -= 10; // 严重扣分（提升力度）
+  // 遍历名字的每个意气类别，检查典籍是否匹配
+  for (const nameSpirit of nameSpirits) {
+    if (nameSpirit === "通用") continue; // "通用"不参与直接匹配
+    
+    for (const classicSpirit of classicSpirits) {
+      if (classicSpirit.startsWith("不兼容:")) continue; // 不兼容标记在因子2处理
+      
+      if (nameSpirit === classicSpirit) {
+        // ✅ 直接匹配：统计典籍译文中该类别关键词的命中数，加权加分
+        const config = SPIRIT_CATEGORIES[nameSpirit];
+        if (config) {
+          const matchCount = countKeywordMatches(textToCheck, config.classicsMatch);
+          // 加权：每个命中关键词 +3 分，基础 +5 分，上限 +15 分
+          const bonus = Math.min(5 + matchCount * 3, 15);
+          score += bonus;
+          console.log(`  [意气因子1] "${nameSpirit}"直接匹配，命中${matchCount}个关键词 → +${bonus}分`);
+        } else {
+          score += 5;
+          console.log(`  [意气因子1] "${nameSpirit}"直接匹配 → +5分`);
         }
       }
     }
   }
   
-  // 3. 如果寓意和译文有语义上的正面关联（通过期望词补充匹配）
+  // ================================================================
+  // 因子2: 不兼容检测（惩罚因子，-5 ~ -8 分每次）
+  // ================================================================
+  for (const classicSpirit of classicSpirits) {
+    if (classicSpirit.startsWith("不兼容:")) {
+      const incompatibleCat = classicSpirit.replace("不兼容:", "");
+      for (const nameSpirit of nameSpirits) {
+        if (nameSpirit === incompatibleCat || nameSpirit === "通用") {
+          score -= 8;
+          console.log(`  [意气因子2] 典籍包含"${incompatibleCat}"不兼容词 → -8分`);
+        }
+      }
+    }
+  }
+  
+  // ================================================================
+  // 因子3: 用户意向词加分（核心新因子，+3 ~ +15 分）
+  // ================================================================
+  if (intentionSpirits.length > 0) {
+    for (const intentSpirit of intentionSpirits) {
+      // 查看经典典籍是否也匹配了该意气类别
+      if (classicSpirits.includes(intentSpirit)) {
+        score += 8;
+        console.log(`  [意气因子3] 意向词推荐"${intentSpirit}"匹配典籍 → +8分`);
+      } else {
+        // 意向词推荐的类别在典籍中未直接匹配，但不扣分
+        // 只是不加分，保留中性
+      }
+    }
+    
+    // 检查名字寓意是否也体现了意向词推荐的意气
+    for (const intentSpirit of intentionSpirits) {
+      if (nameSpirits.includes(intentSpirit)) {
+        score += 5;
+        console.log(`  [意气因子3b] 名字寓意匹配意向推荐"${intentSpirit}" → +5分`);
+      }
+    }
+  }
+  
+  // ================================================================
+  // 因子4: 期望文本关键词桥接（+1 ~ +6 分）
+  // ================================================================
   if (expectations) {
     const expLower = expectations.toLowerCase();
     for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
-      for (const keyword of config.keywords) {
-        if (expLower.includes(keyword) && classicsSpirits.includes(category)) {
-          score += 2;
-          break;
-        }
+      const matchedKeywords = countKeywordMatches(expLower, config.keywords);
+      if (matchedKeywords > 0 && classicSpirits.includes(category)) {
+        // 期望词中包含该类别关键词，且典籍也匹配该类别 → 桥接加分
+        const bonus = Math.min(matchedKeywords * 2, 6);
+        score += bonus;
+        console.log(`  [意气因子4] 期望词"${category}"意象桥接，命中${matchedKeywords}个 → +${bonus}分`);
+        break; // 只加一次，避免多类别重复加分
       }
     }
   }
   
+  // ================================================================
+  // 因子5: 典籍语义相似度奖励（+0 ~ +10 分，仅当有意气匹配时生效）
+  // ================================================================
+  if (similarity !== undefined && similarity > 0) {
+    // 只有典籍有至少一个正面的意气匹配时，语义相似度才加分
+    const hasPositiveMatch = classicSpirits.some(s => !s.startsWith("不兼容:") && s !== "通用");
+    if (hasPositiveMatch) {
+      // 相似度 0.5 → +2分, 0.7 → +5分, 0.9 → +9分
+      const similarityBonus = Math.round(similarity * 10);
+      score += similarityBonus;
+      console.log(`  [意气因子5] 典籍语义相似度 ${similarity.toFixed(2)} → +${similarityBonus}分`);
+    }
+  }
+  
+  console.log(`[意气得分 v2] 总分 = ${score}`);
   return score;
 }
 
@@ -1505,20 +1743,29 @@ function calculateSpiritScore(meaning: string, modernText: string, ancientText: 
  * @param reason 名字的选字理由
  * @param matches 可用的典籍匹配列表
  * @param expectations 用户期望（可选）
+ * @param intentions 用户勾选的意向词（可选），直接参与意气类别映射加权
  * @returns 最佳匹配的典籍，如果没有合适的则返回 null
  */
 export function findBestClassicsMatch(
   meaning: string,
   reason: string,
   matches: Array<{ bookName: string; ancientText: string; modernText: string; similarity?: number }>,
-  expectations?: string
+  expectations?: string,
+  intentions?: string[]
 ): { bookName: string; ancientText: string; modernText: string; spiritScore: number } | null {
   if (!matches || matches.length === 0) return null;
   
-  // 为每个典籍计算意气匹配得分
+  // 为每个典籍计算意气匹配得分（v2 加权版，传入 intentions 和 similarity）
   const scored = matches.map(m => ({
     ...m,
-    spiritScore: calculateSpiritScore(meaning, m.modernText || "", m.ancientText || "", expectations),
+    spiritScore: calculateSpiritScore(
+      meaning,
+      m.modernText || "",
+      m.ancientText || "",
+      expectations,
+      intentions,
+      m.similarity  // 传入典籍的 pgvector 语义相似度
+    ),
   }));
   
   // 按得分降序排列
@@ -1529,7 +1776,8 @@ export function findBestClassicsMatch(
   
   // 始终返回最佳匹配（含spiritScore），由调用方根据得分决定如何处理
   if (best) {
-    console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 最佳典籍=《${best.bookName}》, 意气得分=${best.spiritScore}`);
+    const intentInfo = intentions && intentions.length > 0 ? `, intentions=${intentions.join(",")}` : "";
+    console.log(`[意气匹配 v2] 名字寓意="${meaning.slice(0, 24)}", 最佳典籍=《${best.bookName}》, 意气得分=${best.spiritScore}${intentInfo}`);
     return {
       bookName: best.bookName,
       ancientText: best.ancientText,
@@ -1539,7 +1787,7 @@ export function findBestClassicsMatch(
   }
   
   // 没有任何典籍匹配
-  console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 无典籍可匹配`);
+  console.log(`[意气匹配 v2] 名字寓意="${meaning.slice(0, 24)}", 无典籍可匹配`);
   return null;
 }
 
