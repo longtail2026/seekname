@@ -742,25 +742,23 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           {nameItem.meaning}
                         </p>
 
-                        {/* 典籍出处 */}
+                        {/* 典籍出处（仅在有真实典籍匹配时才展示） */}
                         {(() => {
-                          const hasSource = nameItem.sourceModern || nameItem.reason || nameItem.sourceText || nameItem.source;
-                          if (!hasSource) return null;
+                          const hasRealSource = !!(nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern);
+                          if (!hasRealSource) return null;
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
                               {/* 先展示典籍出处：书名 + 典籍原文 */}
-                              {(nameItem.sourceText || nameItem.reason) && (
+                              {(nameItem.sourceText) && (
                                 <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
                                   <span className="font-medium">典籍出处：</span>
                                   {(() => {
-                                    // 书名 + 原文格式："《尚书》"xxx字出自"原文..."
                                     const bookDisplay = nameItem.sourceBook || "";
-                                    const textContent = nameItem.sourceText || nameItem.reason || "";
+                                    const textContent = nameItem.sourceText || "";
                                     const fullText = bookDisplay 
                                       ? `${bookDisplay}：${textContent}`
                                       : textContent;
                                     const MAX_LEN = 45;
-                                    // 对引号内的原文段落做截断（兼容弯引号\u201c\u201d和直引号"）
                                     let text = fullText.replace(/[\u201c"]([^\u201d"]{46,})[\u201d"]/g, (match, content) => {
                                       const quote = match[0];
                                       return `${quote}${content.slice(0, MAX_LEN)}...${quote === '"' ? '"' : '\u201d'}`;

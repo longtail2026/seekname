@@ -446,10 +446,8 @@ export async function POST(request: NextRequest) {
       // ── 意气匹配后处理：典籍出处完全基于数据库真实匹配 ──
       // 优先级：
       //   1. 只用 findBestClassicsMatch 从数据库真实 matches 中找到意气匹配的典籍
-      //   2. 如果数据库无合适匹配，典籍出处留空（宁可没有，也不要错误的 DeepSeek 编造出处）
-      let source = { book: "", text: "", modernText: "", reason: "" };
-
-      // 用意气匹配算法从数据库真实 matches 找到最佳典籍
+      //   2. 如果 spiritScore ≤ 0（意气背离或不可用），留空 source/book/text/modernText
+      //      只保留 reason（寓意说明），不展示"典籍出处"模块
       const spiritMatch = SemanticNamingEngine.findBestClassicsMatch(
         resolved.meaning,
         resolved.reason,
@@ -457,14 +455,24 @@ export async function POST(request: NextRequest) {
         expectations
       );
 
+      let source = { book: "", text: "", modernText: "", reason: "" };
+      let spiritScore = 0;
+
       if (spiritMatch) {
-        // ✅ 数据库有意气匹配的典籍 → 优先且唯一使用
-        source = {
-          book: `《${spiritMatch.bookName}》`,
-          text: spiritMatch.ancientText || "",
-          modernText: spiritMatch.modernText || "",
-          reason: resolved.reason || "",
-        };
+        spiritScore = spiritMatch.spiritScore;
+        if (spiritMatch.spiritScore > 0) {
+          // ✅ 数据库有意气匹配的典籍 + 意气得分 > 0 → 展示出处
+          source = {
+            book: `《${spiritMatch.bookName}》`,
+            text: spiritMatch.ancientText || "",
+            modernText: spiritMatch.modernText || "",
+            reason: resolved.reason || "",
+          };
+        } else {
+          // ⚠️ spiritScore ≤ 0（意气背离或不可用）：只保留寓意说明，清空典籍出处
+          console.log(`[意气验证] 名字"${givenName}"意气得分=${spiritMatch.spiritScore}，不符意气匹配，清空典籍出处`);
+          source = { book: "", text: "", modernText: "", reason: resolved.reason || "" };
+        }
       }
       // ❌ 不再降级使用 DeepSeek 生成的出处，防止编造不准确的典籍引用
 
@@ -492,6 +500,14 @@ export async function POST(request: NextRequest) {
       }
       const wuxingPrefReason = wuxingReasonParts.join("；") + (wuxingReasonParts.length > 0 ? `。${wuxingConclusion}` : "");
 
+      // 五、意气加分：有真实典籍匹配且意气匹配 > 0 → 总分加分（建议四）
+      // spiritScore 通常为 0~5 之间，最高约 10 分，参考值：直接匹配+3, 期望匹配+2, 不兼容-10
+      // 加成规则：spiritScore > 0 时，每 1 分加 2 分总分，上限 10 分
+      const spiritBonus = spiritScore > 0 ? Math.min(spiritScore * 2, 10) : 0;
+
+      const baseScore = resolved.score ?? (90 - index * 2);
+      const finalScore = Math.round(baseScore + spiritBonus);
+
       return {
         name: fullName,
         givenName: givenName,
@@ -502,7 +518,7 @@ export async function POST(request: NextRequest) {
         meaning: resolved.meaning,
         reason: resolved.reason,
         strokeCount,
-        score: resolved.score ?? (90 - index * 2),
+        score: finalScore,
         scoreBreakdownV2: resolved.scoreBreakdownV2,
         source,
       };
@@ -544,10 +560,9 @@ export async function POST(request: NextRequest) {
         
         // ── 回退路径：典籍出处完全基于数据库真实匹配 ──
         // 只使用 findBestClassicsMatch 从数据库真实 matches 中匹配，
-        // 不再降级使用 DeepSeek 生成的出处，防止编造不准确的典籍引用
+        // spiritScore ≤ 0 时只保留 reason，清空 book/text/modernText
         let source = { book: "", text: "", modernText: "", reason: "" };
         
-        // 用意气匹配从数据库真实 matches 找最佳典籍
         const fallbackSpiritMatch = SemanticNamingEngine.findBestClassicsMatch(
           name.meaning,
           name.reason,
@@ -555,18 +570,23 @@ export async function POST(request: NextRequest) {
           expectations
         );
 
-        if (fallbackSpiritMatch) {
+        if (fallbackSpiritMatch && fallbackSpiritMatch.spiritScore > 0) {
           source = {
             book: `《${fallbackSpiritMatch.bookName}》`,
             text: fallbackSpiritMatch.ancientText || "",
             modernText: fallbackSpiritMatch.modernText || "",
             reason: name.reason || "",
           };
+        } else if (fallbackSpiritMatch && fallbackSpiritMatch.spiritScore <= 0) {
+          console.log(`[意气验证-回退] 名字"${givenName}"意气得分=${fallbackSpiritMatch.spiritScore}，清空典籍出处`);
+          source = { book: "", text: "", modernText: "", reason: name.reason || "" };
         }
         // ❌ 无意气匹配 → 不用任何出处（宁可留空也不要错误的 DeepSeek 编造）
 
         // 使用真实打分（result.filteredNames中有评分），而不是默认80分
-        const realScore = name.score ?? 80;
+        const fallbackSpiritScore = fallbackSpiritMatch?.spiritScore ?? 0;
+        const fallbackSpiritBonus = fallbackSpiritScore > 0 ? Math.min(fallbackSpiritScore * 2, 10) : 0;
+        const realScore = Math.round((name.score ?? 80) + fallbackSpiritBonus);
 
         // 逐字五行分析
         const additionalChars = givenName.split('');
@@ -717,11 +737,19 @@ export async function POST(request: NextRequest) {
     
     finalNames = ensureCharDiversity(finalNames);
 
-    // 限制最多10个名字
-    finalNames = finalNames.slice(0, 10);
+      // 限制最多10个名字
+      finalNames = finalNames.slice(0, 10);
 
-    // ── 创建订单记录（每次必建）──
-    console.log(`[API] 开始创建订单，finalNames=${finalNames.length}个`);
+      // ── 建议三：分数分布拉伸 ──
+      // 排名第1→95分，第2→90分，第3→85分，第4→80分，第5→75分，第6→70分，后续递减至55分
+      const stretchedScores = [95, 90, 85, 80, 75, 70];
+      finalNames = finalNames.map((n, i) => {
+        const newScore = i < stretchedScores.length ? stretchedScores[i] : Math.max(55, 70 - (i - 5) * 3);
+        return { ...n, score: newScore };
+      });
+
+      // ── 创建订单记录（每次必建）──
+      console.log(`[API] 开始创建订单，finalNames=${finalNames.length}个`);
     const order = await createOrder({
       userId: currentUser?.id ?? null,
       userName: currentUser?.name || anonymousName,

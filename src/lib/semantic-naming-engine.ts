@@ -1409,8 +1409,8 @@ export function findBestClassicsMatch(
   // 找出最高分
   const best = scored[0];
   
-  // 如果有匹配且得分 > 0，返回最佳匹配
-  if (best && best.spiritScore > 0) {
+  // 始终返回最佳匹配（含spiritScore），由调用方根据得分决定如何处理
+  if (best) {
     console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 最佳典籍=《${best.bookName}》, 意气得分=${best.spiritScore}`);
     return {
       bookName: best.bookName,
@@ -1420,8 +1420,8 @@ export function findBestClassicsMatch(
     };
   }
   
-  // 没有合适的意气匹配，返回 null（不展示出处）
-  console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 无合适典籍匹配（最高意气得分=${best?.spiritScore ?? -999}），不展示出处`);
+  // 没有任何典籍匹配
+  console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 无典籍可匹配`);
   return null;
 }
 
