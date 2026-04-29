@@ -479,15 +479,57 @@ export async function POST(request: NextRequest) {
           modernText: aiModernText,
         };
         const aiSpiritScore = (() => {
-          // 简单计算 AI 出处的意气得分（只校验不兼容词）
-          const meaningText = resolved.meaning || "";
+          // 计算 AI 出处的意气得分：校验名称寓意 vs 典籍译文是否意气一致
+          const meaningText = (resolved.meaning || "").toLowerCase();
           const checkText = `${aiModernText} ${afterBook}`.toLowerCase();
-          const incompatibleTerms = ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心", "阴郁", "忧伤"];
-          if (meaningText.includes("豪迈") || meaningText.includes("大气") || meaningText.includes("强大")) {
-            if (incompatibleTerms.some(t => checkText.includes(t))) {
-              return -5; // 意气背离
+          
+          // ── 通用负面内容检测 ──
+          // 如果典籍译文本身包含明显的负面词汇，直接判定为不匹配
+          const generalNegativeTerms = [
+            "骄溢", "骄躁", "急躁", "表里不一", "心术不正",
+            "奸诈", "虚伪", "粗俗", "浮滑",
+            "困苦", "危难", "险恶", "动荡",
+            "愚钝", "昏聩", "浅薄", "鄙陋",
+            "哀愁", "悲戚", "凄凉", "怨愤",
+            "平庸", "平凡", "庸俗", "卑微",
+          ];
+          if (generalNegativeTerms.some(t => checkText.includes(t))) {
+            return -5; // 典籍译文含负面内容 → 意气背离
+          }
+
+          // ── 按意气类别分别校验不兼容词 ──
+          // 为每个类别定义：关键词 + 不应该出现在典籍译文中的词
+          const spiritChecks: Array<{ keywords: string[]; incompatible: string[] }> = [
+            // 1) 平安/健康/安宁：不应出现负面动荡描述
+            { keywords: ["平安", "健康", "安宁", "安稳", "安康", "平顺"], incompatible: ["骄溢", "急躁", "表里不一", "困苦", "危难", "动荡", "骄躁", "险恶"] },
+            // 2) 温婉/美好/温柔：不应出现粗犷、刚愎、负面人格描述
+            { keywords: ["温婉", "美好", "温柔", "婉约", "娴淑", "柔美", "秀丽"], incompatible: ["骄溢", "刚愎", "粗俗", "急躁", "骄躁", "倔强", "傲慢"] },
+            // 3) 智慧/聪明/明智：不应出现愚钝相关描述
+            { keywords: ["智慧", "聪明", "明智", "聪慧", "睿智", "明达"], incompatible: ["愚钝", "昏聩", "浅薄", "鄙陋", "愚蠢"] },
+            // 4) 品德/高尚/正直：不应出现奸诈虚伪描述
+            { keywords: ["品德", "高尚", "正直", "仁德", "忠厚", "诚信", "善良"], incompatible: ["奸诈", "虚伪", "骄溢", "表里不一", "苛责", "严酷", "暴戾"] },
+            // 5) 阳光/开朗/积极：不应出现阴郁忧伤描述
+            { keywords: ["阳光", "开朗", "积极", "乐观", "向上", "朝气"], incompatible: ["阴郁", "忧伤", "哀愁", "悲戚", "凄凉", "怨愤", "消沉"] },
+            // 6) 豪迈/大气/强大：不应出现谦恭谨慎（原逻辑）
+            { keywords: ["豪迈", "大气", "强大", "雄伟", "气魄", "恢宏"], incompatible: ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心"] },
+            // 7) 独特/个性：不应出现平庸随俗描述
+            { keywords: ["独特", "个性", "与众不同", "别致", "新异"], incompatible: ["平庸", "平凡", "随俗", "随波逐流", "普通"] },
+            // 8) 事业/成功/前程：不应出现消极失败描述
+            { keywords: ["事业", "成功", "前程", "鸿图", "成就", "功名"], incompatible: ["困苦", "失败", "落魄", "蹉跎", "失意", "无为"] },
+            // 9) 洋气/国际/时尚：不应出现传统古板描述
+            { keywords: ["洋气", "国际", "时尚", "新潮", "现代"], incompatible: ["古板", "守旧", "迂腐", "陈旧", "保守"] },
+          ];
+
+          // 遍历所有意气类别，检查当前名字寓意属于哪一类
+          for (const check of spiritChecks) {
+            if (check.keywords.some(k => meaningText.includes(k))) {
+              // 名字寓意包含该类别关键词 → 检查典籍译文是否包含不兼容词
+              if (check.incompatible.some(t => checkText.includes(t))) {
+                return -5; // 意气背离
+              }
             }
           }
+
           return 1; // 无明显冲突
         })();
 
