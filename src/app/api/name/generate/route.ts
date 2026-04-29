@@ -227,8 +227,8 @@ export async function POST(request: NextRequest) {
       style,
       category = "personal", // 默认个人起名
       // 新增：意向和风格勾选参数
-      intentions = [],  // 勾选的意向词数组，如 ["善良", "智慧", "成功"]
-      styles = [],     // 勾选的风格词数组，如 ["古典", "温婉"]
+      intentions = [] as string[],  // 勾选的意向词数组，如 ["善良", "智慧", "成功"]
+      styles = [] as string[],     // 勾选的风格词数组，如 ["古典", "温婉"]
     } = body;
 
     // 日志输出参数
@@ -275,6 +275,36 @@ export async function POST(request: NextRequest) {
     // ── 计算五行喜忌（保留用于返回结果）──
     const wuxingResult = calculateWuxing(birthDate, birthTime);
 
+    // ★ Phase 1: 从八字喜忌构建 wuxingPreference，传给引擎 prompt 层
+    // 将 route.ts 的 wuxingResult 映射到 WuxingPreference 接口
+    const wuxingPreferenceForEngine: WuxingPreference = {
+      dayStem: wuxingResult.dayMaster,
+      dayStemWuxing: wuxingResult.dayMasterWuxing,
+      favorableElements: wuxingResult.likes ?? [],
+      unfavorableElements: wuxingResult.avoids ?? [],
+      missingElements: wuxingResult.missing ?? [],
+      isExcessive: wuxingResult.isExcessive ?? false,
+      isWeak: wuxingResult.isWeak ?? false,
+      isBalanced: !wuxingResult.isExcessive && !wuxingResult.isWeak,
+      description: wuxingResult.description ?? "",
+    };
+
+    // ★ Phase 1: 预加载常用汉字五行映射表，供引擎内部 hardFilter 使用
+    // 将预加载结果存入变量 prefetchedCharWuxingMap，后续不再重复查询
+    const seedTextParts = [expectations || "", ...intentions, style || "", ...styles];
+    const seedText = seedTextParts.filter(Boolean).join("");
+    const seedChars = [...new Set(
+      seedText.split("").filter(c => /[\u4e00-\u9fff]/.test(c))
+    )];
+    const commonNamingChars = "涵泽辰宇轩子文奕可欣怡思语乐明浩然博睿瑾瑜舒凡悦琪瑶萱琳铭晨".split("");
+    const allSeedChars: string[] = [...new Set([...seedChars, ...commonNamingChars])];
+    const preloadWuxingData = await queryCharsWuxing(allSeedChars);
+    const prefetchedCharWuxingMap = new Map<string, string>();
+    preloadWuxingData.forEach(cd => {
+      if (cd.wuxing) prefetchedCharWuxingMap.set(cd.character, cd.wuxing);
+    });
+    console.log(`[API] ★ Phase 1: 预加载 ${prefetchedCharWuxingMap.size} 个汉字的五行数据`);
+
     // ── 构建语义匹配请求 ──
     // 组合 expectations 和 intentions 作为 rawInput
     const rawInputParts: string[] = [];
@@ -300,6 +330,19 @@ export async function POST(request: NextRequest) {
       // 将勾选的意向词逐项传给引擎，触发独立搜索模式
       intentions: intentions.length > 0 ? intentions : undefined,
       styles: styles.length > 0 ? styles : undefined,
+      // ★ Phase 1: 五行喜忌偏好 → 引擎 prompt 引导 + hardFilter
+      wuxingPreference: {
+        likes: wuxingResult.likes ?? [],
+        avoids: wuxingResult.avoids ?? [],
+        missing: wuxingResult.missing ?? [],
+        dayMaster: wuxingResult.dayMaster,
+        dayMasterWuxing: wuxingResult.dayMasterWuxing,
+        bazi: wuxingResult.bazi,
+        isExcessive: wuxingResult.isExcessive ?? false,
+        isWeak: wuxingResult.isWeak ?? false,
+      },
+      // ★ Phase 1: 预加载的逐字五行映射 → 引擎内部 hardFilter 直接使用
+      charWuxingMap: prefetchedCharWuxingMap,
     };
 
     console.log(`[API] 语义匹配请求: rawInput="${rawInput}", gender=${genderCode}, style=${JSON.stringify(semanticRequest.style)}`);
