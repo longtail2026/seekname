@@ -439,108 +439,70 @@ export async function POST(request: NextRequest) {
 
       const strokeCount = givenName.length * 8;
 
-      // 解析典籍出处，优先从数据库真实的 classicsMatch 中获取白话译文
-      let source = { book: "《诗经》", text: "美好寓意", modernText: "", reason: "" };
+      // ── 意气匹配后处理：典籍出处降级展示 ──
+      // 优先级：
+      //   1. 先用 findBestClassicsMatch 从数据库真实 matches 中找到意气匹配的典籍
+      //   2. 如果数据库无合适匹配，才尝试使用 DeepSeek 生成的出处（已做意气校验）
+      //   3. 如果都不匹配，典籍出处留空（宁可没有，也不要错误）
+      let source = { book: "", text: "", modernText: "", reason: "" };
 
-      if (resolved.rawSource && resolved.rawSource.length > 0) {
+      // 第一步：用意气匹配算法从数据库真实 matches 找到最佳典籍
+      const spiritMatch = SemanticNamingEngine.findBestClassicsMatch(
+        resolved.meaning,
+        resolved.reason,
+        result.matches,
+        expectations
+      );
+
+      if (spiritMatch) {
+        // ✅ 数据库有意气匹配的典籍 → 优先使用
+        source = {
+          book: `《${spiritMatch.bookName}》`,
+          text: spiritMatch.ancientText || "",
+          modernText: spiritMatch.modernText || "",
+          reason: resolved.reason || "",
+        };
+      } else if (resolved.rawSource && resolved.rawSource.length > 0) {
+        // ⚠️ 数据库无合适匹配，降级尝试使用 DeepSeek 生成的出处
+        // 但要用意气匹配校验，避免意气背离
         const sourceStr = resolved.rawSource;
         const bookMatch = sourceStr.match(/《([^》]+)》/);
         const rawBookName = bookMatch ? bookMatch[1] : "";
-        const displayBook = rawBookName ? `《${rawBookName}》` : "《诗经》";
+        const displayBook = rawBookName ? `《${rawBookName}》` : "";
         const afterBook = sourceStr.replace(/.*?》/, "").replace(/^[：:""""]?/, "").replace(/[""""]$/g, "").trim();
         
-        // 改进的 modernText 匹配：遍历所有 matches，找到最匹配的典籍原文
-        let matchedModernText = "";
-        let matchedAncientText = afterBook || "";
-        if (result.matches.length > 0 && rawBookName) {
-          const cleanRawBook = rawBookName.replace(/[《》\s]/g, '');
-          let bestMatchIndex = -1;
-          let bestScore = 0;
-          
-          for (let i = 0; i < result.matches.length; i++) {
-            const match = result.matches[i];
-            const cleanMatchBook = match.bookName.replace(/[《》\s]/g, '');
-            let score = 0;
-            
-            // 精准匹配书名
-            if (cleanRawBook === cleanMatchBook) score += 3;
-            // 书名包含或被包含
-            if (cleanRawBook.includes(cleanMatchBook) || cleanMatchBook.includes(cleanRawBook)) score += 2;
-            // 典籍原文内容匹配
-            if (match.ancientText && afterBook && 
-                (match.ancientText.includes(afterBook.slice(0, 4)) || afterBook.includes(match.ancientText.slice(0, 4)))) {
-              score += 1;
-            }
-            
-            if (score > bestScore) {
-              bestScore = score;
-              bestMatchIndex = i;
-            }
-          }
-          
-          if (bestMatchIndex >= 0 && bestScore > 0) {
-            const bestMatch = result.matches[bestMatchIndex];
-            matchedModernText = bestMatch.modernText || "";
-            // 如果 AI 输出的典籍原文与数据库不一致，使用数据库的准确原文
-            if (bestMatch.ancientText && bestMatch.ancientText.length > matchedAncientText.length) {
-              matchedAncientText = bestMatch.ancientText;
-            }
-          }
-        }
-        
-        // 第一优先：使用 DeepSeek 原始返回的现代译文
-        if (!matchedModernText && resolved.modernText) {
-          matchedModernText = resolved.modernText;
-        }
-        
-        // 如果没有精准匹配到译文，尝试宽松匹配：用第一个同书名的典籍译文
-        if (!matchedModernText && result.matches.length > 0 && rawBookName) {
-          const cleanRawBook = rawBookName.replace(/[《》\s]/g, '');
-          for (let i = 0; i < result.matches.length; i++) {
-            const match = result.matches[i];
-            const cleanMatchBook = match.bookName.replace(/[《》\s]/g, '');
-            // 书名包含或被包含就算匹配（宽松版）
-            if (cleanRawBook.includes(cleanMatchBook) || cleanMatchBook.includes(cleanRawBook)) {
-              matchedModernText = match.modernText || "";
-              break;
-            }
-          }
-        }
-        
-        // 如果仍无匹配，选择第一个有 modernText 的典籍（避免空译文）
-        if (!matchedModernText && result.matches.length > 0) {
-          for (const match of result.matches) {
-            if (match.modernText) {
-              matchedModernText = match.modernText;
-              break;
-            }
-          }
-        }
-        
-        source = {
-          book: displayBook,
-          text: matchedAncientText || resolved.reason || "美好寓意",
-          modernText: matchedModernText || "",
-          reason: resolved.reason || "",
+        // 将 AI 生成的出处也做意气匹配校验
+        const aiModernText = resolved.modernText || "";
+        const aiClassicsForCheck = {
+          bookName: rawBookName || "未知典籍",
+          ancientText: afterBook || "",
+          modernText: aiModernText,
         };
-      } else if (result.matches.length > 0) {
-        // 按索引循环分配典籍出处，避免所有名字都用同一个结果
-        const matchIndex = index % result.matches.length;
-        const match = result.matches[matchIndex];
-        source = {
-          book: `《${match.bookName}》`,
-          text: match.ancientText || "",
-          modernText: match.modernText || "",
-          reason: match.meaning || resolved.reason || "",
-        };
-      } else {
-        source = {
-          book: "《诗经》",
-          text: resolved.reason || "美好寓意",
-          modernText: "",
-          reason: resolved.reason || "",
-        };
+        const aiSpiritScore = (() => {
+          // 简单计算 AI 出处的意气得分（只校验不兼容词）
+          const meaningText = resolved.meaning || "";
+          const checkText = `${aiModernText} ${afterBook}`.toLowerCase();
+          const incompatibleTerms = ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心", "阴郁", "忧伤"];
+          if (meaningText.includes("豪迈") || meaningText.includes("大气") || meaningText.includes("强大")) {
+            if (incompatibleTerms.some(t => checkText.includes(t))) {
+              return -5; // 意气背离
+            }
+          }
+          return 1; // 无明显冲突
+        })();
+
+        if (aiSpiritScore > 0 && rawBookName) {
+          // 勉强可用，但标记为低可信度
+          source = {
+            book: displayBook,
+            text: afterBook || resolved.reason || "",
+            modernText: aiModernText || "",
+            reason: resolved.reason || "",
+          };
+        }
+        // else: AI 出处也意气背离 → 留空（不展示）
       }
+      // else: 数据库和 AI 都无合适匹配 → 保持空 source（不展示典籍出处）
 
       // 拼接姓氏（保证不重复）
       const fullName = surname + givenName;

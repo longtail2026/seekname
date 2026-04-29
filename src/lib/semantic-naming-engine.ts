@@ -271,7 +271,8 @@ ${candidateNames}
 5. 【关键】现代译文列必须用通俗易懂的白话文完整翻译名字的意境，不能为空；
 6. 名字数量分配：约1/4的名字是单名（即名字只有一个字，如"毅""彤"），其余为双字名；
 7. 不要添加任何额外的解释、开头语或结尾语
-8. 【关键一致性检查】选字理由中引用的每个字必须确实存在于名字中`
+8. 【关键一致性检查】选字理由中引用的每个字必须确实存在于名字中
+9. 【★ 严防编造】典籍出处列**严禁编造**！如果候选素材中没有一个合适的典籍对应某个名字，请**将典籍出处列留空**，不要自行编造。宁可没有出处，也不要错误的出处。`
 }
 
 /**
@@ -1194,6 +1195,209 @@ function diversifyNames(
   return { diversified: result2, removed };
 }
 
+/**
+ * 意气类别匹配：名字寓意与典籍译文的意气类别是否相符
+ * 
+ * 将名字寓意和典籍译文分别归类，确保匹配的典籍气质与名字寓意方向一致，
+ * 防止出现"豪迈大气"配"谦卑恭谨"这种意气背离的问题。
+ */
+
+// 意气类别与关键词映射表
+const SPIRIT_CATEGORIES: Record<string, {
+  keywords: string[];
+  nameMatch: string[];
+  classicsMatch: string[];
+  incompatible: string[];
+}> = {
+  "豪迈大气": {
+    keywords: ["豪迈", "大气", "雄壮", "宏伟", "刚健", "刚强", "强大", "霸业", "威武", "壮志", "奋发", "激昂", "昂扬"],
+    nameMatch: ["豪迈大气", "大气豪迈", "豪迈", "雄壮", "威武"],
+    classicsMatch: ["壮志", "奋发", "刚强", "宏大", "雄壮", "豪迈", "气势", "奋发图强"],
+    incompatible: ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心"],
+  },
+  "阳光开朗": {
+    keywords: ["阳光", "开朗", "明亮", "明媚", "曙光", "光明", "灿烂", "温暖", "朝气", "活力", "乐观"],
+    nameMatch: ["阳光开朗", "开朗", "阳光", "明亮", "温暖"],
+    classicsMatch: ["光明", "灿烂", "温暖", "阳光", "晨曦", "朝霞"],
+    incompatible: ["阴郁", "低沉", "忧伤", "哀愁", "肃杀"],
+  },
+  "品德高尚": {
+    keywords: ["品德", "高尚", "仁德", "正直", "高洁", "廉洁", "谦和", "诚信", "忠诚", "仁义", "君子", "贤德"],
+    nameMatch: ["品德高尚", "高尚", "仁德", "正直", "君子", "贤德"],
+    classicsMatch: ["仁德", "正直", "高洁", "诚信", "谦和", "仁义"],
+    incompatible: ["武力", "权谋", "战争", "奸诈", "诡计"],
+  },
+  "温文儒雅": {
+    keywords: ["温文", "儒雅", "谦和", "恬淡", "从容", "文雅", "淡泊", "优雅", "书卷", "文采", "风雅"],
+    nameMatch: ["温文儒雅", "儒雅", "文雅", "优雅", "书卷气"],
+    classicsMatch: ["从容", "谦和", "恬淡", "文雅", "优雅", "风雅"],
+    incompatible: ["雄壮", "霸业", "武力", "战争", "刚猛"],
+  },
+  "事业有成": {
+    keywords: ["事业", "有成", "进取", "功业", "成就", "奋发", "勉励", "建功", "立业", "卓越", "腾达"],
+    nameMatch: ["事业有成", "进取", "功业", "成就", "奋发"],
+    classicsMatch: ["进取", "功业", "勉励", "奋发", "励志"],
+    incompatible: ["退隐", "消极", "无为", "出世", "遁世"],
+  },
+  "独特个性": {
+    keywords: ["独特", "个性", "与众不同", "特别", "创新", "独特魅力"],
+    nameMatch: ["独特个性", "独特", "个性"],
+    classicsMatch: ["创新", "独特", "独立"],
+    incompatible: ["平庸", "随俗", "从众"],
+  },
+  "洋气国际": {
+    keywords: ["洋气", "国际", "时尚", "现代", "潮流", "国际化"],
+    nameMatch: ["洋气国际", "国际", "时尚", "洋气"],
+    classicsMatch: ["时尚", "现代", "国际"],
+    incompatible: ["守旧", "陈腐", "传统", "古板"],
+  },
+};
+
+/**
+ * 智能检测名字寓意的意气类别
+ */
+function detectNameSpirit(meaning: string): string[] {
+  if (!meaning) return ["通用"];
+  
+  const matchedCategories: string[] = [];
+  const meaningLower = meaning.toLowerCase();
+  
+  for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
+    for (const keyword of config.keywords) {
+      if (meaningLower.includes(keyword)) {
+        matchedCategories.push(category);
+        break;
+      }
+    }
+  }
+  
+  return matchedCategories.length > 0 ? matchedCategories : ["通用"];
+}
+
+/**
+ * 智能检测典籍译文的意气类别
+ */
+function detectClassicsSpirit(modernText: string, ancientText: string): string[] {
+  const textToCheck = `${modernText || ""} ${ancientText || ""}`.toLowerCase();
+  if (!textToCheck.trim()) return ["通用"];
+  
+  const matchedCategories: string[] = [];
+  
+  for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
+    for (const keyword of config.classicsMatch) {
+      if (textToCheck.includes(keyword)) {
+        matchedCategories.push(category);
+        break;
+      }
+    }
+  }
+  
+  // 检测不兼容词
+  for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
+    for (const keyword of config.incompatible) {
+      if (textToCheck.includes(keyword)) {
+        // 标记为"不兼容此类别"，用于排除
+        matchedCategories.push(`不兼容:${category}`);
+        break;
+      }
+    }
+  }
+  
+  return matchedCategories.length > 0 ? matchedCategories : ["通用"];
+}
+
+/**
+ * 计算意气匹配得分
+ * 得分越高，名字寓意和典籍译文越匹配
+ */
+function calculateSpiritScore(meaning: string, modernText: string, ancientText: string, expectations?: string): number {
+  const nameSpirits = detectNameSpirit(meaning);
+  const classicsSpirits = detectClassicsSpirit(modernText, ancientText);
+  
+  let score = 0;
+  
+  // 1. 直接匹配：名字意气类别与典籍意气类别一致
+  for (const nameSpirit of nameSpirits) {
+    for (const classicsSpirit of classicsSpirits) {
+      if (nameSpirit === classicsSpirit) {
+        score += 3; // 直接匹配高分
+      }
+    }
+  }
+  
+  // 2. 不兼容检测：如果典籍有不兼容词
+  for (const classicsSpirit of classicsSpirits) {
+    if (classicsSpirit.startsWith("不兼容:")) {
+      const incompatibleCat = classicsSpirit.replace("不兼容:", "");
+      for (const nameSpirit of nameSpirits) {
+        if (nameSpirit === incompatibleCat || nameSpirit === "通用") {
+          score -= 5; // 严重扣分
+        }
+      }
+    }
+  }
+  
+  // 3. 如果寓意和译文有语义上的正面关联（通过期望词补充匹配）
+  if (expectations) {
+    const expLower = expectations.toLowerCase();
+    for (const [category, config] of Object.entries(SPIRIT_CATEGORIES)) {
+      for (const keyword of config.keywords) {
+        if (expLower.includes(keyword) && classicsSpirits.includes(category)) {
+          score += 2;
+          break;
+        }
+      }
+    }
+  }
+  
+  return score;
+}
+
+/**
+ * findBestClassicsMatch：根据意气匹配算法，找到与名字寓意最匹配的典籍出处
+ * 
+ * @param meaning 名字的寓意描述
+ * @param reason 名字的选字理由
+ * @param matches 可用的典籍匹配列表
+ * @param expectations 用户期望（可选）
+ * @returns 最佳匹配的典籍，如果没有合适的则返回 null
+ */
+export function findBestClassicsMatch(
+  meaning: string,
+  reason: string,
+  matches: Array<{ bookName: string; ancientText: string; modernText: string; similarity?: number }>,
+  expectations?: string
+): { bookName: string; ancientText: string; modernText: string; spiritScore: number } | null {
+  if (!matches || matches.length === 0) return null;
+  
+  // 为每个典籍计算意气匹配得分
+  const scored = matches.map(m => ({
+    ...m,
+    spiritScore: calculateSpiritScore(meaning, m.modernText || "", m.ancientText || "", expectations),
+  }));
+  
+  // 按得分降序排列
+  scored.sort((a, b) => b.spiritScore - a.spiritScore);
+  
+  // 找出最高分
+  const best = scored[0];
+  
+  // 如果有匹配且得分 > 0，返回最佳匹配
+  if (best && best.spiritScore > 0) {
+    console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 最佳典籍=《${best.bookName}》, 意气得分=${best.spiritScore}`);
+    return {
+      bookName: best.bookName,
+      ancientText: best.ancientText,
+      modernText: best.modernText,
+      spiritScore: best.spiritScore,
+    };
+  }
+  
+  // 没有合适的意气匹配，返回 null（不展示出处）
+  console.log(`[意气匹配] 名字寓意="${meaning.slice(0, 20)}", 无合适典籍匹配（最高意气得分=${best?.spiritScore ?? -999}），不展示出处`);
+  return null;
+}
+
 // 导出
 export const SemanticNamingEngine = {
   findSemanticMatches,
@@ -1202,4 +1406,5 @@ export const SemanticNamingEngine = {
   filterNames,
   semanticNamingFlow,
   diversifyNames,
+  findBestClassicsMatch,
 };
