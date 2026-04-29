@@ -364,8 +364,10 @@ export async function POST(request: NextRequest) {
       
       let cleanedSource = sourceStr;
       if (isFabricated && result.matches.length > 0) {
-        // 从真实典籍匹配结果中取一个作为替代
-        const match = result.matches[0];
+        // 从真实典籍匹配结果中轮流取不同的典籍，确保每个名字对应的出处不同
+        // 使用名字的哈希值决定取哪个 match，避免所有名字都用 matches[0]
+        const matchIndex = Math.abs((givenName.charCodeAt(0) * 31 + (givenName.charCodeAt(1) || 0))) % result.matches.length;
+        const match = result.matches[matchIndex];
         cleanedSource = `出自《${match.bookName}》"${match.ancientText}"`;
       }
       
@@ -411,7 +413,9 @@ export async function POST(request: NextRequest) {
       if (cd.wuxing) charWuxingMap.set(cd.character, cd.wuxing);
     });
 
-    // 构建最终 API 格式的名字列表
+    // ── 构建最终 API 格式的名字列表 ──
+    // 全局典籍使用追踪，确保不同名字匹配不同典籍
+    const usedBookNames = new Set<string>(); // 追踪已使用的典籍，确保多样性
     const apiNames = nonDuplicateGivenNames.map((resolved: ResolvedName, index: number) => {
       const givenName = resolved.givenName;
       
@@ -443,17 +447,43 @@ export async function POST(request: NextRequest) {
 
       const strokeCount = givenName.length * 8;
 
-      // ── 意气匹配后处理：典籍出处完全基于数据库真实匹配 ──
+    // ── 意气匹配后处理：典籍出处完全基于数据库真实匹配 ──
       // 优先级：
       //   1. 只用 findBestClassicsMatch 从数据库真实 matches 中找到意气匹配的典籍
       //   2. 如果 spiritScore ≤ 0（意气背离或不可用），留空 source/book/text/modernText
       //      只保留 reason（寓意说明），不展示"典籍出处"模块
-      const spiritMatch = SemanticNamingEngine.findBestClassicsMatch(
+      //   3. 为不同名字分配不同典籍，避免所有名字出处相同（通过 usedBookNames 跟踪）
+      let spiritMatch = SemanticNamingEngine.findBestClassicsMatch(
         resolved.meaning,
         resolved.reason,
         result.matches,
         expectations
       );
+
+      // 典籍多样化：如果推荐的典籍已被其他名字使用，且还有其他选择，尝试换一个
+      if (spiritMatch && spiritMatch.spiritScore > 0) {
+        const bookName = spiritMatch.bookName;
+        if (usedBookNames.has(bookName) && usedBookNames.size < result.matches.length) {
+          // 从 result.matches 中找另一个未被使用的典籍
+          // 简单策略：取第一个未被使用的 match，不重新计算 spiritScore（节省性能）
+          const alternative = result.matches.find(m => !usedBookNames.has(m.bookName));
+          if (alternative) {
+            // 使用简单的相似度降序排序，选最佳替代
+            const scoredAlternatives = result.matches
+              .filter(m => !usedBookNames.has(m.bookName))
+              .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+            const bestAlt = scoredAlternatives[0];
+            if (bestAlt) {
+              spiritMatch = {
+                bookName: bestAlt.bookName,
+                ancientText: bestAlt.ancientText,
+                modernText: bestAlt.modernText,
+                spiritScore: spiritMatch.spiritScore - 1, // 略降分以示次选
+              };
+            }
+          }
+        }
+      }
 
       let source = { book: "", text: "", modernText: "", reason: "" };
       let spiritScore = 0;
@@ -462,6 +492,7 @@ export async function POST(request: NextRequest) {
         spiritScore = spiritMatch.spiritScore;
         if (spiritMatch.spiritScore > 0) {
           // ✅ 数据库有意气匹配的典籍 + 意气得分 > 0 → 展示出处
+          usedBookNames.add(spiritMatch.bookName); // 记录已使用的典籍
           source = {
             book: `《${spiritMatch.bookName}》`,
             text: spiritMatch.ancientText || "",
@@ -740,13 +771,39 @@ export async function POST(request: NextRequest) {
       // 限制最多10个名字
       finalNames = finalNames.slice(0, 10);
 
-      // ── 建议三：分数分布拉伸 ──
-      // 排名第1→95分，第2→90分，第3→85分，第4→80分，第5→75分，第6→70分，后续递减至55分
-      const stretchedScores = [95, 90, 85, 80, 75, 70];
-      finalNames = finalNames.map((n, i) => {
-        const newScore = i < stretchedScores.length ? stretchedScores[i] : Math.max(55, 70 - (i - 5) * 3);
-        return { ...n, score: newScore };
-      });
+      // ── 分数分布标准化（保留引擎原始排序，只做分数刻度美化） ──
+      // 【问题】原来的硬编码[95,90,85,80,75,70]完全抹除了引擎对名字质量的区分：
+      // 例如"钱禹瑶"(yǔ yáo, 平仄流畅)本应排在"钱瑶禹"(yáo yǔ, 仄起不畅)前面
+      // 硬编码只按名字在数组中的顺序赋分，使得真实音律评分被忽略
+      //
+      // 【修复】保留引擎的原始相对评分，只将分数线性映射到用户友好的 60-95 区间
+      if (finalNames.length > 0) {
+        // 找出原始分的最小值和最大值
+        const scores = finalNames.map(n => n.score ?? 0);
+        const minScore = Math.min(...scores);
+        const maxScore = Math.max(...scores);
+        const range = maxScore - minScore;
+        
+        if (range === 0) {
+          // 如果所有原始分相同（兜底情况），用递降分，但保留引擎排序
+          const defaultScores = [95, 90, 85, 80, 75, 70];
+          finalNames = finalNames.map((n, i) => ({
+            ...n,
+            score: i < defaultScores.length ? defaultScores[i] : Math.max(55, 70 - (i - 5) * 3),
+          }));
+        } else {
+          // 线性映射到 60-95 区间，保留原始分的相对差距
+          finalNames = finalNames.map(n => {
+            const original = n.score ?? 0;
+            // 线性映射：minScore → 60, maxScore → 95
+            const normalized = 60 + ((original - minScore) / range) * 35;
+            return { ...n, score: Math.round(normalized) };
+          });
+        }
+      }
+      
+      // 二次排序：确保最终顺序与分数一致
+      finalNames.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
       // ── 创建订单记录（每次必建）──
       console.log(`[API] 开始创建订单，finalNames=${finalNames.length}个`);
