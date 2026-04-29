@@ -718,6 +718,107 @@ export async function POST(request: NextRequest) {
     // ✅ 按分数从高到低排序
     finalNames.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
+    // ── 用字多样性校验：确保 Top 6 至少覆盖 8 个不同汉字 ──
+    // 如果 Top6 中有同一汉字出现 ≥3 次，替换为评分次高的候补
+    function ensureCharDiversity(candidates: typeof finalNames, maxTop: number = 6, minUniqueChars: number = 8): typeof finalNames {
+      if (candidates.length <= maxTop) return candidates;
+      
+      const top6 = candidates.slice(0, maxTop);
+      const rest = candidates.slice(maxTop);
+      
+      // 统计 Top6 中每个汉字出现的次数
+      const charCount = new Map<string, number>();
+      for (const n of top6) {
+        for (const ch of n.givenName) {
+          if (ch.charCodeAt(0) >= 0x4E00 && ch.charCodeAt(0) <= 0x9FFF) {
+            charCount.set(ch, (charCount.get(ch) ?? 0) + 1);
+          }
+        }
+      }
+      
+      const uniqueCharsInTop6 = charCount.size;
+      console.log(`[用字多样性] Top6 覆盖 ${uniqueCharsInTop6} 个不同汉字，目标 ≥${minUniqueChars}个`);
+      
+      if (uniqueCharsInTop6 >= minUniqueChars) return candidates; // 多样性已达标
+      
+      // 多样性不足：找出在 Top6 中重复 ≥3 次的汉字
+      const overusedChars = new Set<string>();
+      for (const [ch, count] of charCount.entries()) {
+        if (count >= 3) overusedChars.add(ch);
+      }
+      
+      if (overusedChars.size === 0) return candidates; // 没有过度用字，只是总字数不够
+      
+      console.log(`[用字多样性] 过度用字: ${[...overusedChars].join(", ")}，尝试替换...`);
+      
+      // 从 rest 中寻找替代：包含过度用字最少、且引入了新汉字的候补
+      const charSetInTop6 = new Set(charCount.keys());
+      
+      // 按"引入新汉字数量"降序排列，优先选引入新字多的
+      const scoredRest = rest.map(n => {
+        const newChars = [...n.givenName].filter(ch => {
+          const code = ch.charCodeAt(0);
+          return code >= 0x4E00 && code <= 0x9FFF && !charSetInTop6.has(ch);
+        });
+        const badCharCount = [...n.givenName].filter(ch => overusedChars.has(ch)).length;
+        return { name: n, newCharCount: newChars.length, badCharCount };
+      });
+      
+      // 排序：新字多的优先，过度用字少的优先，评分高的优先
+      scoredRest.sort((a, b) => {
+        if (b.newCharCount !== a.newCharCount) return b.newCharCount - a.newCharCount;
+        if (a.badCharCount !== b.badCharCount) return a.badCharCount - b.badCharCount;
+        return (b.name.score ?? 0) - (a.name.score ?? 0);
+      });
+      
+      // 找出 Top6 中包含过度用字的名字，尝试替换
+      const replacementCandidates = scoredRest.filter(s => s.newCharCount > 0); // 必须带来新汉字
+      let modifiedTop6 = [...top6];
+      
+      for (let attempt = 0; attempt < replacementCandidates.length && modifiedTop6.length <= maxTop + 5; attempt++) {
+        const repl = replacementCandidates[attempt];
+        // 找当前 TopX 中包含过度用字且评分最低的
+        let worstIdx = -1;
+        let worstScore = Infinity;
+        for (let i = 0; i < modifiedTop6.length; i++) {
+          const nameChars = [...modifiedTop6[i].givenName];
+          if (nameChars.some(ch => overusedChars.has(ch))) {
+            if ((modifiedTop6[i].score ?? 0) < worstScore) {
+              worstScore = modifiedTop6[i].score ?? 0;
+              worstIdx = i;
+            }
+          }
+        }
+        if (worstIdx >= 0) {
+          console.log(`[用字多样性] 替换: "${modifiedTop6[worstIdx].givenName}"(评分${modifiedTop6[worstIdx].score}) → "${repl.name.givenName}"(评分${repl.name.score}, 引入${repl.newCharCount}个新字)`);
+          modifiedTop6[worstIdx] = repl.name;
+          // 更新已用字集
+          for (const ch of repl.name.givenName) {
+            const code = ch.charCodeAt(0);
+            if (code >= 0x4E00 && code <= 0x9FFF) charSetInTop6.add(ch);
+          }
+        }
+      }
+      
+      // 重新按分数排序
+      modifiedTop6.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      
+      const finalChars = new Set<string>();
+      for (const n of modifiedTop6) {
+        for (const ch of n.givenName) {
+          if (ch.charCodeAt(0) >= 0x4E00 && ch.charCodeAt(0) <= 0x9FFF) finalChars.add(ch);
+        }
+      }
+      console.log(`[用字多样性] 替换后 Top6 覆盖 ${finalChars.size} 个不同汉字`);
+      
+      // 按 Top6 + 剩余候选重组
+      const usedNames = new Set(modifiedTop6.map(n => n.givenName));
+      const remaining = candidates.filter(n => !usedNames.has(n.givenName));
+      return [...modifiedTop6, ...remaining];
+    }
+    
+    finalNames = ensureCharDiversity(finalNames);
+
     // 限制最多10个名字
     finalNames = finalNames.slice(0, 10);
 

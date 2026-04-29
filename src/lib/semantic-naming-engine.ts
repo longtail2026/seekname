@@ -1202,6 +1202,16 @@ function diversifyNames(
  * 防止出现"豪迈大气"配"谦卑恭谨"这种意气背离的问题。
  */
 
+// 通用负面词列表（任何典籍译文包含这些词 → 直接否决此出处）
+const GENERAL_NEGATIVE_TERMS = [
+  "骄溢", "骄躁", "急躁", "表里不一", "心术不正",
+  "奸诈", "虚伪", "粗俗", "浮滑",
+  "困苦", "危难", "险恶", "动荡",
+  "愚钝", "昏聩", "浅薄", "鄙陋",
+  "哀愁", "悲戚", "凄凉", "怨愤",
+  "平庸", "平凡", "庸俗", "卑微",
+];
+
 // 意气类别与关键词映射表
 const SPIRIT_CATEGORIES: Record<string, {
   keywords: string[];
@@ -1213,43 +1223,43 @@ const SPIRIT_CATEGORIES: Record<string, {
     keywords: ["豪迈", "大气", "雄壮", "宏伟", "刚健", "刚强", "强大", "霸业", "威武", "壮志", "奋发", "激昂", "昂扬"],
     nameMatch: ["豪迈大气", "大气豪迈", "豪迈", "雄壮", "威武"],
     classicsMatch: ["壮志", "奋发", "刚强", "宏大", "雄壮", "豪迈", "气势", "奋发图强"],
-    incompatible: ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心"],
+    incompatible: ["谦恭", "谨慎", "温顺", "谦卑", "恭敬", "小心", "柔顺", "怯弱"],
   },
   "阳光开朗": {
     keywords: ["阳光", "开朗", "明亮", "明媚", "曙光", "光明", "灿烂", "温暖", "朝气", "活力", "乐观"],
     nameMatch: ["阳光开朗", "开朗", "阳光", "明亮", "温暖"],
     classicsMatch: ["光明", "灿烂", "温暖", "阳光", "晨曦", "朝霞"],
-    incompatible: ["阴郁", "低沉", "忧伤", "哀愁", "肃杀"],
+    incompatible: ["阴郁", "低沉", "忧伤", "哀愁", "肃杀", "哀戚", "悲凉", "愁苦"],
   },
   "品德高尚": {
     keywords: ["品德", "高尚", "仁德", "正直", "高洁", "廉洁", "谦和", "诚信", "忠诚", "仁义", "君子", "贤德"],
     nameMatch: ["品德高尚", "高尚", "仁德", "正直", "君子", "贤德"],
     classicsMatch: ["仁德", "正直", "高洁", "诚信", "谦和", "仁义"],
-    incompatible: ["武力", "权谋", "战争", "奸诈", "诡计"],
+    incompatible: ["武力", "权谋", "战争", "奸诈", "诡计", "骄溢", "心术不正", "表里不一", "刚愎", "虚伪", "骄躁", "傲慢", "暴戾", "苛责", "严酷"],
   },
   "温文儒雅": {
     keywords: ["温文", "儒雅", "谦和", "恬淡", "从容", "文雅", "淡泊", "优雅", "书卷", "文采", "风雅"],
     nameMatch: ["温文儒雅", "儒雅", "文雅", "优雅", "书卷气"],
     classicsMatch: ["从容", "谦和", "恬淡", "文雅", "优雅", "风雅"],
-    incompatible: ["雄壮", "霸业", "武力", "战争", "刚猛"],
+    incompatible: ["雄壮", "霸业", "武力", "战争", "刚猛", "粗俗", "浮滑", "骄溢", "心术不正"],
   },
   "事业有成": {
     keywords: ["事业", "有成", "进取", "功业", "成就", "奋发", "勉励", "建功", "立业", "卓越", "腾达"],
     nameMatch: ["事业有成", "进取", "功业", "成就", "奋发"],
     classicsMatch: ["进取", "功业", "勉励", "奋发", "励志"],
-    incompatible: ["退隐", "消极", "无为", "出世", "遁世"],
+    incompatible: ["退隐", "消极", "无为", "出世", "遁世", "困苦", "失败", "落魄", "蹉跎", "失意"],
   },
   "独特个性": {
     keywords: ["独特", "个性", "与众不同", "特别", "创新", "独特魅力"],
     nameMatch: ["独特个性", "独特", "个性"],
     classicsMatch: ["创新", "独特", "独立"],
-    incompatible: ["平庸", "随俗", "从众"],
+    incompatible: ["平庸", "随俗", "从众", "平凡", "庸俗", "普通"],
   },
   "洋气国际": {
     keywords: ["洋气", "国际", "时尚", "现代", "潮流", "国际化"],
     nameMatch: ["洋气国际", "国际", "时尚", "洋气"],
     classicsMatch: ["时尚", "现代", "国际"],
-    incompatible: ["守旧", "陈腐", "传统", "古板"],
+    incompatible: ["守旧", "陈腐", "传统", "古板", "迂腐", "陈旧", "保守"],
   },
 };
 
@@ -1280,6 +1290,14 @@ function detectNameSpirit(meaning: string): string[] {
 function detectClassicsSpirit(modernText: string, ancientText: string): string[] {
   const textToCheck = `${modernText || ""} ${ancientText || ""}`.toLowerCase();
   if (!textToCheck.trim()) return ["通用"];
+  
+  // ── 通用负面检测：如果典籍译文包含任何通用负面词 → 直接标记不兼容，后续整体否决 ──
+  for (const term of GENERAL_NEGATIVE_TERMS) {
+    if (textToCheck.includes(term)) {
+      console.log(`[意气检测-通用负面] 典籍译文含"${term}"，标记为不兼容:通用`);
+      return [`不兼容:通用`]; // 直接返回，不再做任何正面匹配
+    }
+  }
   
   const matchedCategories: string[] = [];
   
@@ -1314,6 +1332,12 @@ function calculateSpiritScore(meaning: string, modernText: string, ancientText: 
   const nameSpirits = detectNameSpirit(meaning);
   const classicsSpirits = detectClassicsSpirit(modernText, ancientText);
   
+  // ── 通用负面：典籍译文包含负面词 → 直接否决 ──
+  if (classicsSpirits.includes("不兼容:通用")) {
+    console.log(`[意气得分] 典籍含通用负面内容，直接否决（-100分）`);
+    return -100;
+  }
+  
   let score = 0;
   
   // 1. 直接匹配：名字意气类别与典籍意气类别一致
@@ -1331,7 +1355,7 @@ function calculateSpiritScore(meaning: string, modernText: string, ancientText: 
       const incompatibleCat = classicsSpirit.replace("不兼容:", "");
       for (const nameSpirit of nameSpirits) {
         if (nameSpirit === incompatibleCat || nameSpirit === "通用") {
-          score -= 5; // 严重扣分
+          score -= 10; // 严重扣分（提升力度）
         }
       }
     }
