@@ -427,9 +427,81 @@ export async function searchNamingMaterials(
   }
 }
 
+// ========== 4. 分组搜索：每个意图分组独立搜索后合并去重 ==========
+
+/**
+ * 意气类别映射分组搜索
+ * 
+ * 将意图词扩展后的意气类别词分组，每组独立做一次向量搜索，
+ * 最后合并去重。避免所有扩展词拼成一句导致的信号稀释问题。
+ * 
+ * @param baseInput 基础搜索词（expectations + style + 性别词）
+ * @param groups 意气类别扩展分组，每个分组包含 intention 和对应的 keywords 列表
+ * @param gender 性别
+ * @param perGroupResults 每组最多取多少个结果
+ * @param totalMaxResults 合并后最多取多少个结果
+ */
+export async function searchNamingMaterialsByGroup(
+  baseInput: string,
+  groups: Array<{ intention: string; keywords: string[] }>,
+  gender: "M" | "F" = "M",
+  perGroupResults: number = 15,
+  totalMaxResults: number = 30
+): Promise<NamingMaterialMatch[]> {
+  const allMatches = new Map<number, NamingMaterialMatch>();
+
+  console.log(`[材料搜索-分组] 开始分组搜索: ${groups.length} 组意图，每组取 ${perGroupResults} 个，合并取前 ${totalMaxResults} 个`);
+
+  // 1. 基础搜索（只带 expectations + style + 性别词，不带意气扩展）
+  //    保证即使意气扩展词不精准，也能匹配到基础语义相关的素材
+  const baseResults = await searchNamingMaterials(baseInput, gender, perGroupResults);
+  let baseNewCount = 0;
+  baseResults.forEach(r => {
+    if (!allMatches.has(r.id)) {
+      allMatches.set(r.id, r);
+      baseNewCount++;
+    }
+  });
+  console.log(`[材料搜索-分组] 基础搜索找到 ${baseResults.length} 个，新增 ${baseNewCount} 个`);
+
+  // 2. 按意图分组逐组搜索
+  for (let i = 0; i < groups.length; i++) {
+    const group = groups[i];
+    
+    // 构建该组的搜索词：基础词 + 该组意气类别扩展词
+    const groupSearchInput = `${baseInput} ${group.keywords.join(" ")}`;
+    
+    console.log(`[材料搜索-分组] 组${i+1}/${groups.length} "${group.intention}": 搜索词="${groupSearchInput.substring(0, 120)}..."`);
+    
+    const results = await searchNamingMaterials(groupSearchInput, gender, perGroupResults);
+    console.log(`[材料搜索-分组] 组${i+1} "${group.intention}" 找到 ${results.length} 个`);
+    
+    let newCount = 0;
+    results.forEach(r => {
+      if (!allMatches.has(r.id)) {
+        allMatches.set(r.id, r);
+        newCount++;
+      }
+    });
+    console.log(`[材料搜索-分组] 组${i+1} 新增 ${newCount} 个不重复结果`);
+  }
+
+  // 3. 合并后按相似度降序排列，取前 totalMaxResults 个
+  const merged = [...allMatches.values()]
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, totalMaxResults);
+
+  const mergedCount = merged.length;
+  const totalUnique = allMatches.size;
+  console.log(`[材料搜索-分组] 最终合并: ${totalUnique} 个不重复 → 取前 ${mergedCount} 个`);
+
+  return merged;
+}
+
 // ========== 导出 ==========
 
 export const SemanticSearchNamingMaterials = {
   searchNamingMaterials,
   searchNamingMaterialsByVector,
+  searchNamingMaterialsByGroup,
 };

@@ -21,7 +21,7 @@
 import { DeepSeekIntegration } from "./deepseek-integration";
 import { pinyin } from "pinyin-pro";
 import { searchNamingClassics } from "./semantic-search-naming-classics";
-import { searchNamingMaterials, type NamingMaterialMatch } from "./semantic-search-naming-materials";
+import { searchNamingMaterials, searchNamingMaterialsByGroup, type NamingMaterialMatch } from "./semantic-search-naming-materials";
 import {
   NamingStrategyType,
   determineStrategy,
@@ -580,28 +580,33 @@ export async function semanticNamingFlow(
     // ================================================================
     console.log("[语义起名-新流程] ★ 第一步：搜索 naming_materials 表");
 
-    // 构建搜索词：将用户意向词扩展为意气类别映射词，提升向量匹配精度
-    const spiritExpanded = expandIntentionsToSpiritKeywords(request.intentions);
-    let currentSearchInput: string;
+    // 构建基础搜索词（expectations + style，不含意气类别扩展）
+    let baseInput: string;
     if (request.expectations && request.style && request.style.length > 0) {
-      currentSearchInput = `${request.expectations} ${request.style.join(" ")}`;
-      // 附加上意气类别映射扩展词
-      if (spiritExpanded.length > 0) {
-        currentSearchInput = `${currentSearchInput} ${spiritExpanded.join(" ")}`;
-      }
+      baseInput = `${request.expectations} ${request.style.join(" ")}`;
     } else {
-      currentSearchInput = request.rawInput || request.expectations || "";
-      if (spiritExpanded.length > 0) {
-        currentSearchInput = `${currentSearchInput} ${spiritExpanded.join(" ")}`;
-      }
+      baseInput = request.rawInput || request.expectations || "";
     }
-    console.log(`[语义起名-新流程] ★ 第一步：搜索 naming_materials 表: "${currentSearchInput}"`);
-
-    const namingMaterials = await searchNamingMaterials(
-      currentSearchInput,
+    
+    // 将用户意向词扩展为意气类别映射词分组（保留每组独立的扩展词）
+    const spiritGroups = expandIntentionsToSpiritKeywordsGrouped(request.intentions);
+    console.log(`[语义起名-新流程] ★ 第一步：搜索 naming_materials 表: baseInput="${baseInput.substring(0, 100)}...", 意气扩展组数=${spiritGroups.length}`);
+    
+    // 使用分组搜索：每个意图组独立搜索 + 合并去重，避免信号稀释
+    const namingMaterials = await searchNamingMaterialsByGroup(
+      baseInput,
+      spiritGroups,
       gender,
-      30  // 最多取30个候选
+      15,   // 每组最多取15个
+      30    // 合并后最多取30个
     );
+    
+    // 构建一个含意气扩展的总搜索词，用于后续典籍搜索
+    const allSpiritExpanded = spiritGroups.flatMap(g => g.keywords);
+    const currentSearchInput = allSpiritExpanded.length > 0
+      ? `${baseInput} ${allSpiritExpanded.join(" ")}`
+      : baseInput;
+    console.log(`[语义起名-新流程] 典籍搜索词: "${currentSearchInput.substring(0, 150)}..."`);
 
     // ════════════════════════════════════════════════════════════════
     // 在新路径下也搜索 naming_classics，用于充实 modernText 和典籍来源
@@ -1373,6 +1378,63 @@ function expandIntentionsToSpiritKeywords(intentions?: string[]): string[] {
     console.log(`[意气扩展] 意向词 [${intentions.join(", ")}] → 扩展为 ${result.length} 个意气类别映射词: ${result.join(", ")}`);
   }
   return result;
+}
+
+/**
+ * 将用户意向词扩展为意气类别映射词分组列表（保留分组信息）
+ * 
+ * 每个意向词独立扩展为一组意气类别映射词，用于分组搜索。
+ * 这样每个意图的语义信号不会被其他意图的词稀释。
+ * 
+ * @param intentions 用户勾选的意向词数组
+ * @returns 扩展后的分组列表，每组包含 intention 和对应的 keywords 列表
+ */
+function expandIntentionsToSpiritKeywordsGrouped(intentions?: string[]): Array<{ intention: string; keywords: string[] }> {
+  if (!intentions || intentions.length === 0) return [];
+  
+  const groups: Array<{ intention: string; keywords: string[] }> = [];
+  
+  for (const intent of intentions) {
+    const trimmed = intent.trim();
+    if (!trimmed) continue;
+    
+    const spiritKeywords = new Set<string>();
+    
+    // 1. 通过 INTENTION_TO_SPIRIT_MAP 映射到意气类别
+    const mappedCategories = INTENTION_TO_SPIRIT_MAP[trimmed];
+    if (mappedCategories) {
+      for (const cat of mappedCategories) {
+        const config = SPIRIT_CATEGORIES[cat];
+        if (config) {
+          config.keywords.forEach(k => spiritKeywords.add(k));
+          config.classicsMatch.forEach(k => spiritKeywords.add(k));
+          config.nameMatch.forEach(k => spiritKeywords.add(k));
+        }
+      }
+    }
+    
+    // 2. 直接在 SPIRIT_CATEGORIES 的 intentionTriggers 中查找（兜底）
+    for (const [cat, config] of Object.entries(SPIRIT_CATEGORIES)) {
+      if (config.intentionTriggers.includes(trimmed)) {
+        config.keywords.forEach(k => spiritKeywords.add(k));
+        config.classicsMatch.forEach(k => spiritKeywords.add(k));
+        config.nameMatch.forEach(k => spiritKeywords.add(k));
+      }
+    }
+    
+    // 即使没有扩展词，也保留该组（用原始意向词搜索）
+    const keywords = [...spiritKeywords];
+    groups.push({ intention: trimmed, keywords });
+    
+    if (keywords.length > 0) {
+      console.log(`[意气扩展分组] 意向"${trimmed}" → 扩展为 ${keywords.length} 个意气词: ${keywords.join(", ")}`);
+    } else {
+      console.log(`[意气扩展分组] 意向"${trimmed}" → 无扩展词（将使用原始意向词搜索）`);
+    }
+  }
+  
+  console.log(`[意气扩展分组] 总共 ${groups.length} 个意向分组`);
+  return groups;
 }
 
 /**
