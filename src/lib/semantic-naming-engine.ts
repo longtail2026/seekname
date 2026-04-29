@@ -580,12 +580,20 @@ export async function semanticNamingFlow(
     // ================================================================
     console.log("[语义起名-新流程] ★ 第一步：搜索 naming_materials 表");
 
-    // 构建搜索词：优先用 expections + style 组合，其次用 rawInput
+    // 构建搜索词：将用户意向词扩展为意气类别映射词，提升向量匹配精度
+    const spiritExpanded = expandIntentionsToSpiritKeywords(request.intentions);
     let currentSearchInput: string;
     if (request.expectations && request.style && request.style.length > 0) {
       currentSearchInput = `${request.expectations} ${request.style.join(" ")}`;
+      // 附加上意气类别映射扩展词
+      if (spiritExpanded.length > 0) {
+        currentSearchInput = `${currentSearchInput} ${spiritExpanded.join(" ")}`;
+      }
     } else {
       currentSearchInput = request.rawInput || request.expectations || "";
+      if (spiritExpanded.length > 0) {
+        currentSearchInput = `${currentSearchInput} ${spiritExpanded.join(" ")}`;
+      }
     }
     console.log(`[语义起名-新流程] ★ 第一步：搜索 naming_materials 表: "${currentSearchInput}"`);
 
@@ -1317,6 +1325,57 @@ function diversifyNames(
 }
 
 /**
+ * 将用户意向词扩展为意气类别映射词列表
+ * 用于构建搜索词，提高向量匹配精度
+ * 
+ * 流程：
+ * 1. 通过 INTENTION_TO_SPIRIT_MAP 查找意向词对应的意气类别
+ * 2. 从 SPIRIT_CATEGORIES 中取出该类别的 keywords + classicsMatch + nameMatch
+ * 3. 合并去重后返回，用于扩充搜索词
+ * 
+ * @param intentions 用户勾选的意向词数组
+ * @returns 扩展后的意气类别映射词列表
+ */
+function expandIntentionsToSpiritKeywords(intentions?: string[]): string[] {
+  if (!intentions || intentions.length === 0) return [];
+  
+  const spiritKeywords = new Set<string>();
+  
+  for (const intent of intentions) {
+    const trimmed = intent.trim();
+    if (!trimmed) continue;
+    
+    // 1. 通过 INTENTION_TO_SPIRIT_MAP 映射到意气类别
+    const mappedCategories = INTENTION_TO_SPIRIT_MAP[trimmed];
+    if (mappedCategories) {
+      for (const cat of mappedCategories) {
+        const config = SPIRIT_CATEGORIES[cat];
+        if (config) {
+          config.keywords.forEach(k => spiritKeywords.add(k));
+          config.classicsMatch.forEach(k => spiritKeywords.add(k));
+          config.nameMatch.forEach(k => spiritKeywords.add(k));
+        }
+      }
+    }
+    
+    // 2. 直接在 SPIRIT_CATEGORIES 的 intentionTriggers 中查找（兜底）
+    for (const [cat, config] of Object.entries(SPIRIT_CATEGORIES)) {
+      if (config.intentionTriggers.includes(trimmed)) {
+        config.keywords.forEach(k => spiritKeywords.add(k));
+        config.classicsMatch.forEach(k => spiritKeywords.add(k));
+        config.nameMatch.forEach(k => spiritKeywords.add(k));
+      }
+    }
+  }
+  
+  const result = [...spiritKeywords];
+  if (result.length > 0) {
+    console.log(`[意气扩展] 意向词 [${intentions.join(", ")}] → 扩展为 ${result.length} 个意气类别映射词: ${result.join(", ")}`);
+  }
+  return result;
+}
+
+/**
  * 意气类别匹配：名字寓意与典籍译文的意气类别是否相符
  * 
  * 将名字寓意和典籍译文分别归类，确保匹配的典籍气质与名字寓意方向一致，
@@ -1458,21 +1517,29 @@ const INTENTION_TO_SPIRIT_MAP: Record<string, string[]> = {
   // 阳光开朗
   "快乐": ["阳光开朗"],
   "积极": ["阳光开朗", "豁达旷远"],
+  "平安": ["阳光开朗"],
+  "健康": ["阳光开朗"],
+  "平安健康": ["阳光开朗"],
   // 品德高尚
   "善良": ["品德高尚", "谦逊温和", "温文儒雅"],
   "正直": ["品德高尚", "坚毅刚强"],
   "诚信": ["品德高尚"],
   "仁爱": ["品德高尚", "家国情怀"],
+  "品德高尚": ["品德高尚"],
   // 温文儒雅
   "书卷气": ["温文儒雅"],
+  "温文儒雅": ["温文儒雅"],
   // 事业有成
   "成功": ["事业有成", "豪迈大气"],
   "大志": ["事业有成", "家国情怀"],
   // 独特个性
   "不凡": ["独特个性"],
+  "独特个性": ["独特个性"],
   // 智慧/才学
   "智慧": ["聪慧敏捷"],
   "才华": ["聪慧敏捷", "浪漫诗意"],
+  "聪明": ["聪慧敏捷"],
+  "聪明智慧": ["聪慧敏捷"],
   // 家国
   "爱国": ["家国情怀"],
   "担当": ["家国情怀", "坚毅刚强"],
