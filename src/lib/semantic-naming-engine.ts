@@ -30,6 +30,7 @@ import {
   STRATEGY_LABELS,
 } from "./naming-strategy";
 import { hardFilterNames, HardFilterOptions, summarizeRemoved } from "./hard-filter";
+import { checkGenderCharCompatibility, buildGenderPromptBlock, FEMALE_CHARS, MALE_CHARS } from "./gender-chars";
 import { scoreAndSortNames, NameScorerV2, type ScoringContext } from "./name-scorer-v2";
 
 // 用户意图接口
@@ -266,8 +267,13 @@ export function buildNamingMaterialsPrompt(
     .map((m, i) => `  ${i + 1}. 「${m.phrase}」 - ${m.meaning}（出处: ${m.source}，风格: ${m.style.join("/")}，性别倾向: ${m.gender === "M" ? "男" : m.gender === "F" ? "女" : "通用"}）`)
     .join("\n");
 
+  // ★ Phase 3: 性别用字指南
+  const genderBlock = buildGenderPromptBlock(gender);
+
   return `你是一位专业的中文起名专家。
 ${wuxingBlock}
+
+${genderBlock}
 
 【核心任务】请从以下候选名字素材中精选并润色，生成50个最优的中文名字（每个名字${wordCount}个字）。
 
@@ -289,6 +295,7 @@ ${candidateNames}
 5. 可以基于候选素材的某个字进行同义替换创作（如"若溪"→"若川""若岚"）
 6. 【★ 关键】用字必须多样化、分散：同一个汉字在全表50个名字中至多出现2次（包括双字名的2个字均算）。举例：如果"婉"字已经用于"婉如"、"婉妡"，则"婉"不能再出现第3次。必须不断换用其他同义字（如"婉"可换成"婌""嫣""娇""娴""姝"等）；
 7. 【★ 关键】两个同音字不能在多于2个名字中出现。例如"欣"和"昕"同音，总计出现不超过2次。
+8. 【★ 大忌—禁止偷懒！】⚠️ 绝对禁止直接把用户期望词中的双字词用作名字！例如：如果期望"聪明智慧"，绝对不要起名「智慧」「智丽」「智美」「美丽」「聪明」；如果期望"美丽俊俏"，绝对不要起名「美丽」「俊俏」「俊丽」！正确做法是用同义近义但不直白的字创造意象（如期望"聪明智慧"→可用「灵晞」「颖悟」「捷敏」「慧心」等）。
 
 【输出格式】用Markdown表格，列包括：序号、名字、拼音、寓意说明、选字理由、典籍出处、现代译文
 
@@ -498,24 +505,25 @@ export function filterNames(
     let shouldRemove = false;
     let reason = "";
 
-    // 1. 性别不适合
-    if (gender === "M" && ["柔", "婉", "淑", "娴", "婷", "嫣", "妍", "娇", "娜", "婵", "媚", "媛"].some(c => givenName.includes(c))) {
+    // ──────────────────────────────────────────────
+    // 1. 性别过滤 — 使用 gender-chars 字库
+    //    ✅ 强制淘汰：女名含男字 / 男名含女字
+    //    ⚠️ 偏性中性字不淘汰，由评分系统降分处理
+    // ──────────────────────────────────────────────
+    const genderCheck = checkGenderCharCompatibility(givenName, gender);
+    if (!genderCheck.passed) {
       shouldRemove = true;
-      reason = "名字含女性化字，不适合男性";
-    }
-    if (gender === "F" && ["刚", "强", "雄", "伟", "浩", "毅", "猛", "霸", "彪"].some(c => givenName.includes(c))) {
-      shouldRemove = true;
-      reason = "名字含男性化字，不适合女性";
+      reason = genderCheck.rejectReason || "名字性别用字不匹配";
     }
 
     // 2. 负面含义（逐个字符检查）
-    if ([...givenName].some(c => TABOO_CHARS.has(c))) {
+    if (!shouldRemove && [...givenName].some(c => TABOO_CHARS.has(c))) {
       shouldRemove = true;
       reason = "含负面含义的字";
     }
 
     // 3. 长度检查：名字只能是1~2个字（不包含姓氏）
-    if (givenName.length > 2 || givenName.length < 1) {
+    if (!shouldRemove && (givenName.length > 2 || givenName.length < 1)) {
       shouldRemove = true;
       reason = `名字长度异常（${givenName.length}个字），正常应为1~2个字`;
     }

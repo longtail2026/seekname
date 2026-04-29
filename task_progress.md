@@ -1,11 +1,24 @@
-# 优化进度
+# 起名性别特征优化任务
 
-## 建议实施计划
+## 问题
+- "张智慧"95分但老土，"张婉婷"60分但更像女孩名
+- 直白匹配用户期望词的"口号名"得分过高
+- 性别特征权重不足，女性气质未充分体现
 
-- [x] 建议一分析：route.ts 中 spiritScore ≤ 0 清空 source 逻辑
-- [x] 建议二验证：Prompt 已包含规则14"宁可无出处也不要错误出处"
-- [ ] 建议一实施：修改 route.ts spiritScore ≤ 0 时保留 reason，清空 book/text/modernText
-- [ ] 建议一前端修改：前端典籍出处模块展示条件改为只检查 sourceBook/sourceText
-- [ ] 建议三实施：route.ts 中分数拉伸（排名映射到55-95分）
-- [ ] 建议四实施：将 spiritScore 作为加分项加入总分
-- [ ] 验证：代码编译检查
+## 优化方案（四层联动）
+
+### 1. gender-chars.ts 字库调整
+- [ ] "慧"从FEMALE_LEANING移入MALE_LEANING（与"智"联合使用时加重惩罚）
+- [ ] checkOvertName 加强：新增"智慧""智丽""智美"等专用惩罚组合
+- [ ] buildGenderPromptBlock 强化AI提示警告
+
+### 2. name-scorer-v2.ts 评分调整
+- [ ] scoreGenderFit：直白口号名额外罚30分，总分上限限制
+- [ ] scoreSemanticMatch：直白惩罚上限40→60，精准匹配惩罚加重
+- [ ] 性别权重15%→20%，语义权重20%→15%（互换权重）
+
+### 3. semantic-naming-engine.ts AI提示
+- [ ] 强化buildNamingMaterialsPrompt和buildAIPrompt中的禁用词警告
+
+### 4. 编译验证
+- [ ] 验证TypeScript编译通过

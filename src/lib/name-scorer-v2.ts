@@ -1,20 +1,47 @@
 /**
- * name-scorer-v2.ts - 七维加权打分排序系统
+ * name-scorer-v2.ts - 八维加权打分排序系统
  *
  * 评分维度与权重:
  * ┌──────────────┬──────┬────────────────────────────────┐
  * │ 维度         │ 权重 │ 数据来源                       │
  * ├──────────────┼──────┼────────────────────────────────┤
- * │ 语义匹配度   │ 25%  │ 典籍语义相似度 + 用户意向匹配  │
+ * │ 语义匹配度   │ 15%  │ 典籍语义相似度 + 用户意向匹配  │ ← v3.1: 增加直白惩罚因子
  * │ 音律美感     │ 20%  │ phonetic-optimizer 声韵分析    │
- * │ 文化内涵     │ 15%  │ 典籍出处匹配度                 │
- * │ 字形结构     │ 10%  │ 笔画平衡 + 结构和谐             │
+ * │ 性别契合度   │ 20%  │ 性别特征分析与匹配             │
  * │ 五行平衡     │ 15%  │ bazi-service 八字五行匹配      │
- * │ 独特性       │ 10%  │ 重名风险 + 字频稀缺度          │
+ * │ 文化内涵     │ 10%  │ 典籍出处匹配度                 │
+ * │ 字形结构     │ 10%  │ 笔画平衡 + 结构和谐             │
+ * │ 独特性       │ 5%   │ 重名风险 + 字频稀缺度          │
  * │ 风格契合度   │ 5%   │ 与用户选定风格的匹配度          │
  * ├──────────────┼──────┼────────────────────────────────┤
  * │ 总分         │ 100% │ 加权综合分 (0-100)             │
  * └──────────────┴──────┴────────────────────────────────┘
+ *
+ * v3.1 优化（针对用户反馈"评分最高的反而最土气"——四层联动修复方案）：
+ *
+ * 【问题根因】
+ * 用户期望"聪明智慧"→名字叫"智慧"时，语义匹配度居然给80分（因为语义相似度高），
+ * 但名字=期望词是"最土气/最偷懒"的做法。直白惩罚只加在性别维度（20%权重），
+ * 导致全局影响约7分，完全无法拉低总分。
+ * 
+ * 【四层联动修复】
+ * 
+ * 第1层（语义维度）：新增直白惩罚因子（OvertName penalty）
+ *   - 名字直接复用用户期望词 → 语义天生降为15分（即使语义相似度再高）
+ *   - "智+慧/丽/美"等直白组合 → 语义维度扣40分
+ * 
+ * 第2层（全局直白惩罚）：新增总量扣减
+ *   - 在加权总分计算后，名字直白时直接扣20-40分（不受权重稀释）
+ *   - 确保"智慧"类名字的总分无法超过50分
+ * 
+ * 第3层（性别字库精炼）：
+ *   - "慧"维持MALE_LEANING（2010-2025年代，独女名用"慧"确实偏土气）
+ *   - 新增"直接概念映射"惩罚（名字是期望词直接复用→全局扣30分）
+ * 
+ * 第4层（AI prompt + 意境保底）：
+ *   - 强化AI prompt指令（禁止偷懒用期望词直接成名字）
+ *   - 典籍未匹配时启用意境保底分（不低于40分）
+ *   - 文化内涵评分中，名字意境好但无典籍出处时至少45分
  */
 
 import { CharacterInfo } from "./naming-engine";
@@ -23,6 +50,14 @@ import { queryCulturalSource, queryPopularity, queryUniqueness } from "./name-sc
 import { analyzeNameWuxing, type WuxingPreference } from "./bazi-service";
 import { queryRaw } from "./prisma";
 import type { GeneratedName, ClassicsMatch } from "./semantic-naming-engine";
+import {
+  FEMALE_CHARS,
+  MALE_CHARS,
+  MALE_LEANING_CHARS,
+  FEMALE_LEANING_CHARS,
+  NEUTRAL_CHARS,
+  checkOvertName,
+} from "./gender-chars";
 
 // ============================================================
 // 类型定义
@@ -34,15 +69,15 @@ export interface DimensionScore {
   detail: string;     // 评分说明
 }
 
-/** 八维评分分解（七维+性别） */
+/** 八维评分分解 */
 export interface ScoreBreakdownV2 {
-  semantic: DimensionScore;   // 语义匹配度 25%
+  semantic: DimensionScore;   // 语义匹配度 15%
   phonetic: DimensionScore;   // 音律美感 20%
-  cultural: DimensionScore;   // 文化内涵 15%
-  glyph: DimensionScore;      // 字形结构 10%
+  gender: DimensionScore;     // 性别契合度 20%
   wuxing: DimensionScore;     // 五行平衡 15%
+  cultural: DimensionScore;   // 文化内涵 10%
+  glyph: DimensionScore;      // 字形结构 10%
   uniqueness: DimensionScore; // 独特性 5%
-  gender: DimensionScore;     // 性别契合度 5%
   styleFit: DimensionScore;   // 风格契合度 5%
   total: number;              // 加权总分 0-100
 }
@@ -64,18 +99,18 @@ export interface ScoringContext {
 }
 
 // ============================================================
-// 权重配置
+// 权重配置（v3.0：语义15%/性别20%互换）
 // ============================================================
 
 const WEIGHTS = {
-  semantic: 0.25,   // 25%
+  semantic: 0.15,   // 15%  ← v3.0: 从20%降至15%（与性别互换）
   phonetic: 0.20,   // 20%
-  cultural: 0.15,   // 15%
-  glyph: 0.10,      // 10%
+  gender: 0.20,     // 20%  ← v3.0: 从15%提升至20%（与语义互换），性别成为第二重要维度
   wuxing: 0.15,     // 15%
-  uniqueness: 0.05, // 5%  ← 从10%降到5%
+  cultural: 0.10,   // 10%
+  glyph: 0.10,      // 10%
+  uniqueness: 0.05, // 5%
   styleFit: 0.05,   // 5%
-  gender: 0.05,     // 5%  ← 新增性别契合度
 } as const;
 
 // ============================================================
@@ -103,16 +138,21 @@ function toCharacterInfo(chars: string[]): CharacterInfo[] {
 }
 
 // ============================================================
-// 1. 语义匹配度 (25%)
+// 1. 语义匹配度 (15%)  ← v3.0: 20%→15%
 // ============================================================
 
 /**
  * 评估名字与用户意向的语义匹配度
- * 
- * 策略：
- * - 如果名字中的字出现在匹配到的典籍原文中 → 语义关联度高
- * - 检测名字中的字是否属于用户期望的关键场景词
- * - 基于典籍相似度综合计算
+ *
+ * v2.1 重要更新：
+ * - 加入"直白性惩罚"：名字直接使用期望词（如"智慧""聪明"）会扣分
+ * - 好的名字应该"含而不露"，用意象和典故暗示意境，而非直接说教
+ * - 如用户期望"聪明智慧"，"灵瑶"比"智慧"更雅致
+ *
+ * v3.0 重要更新：
+ * - 惩罚上限从40提升至60，杜绝"智慧""智丽""智美"等口号名
+ * - 新增"精准匹配额外减分"：名字完整复用了用户期望词（如"智慧"→直接取名"智慧"），额外扣30分
+ * - "智+慧/丽/美"等老土组合基础惩罚从10→15
  */
 export async function scoreSemanticMatch(
   givenName: string,
@@ -124,11 +164,10 @@ export async function scoreSemanticMatch(
   }
 
   try {
-    // ── 因子A: 典籍关联度 (0-75分) ──
+    // ── 因子A: 典籍关联度 (0-55分) ──
     let classicsOverlapScore = 0;
 
     if (context.matchedClassics && context.matchedClassics.length > 0) {
-      // 统计名字中的字出现在匹配典籍原文中的次数
       let maxOverlap = 0;
       for (const match of context.matchedClassics) {
         const ancientText = match.ancientText || "";
@@ -137,29 +176,25 @@ export async function scoreSemanticMatch(
       }
 
       const ratio = chars.length > 0 ? maxOverlap / chars.length : 0;
-      classicsOverlapScore = Math.round(ratio * 75);
+      classicsOverlapScore = Math.round(ratio * 55);
 
-      // 取匹配典籍的最高相似度作为加分
       const maxSimilarity = Math.max(...context.matchedClassics.map(m => m.similarity || 0));
-      if (maxSimilarity > 0.6) {                    // 宽松阈值
-        classicsOverlapScore = Math.min(75, classicsOverlapScore + 15);
+      if (maxSimilarity > 0.6) {
+        classicsOverlapScore = Math.min(55, classicsOverlapScore + 15);
       }
       if (maxSimilarity > 0.8) {
-        classicsOverlapScore = Math.min(80, classicsOverlapScore + 5);
+        classicsOverlapScore = Math.min(60, classicsOverlapScore + 5);
       }
     } else {
-      // 无典籍匹配时，基础分提升到45
-      classicsOverlapScore = 75;
+      classicsOverlapScore = 55; // 无典籍匹配时也给基础分，但不如有典籍的高
     }
 
-    // ── 因子B: 用户意向匹配度 (0-50分) ──
+    // ── 因子B: 用户意向匹配度 (0-40分) ──
     let intentMatchScore = 0;
 
-    // 提取用户期望中的关键意象词
     const expectationKeywords = extractKeywords(context.expectations);
     const styleKeywords = (context.styles || []).flatMap(s => extractKeywords(s));
 
-    // 查每个字的含义（从数据库）
     const charsArray = chars.map(c => `'${c}'`).join(",");
     const rows = await queryRaw(
       `SELECT character, meaning FROM kangxi_dict WHERE character IN (${charsArray})`
@@ -167,13 +202,11 @@ export async function scoreSemanticMatch(
 
     const charMeanings = new Map(rows.map(r => [r.character, r.meaning || ""]));
 
-    // 检测名字含义是否与用户期望匹配
     const allIntentWords = [...expectationKeywords, ...styleKeywords];
     if (allIntentWords.length > 0) {
       let matchedCount = 0;
       for (const char of chars) {
         const meaning = charMeanings.get(char) || "";
-        // 检测字的含义是否包含期望关键词
         const hasMatch = allIntentWords.some(
           word => meaning.includes(word) || char === word
         );
@@ -181,18 +214,93 @@ export async function scoreSemanticMatch(
       }
 
       const intentRatio = chars.length > 0 ? matchedCount / chars.length : 0;
-      intentMatchScore = Math.round(intentRatio * 50);
+      intentMatchScore = Math.round(intentRatio * 40);
     } else {
-      // 无明确期望时给中间分20→提升到35
-      intentMatchScore = 45;
+      intentMatchScore = 35;
     }
 
-    const totalScore = clampScore(classicsOverlapScore + intentMatchScore + 10); // +10 基线补偿
-    const detail = chars.length > 0
-      ? `典籍关联${classicsOverlapScore}分 + 意向匹配${intentMatchScore}分`
-      : "语义匹配度评分";
+  // ── 因子C: 直白性惩罚 ── v3.1: 三重直白惩罚机制
+  // 
+  // 【重要】名字直接复用用户期望词是"最土气"的做法，不应用高语义分
+  // 例如：用户期望"聪明智慧"→名字叫"智慧"，语义应该极低而非高
+  let overtnessPenalty = 0;
+  let overtDirectScoreOverride = false; // v3.1: 是否直接覆盖为低分
 
-    return { score: totalScore, detail };
+  // 使用 gender-chars.ts 的 checkOvertName 检测直白名
+  const userExpectationList = extractKeywords(context.expectations);
+  const overtResult = checkOvertName(givenName, userExpectationList);
+
+  // 第1重：名字直接复用了用户期望中的完整词（如期望"智慧"→名字"智慧"）
+  // → 语义分数强制降为15分（这是最严重的直白）
+  if (overtResult.isOvert) {
+    for (const word of overtResult.overtWords) {
+      // 去掉引号等非字内容，判断是否用户在期望中真的用了这个词
+      const cleanWord = word.replace(/[^一-龥]/g, "");
+      if (cleanWord.length >= 2 && givenName.includes(cleanWord)) {
+        // 检查这个词是否真的是用户期望的关键词
+        const isInExpectations = userExpectationList.some(
+          exp => exp.includes(cleanWord) || cleanWord.includes(exp)
+        );
+        if (isInExpectations) {
+          overtDirectScoreOverride = true; // 强制语义降为15分
+          break;
+        }
+      }
+    }
+  }
+
+  // 如果发现直接复用期望词 → 语义只有15分（不论典籍关联度多高）
+  if (overtDirectScoreOverride) {
+    return {
+      score: 15,
+      detail: "名字直接复用[期望词]，语义维度强制低分（建议使用意象化表达）",
+    };
+  }
+
+  // 第2重：常规直白组合惩罚
+  if (overtResult.isOvert) {
+    overtnessPenalty += 35; // 基础直白惩罚
+    overtnessPenalty += 5 * (overtResult.overtWords.length - 1); // 每多一个直白词再加分
+  }
+
+  // 第3重：特定老土组合额外惩罚（"智+慧/丽/美"等）
+  const TACKY_PATTERNS = [
+    /智[慧丽美]/g,     // 智慧、智力、智美
+    /[美俊]丽/g,       // 美丽、俊丽
+    /聪[明慧]/g,       // 聪明、聪慧
+    /[才华]艺/g,       // 才艺、华艺
+    /仁[爱德]/g,       // 仁爱、仁德
+    /富[贵]禄/g,       // 富贵
+  ];
+  for (const pattern of TACKY_PATTERNS) {
+    if (pattern.test(givenName)) {
+      overtnessPenalty += 15; // 每个老土组合加15分
+      break;
+    }
+  }
+
+  // v3.1: 上限从60→100（结合三重惩罚，上限放开）
+  overtnessPenalty = Math.min(100, overtnessPenalty);
+
+  // ★ v3.2: 如果直白惩罚≥35分，semantic 直接给低分（即便典籍匹配好）
+  if (overtnessPenalty >= 35) {
+    return {
+      score: clampScore(Math.max(0, 50 - overtnessPenalty)),
+      detail: `名字过于直白（扣${overtnessPenalty}分），语义维度强制低分`,
+    };
+  }
+
+  const totalScore = clampScore(classicsOverlapScore + intentMatchScore + 10 - overtnessPenalty);
+  const detailParts = [];
+  if (classicsOverlapScore > 0) detailParts.push(`典籍关联${classicsOverlapScore}分`);
+  if (intentMatchScore > 0) detailParts.push(`意向匹配${intentMatchScore}分`);
+  if (overtnessPenalty > 0) detailParts.push(`直白扣分${overtnessPenalty}分`);
+
+  const detail = detailParts.length > 0
+    ? detailParts.join(" + ")
+    : "语义匹配度评分";
+
+  return { score: totalScore, detail };
   } catch (error) {
     console.warn("[ScorerV2] 语义匹配度评分失败:", error);
     return { score: 50, detail: "语义匹配度评分降级" };
@@ -202,7 +310,6 @@ export async function scoreSemanticMatch(
 /** 从文本中提取关键词 */
 function extractKeywords(text: string): string[] {
   if (!text) return [];
-  // 按常见分隔符拆分，过滤掉单字无意义词
   const words = text.split(/[,，、\s\n。；;]+/).filter(w => w && w.length >= 1);
   return [...new Set(words)];
 }
@@ -241,7 +348,244 @@ export function scorePhonetic(
 }
 
 // ============================================================
-// 3. 文化内涵 (15%)
+// 3. 性别契合度 (20%) ← v3.0: 从15%→20%，与语义互换
+// ============================================================
+
+/**
+ * 评估名字与性别的契合度
+ *
+ * v2.1 重大更新：
+ * 1. 女性字库新增"智/慧/丽/美/明"的严格分类（它们有女性特征但也可用于男性，需要上下文判断）
+ * 2. 新增"理性学术类中性字"概念：如"哲/思/文/学/知/识/理/论"等偏理性字，女性使用时适当扣分
+ * 3. 新增"世俗老气扣分"：如"智慧"这种太像口号的名字扣性别分
+ * 4. 中性名不再给60分保底，当明确指定性别后，中性名应得中等偏下分
+ *
+ * v3.0 更新：
+ * - "慧"从偏女性中性移入偏男性中性
+ * - "智+慧"同时出现在女名中→联合惩罚（-35分）
+ * - "智慧""美丽"等直白名扣分从25→35
+ * - 性别分下限从5→0（允许彻底不及格）
+ * - 全中性字名字惩罚从15→25
+ */
+export function scoreGenderFit(
+  givenName: string,
+  context: ScoringContext
+): DimensionScore {
+  const chars = extractChars(givenName);
+  if (chars.length === 0) {
+    return { score: 0, detail: "名字为空" };
+  }
+
+  const gender = context.gender;
+  if (!gender) {
+    return { score: 65, detail: "未指定性别，采用中性评分" };
+  }
+
+  // 分析名字中每个字的性别倾向
+  let femaleStrong = 0;      // 强烈女性特征字
+  let maleStrong = 0;        // 强烈男性特征字
+  let femaleLeaning = 0;     // 偏女性中性字
+  let maleLeaning = 0;       // 偏男性中性字
+  let neutralCount = 0;      // 中性字
+
+  for (const ch of chars) {
+    if (!/[\u4e00-\u9fff]/.test(ch)) continue;
+    if (FEMALE_CHARS.has(ch)) {
+      femaleStrong++;
+    } else if (MALE_CHARS.has(ch)) {
+      maleStrong++;
+    } else if (MALE_LEANING_CHARS.has(ch)) {
+      maleLeaning++;
+    } else if (FEMALE_LEANING_CHARS.has(ch)) {
+      femaleLeaning++;
+    } else if (NEUTRAL_CHARS.has(ch)) {
+      neutralCount++;
+    }
+    // 未收录字也视为中性
+  }
+
+  // ── 额外扣分因子 ──
+
+  // 因子A: 直白老土名扣分（"智慧""美丽"这种口号名）← v3.0: 25→35
+  let tackyPenalty = 0;
+  const TACKY_FEMALE_NAMES = ["智慧", "聪明", "美丽", "俊秀", "善良", "才华", "爱华"];
+  for (const pattern of TACKY_FEMALE_NAMES) {
+    if (givenName.includes(pattern)) {
+      tackyPenalty += 35; // v3.0: 从25→35
+      break;
+    }
+  }
+
+  // 因子B: 全中性字 → 缺乏性别特征  ← v3.0: 15→25
+  let neutralAllPenalty = 0;
+  const totalTyped = femaleStrong + maleStrong + femaleLeaning + maleLeaning;
+  if (totalTyped === 0 && chars.length >= 2) {
+    neutralAllPenalty = 25; // v3.0: 从15→25
+  }
+
+  // 因子C: 女名中含偏男性字的扣分（如"智"用在女名）
+  let maleLeaningPenalty = 0;
+  if (gender === "F" && maleLeaning > 0) {
+    maleLeaningPenalty = 15 * maleLeaning;
+  }
+
+  // 因子D: 男性字倒错重罚
+  let strongCrossPenalty = 0;
+  if (gender === "F" && maleStrong > 0) {
+    strongCrossPenalty = 20 * maleStrong;
+  }
+
+  // 因子E: 检查名字整体印象
+  let expectationConflictPenalty = 0;
+  if (gender === "F" && context.expectations) {
+    const expectationText = context.expectations;
+    const hasSmartKeywords = /智|慧|聪|明|睿|哲/.test(expectationText);
+    if (hasSmartKeywords && (maleLeaning > 0 || maleStrong > 0)) {
+      expectationConflictPenalty = 10;
+    }
+  }
+
+  // 因子F (v3.0): "智"+"慧"同时出现在女名中→联合惩罚
+  let zhiHuiJointPenalty = 0;
+  if (gender === "F" && givenName.includes("智") && givenName.includes("慧")) {
+    zhiHuiJointPenalty = 35; // "智慧"组合特别扣分
+  }
+
+  // ── 总分计算 ──
+
+  let score: number;
+  let detail: string;
+
+  if (gender === "F") {
+    // ☐ 女名评分
+    if (maleStrong > 0 && femaleStrong === 0) {
+      score = 10;
+      detail = `名字含${maleStrong}个强烈男性特征字，完全不适合女孩`;
+    } else if (maleStrong > femaleStrong) {
+      score = 20;
+      detail = `男性特征（${maleStrong}个）多于女性特征（${femaleStrong}个），女孩气质明显不足`;
+    } else if (maleStrong > 0 && maleStrong <= femaleStrong) {
+      score = 40;
+      detail = `女性字为主但含男性字（女${femaleStrong}男${maleStrong}），性别特征不够纯粹`;
+    } else if (maleLeaning > 0 && femaleStrong === 0 && femaleLeaning === 0) {
+      score = 35;
+      detail = `名字仅含${maleLeaning}个偏男性字，缺乏女性气质`;
+    } else if (femaleStrong >= 2) {
+      score = 95;
+      detail = `双女性特征字（${femaleStrong}个），完美契合女孩气质`;
+    } else if (femaleStrong === 1) {
+      if (femaleLeaning > 0 || maleLeaning === 0) {
+        score = 80;
+        detail = `含女性特征字，基本符合女孩气质`;
+      } else {
+        score = 60;
+        detail = `一个女性字但搭配了偏男性字，性别气质较模糊`;
+      }
+    } else if (femaleLeaning > 0 && maleLeaning === 0) {
+      score = 70;
+      detail = `含偏女性字（${femaleLeaning}个），温和偏女性气质`;
+    } else if (femaleLeaning > 0 && maleLeaning > 0) {
+      score = 50;
+      detail = `兼有偏女性字（${femaleLeaning}个）和偏男性字（${maleLeaning}个），气质混合`;
+    } else {
+      score = 45;
+      detail = `全中性字，缺乏女性气质`;
+    }
+
+    // 应用所有惩罚（v3.0: 下限从5→0）
+    score -= (tackyPenalty + neutralAllPenalty + maleLeaningPenalty + strongCrossPenalty + expectationConflictPenalty + zhiHuiJointPenalty);
+    score = Math.max(0, score); // v3.0: 从5→0
+
+  } else {
+    // ☐ 男名评分
+    if (femaleStrong > 0 && maleStrong === 0) {
+      score = 10;
+      detail = `名字含${femaleStrong}个强烈女性特征字，完全不适合男孩`;
+    } else if (femaleStrong > maleStrong) {
+      score = 20;
+      detail = `女性特征（${femaleStrong}个）多于男性特征（${maleStrong}个），男孩气质明显不足`;
+    } else if (femaleStrong > 0 && femaleStrong <= maleStrong) {
+      score = 40;
+      detail = `男性字为主但含女性字（男${maleStrong}女${femaleStrong}），性别特征不够纯粹`;
+    } else if (femaleLeaning > 0 && maleStrong === 0 && maleLeaning === 0) {
+      score = 35;
+      detail = `名字仅含偏女性字（${femaleLeaning}个），缺乏男性气质`;
+    } else if (maleStrong >= 2) {
+      score = 95;
+      detail = `双男性特征字（${maleStrong}个），完美契合男孩气质`;
+    } else if (maleStrong === 1) {
+      if (maleLeaning > 0 || femaleLeaning === 0) {
+        score = 80;
+        detail = `含男性特征字，基本符合男孩气质`;
+      } else {
+        score = 55;
+        detail = `一个男性字但搭配了偏女性字，性别气质较模糊`;
+      }
+    } else if (maleLeaning > 0) {
+      score = 65;
+      detail = `含偏男性字（${maleLeaning}个），略微偏男性气质`;
+    } else {
+      score = 45;
+      detail = `全中性字，缺乏男性气质`;
+    }
+
+    score = Math.max(0, score); // v3.0: 从5→0
+  }
+
+  return { score: clampScore(score), detail };
+}
+
+// ============================================================
+// 4. 五行平衡 (15%)
+// ============================================================
+
+/**
+ * 评估名字的五行平衡度
+ * 复用 bazi-service 的 analyzeNameWuxing
+ */
+export async function scoreWuxing(
+  givenName: string,
+  context: ScoringContext
+): Promise<DimensionScore> {
+  const chars = extractChars(givenName);
+  if (chars.length === 0) {
+    return { score: 0, detail: "名字为空" };
+  }
+
+  try {
+    if (!context.wuxingPreference) {
+      return { score: 50, detail: "未提供八字信息，五行维度采用中性评分" };
+    }
+
+    const result = await analyzeNameWuxing(givenName, context.wuxingPreference);
+    const wuxingScore = result.score;
+
+    const charsWithWuxing = result.characters.filter(c => c.wuxing).length;
+    const hasWuxingInfo = charsWithWuxing > 0;
+
+    let finalScore = wuxingScore;
+    if (!hasWuxingInfo) {
+      finalScore = Math.min(finalScore, 40);
+    }
+
+    if (result.conflictingElements.length > 0) {
+      finalScore = Math.max(0, finalScore - 30);
+    }
+
+    return {
+      score: clampScore(finalScore),
+      detail: result.isFavorable
+        ? `五行搭配合理${result.description ? "：" + result.description : ""}`
+        : (result.description || "五行评分"),
+    };
+  } catch (error) {
+    console.warn("[ScorerV2] 五行评分失败:", error);
+    return { score: 50, detail: "五行评分降级" };
+  }
+}
+
+// ============================================================
+// 5. 文化内涵 (10%)
 // ============================================================
 
 /**
@@ -269,7 +613,6 @@ export async function scoreCultural(
       };
     }
 
-    // 提升基线：即使未匹配到典籍出处也给基础分45（因为AI生成的名字通常有文化内涵）
     return { score: 45, detail: "未匹配到典籍出处（但有AI关联的文化意境）" };
   } catch (error) {
     console.warn("[ScorerV2] 文化内涵评分失败:", error);
@@ -278,16 +621,11 @@ export async function scoreCultural(
 }
 
 // ============================================================
-// 4. 字形结构 (10%)
+// 6. 字形结构 (10%)
 // ============================================================
 
 /**
  * 评估名字的字形结构和谐度
- * 
- * 评分因子：
- * - 笔画数平衡度（各字笔画数差异不宜过大）
- * - 结构复杂度（不宜全用极简或极繁的字）
- * - 结构多样性（左右/上下/包围结构的搭配）
  */
 export async function scoreGlyph(
   givenName: string,
@@ -299,7 +637,6 @@ export async function scoreGlyph(
   }
 
   try {
-    // 查询笔画数和字结构信息
     const charsArray = chars.map(c => `'${c}'`).join(",");
     const rows = await queryRaw(
       `SELECT character, stroke_count, radical FROM kangxi_dict WHERE character IN (${charsArray})`
@@ -313,75 +650,56 @@ export async function scoreGlyph(
       if (row.radical) radicalMap.set(row.character, row.radical);
     }
 
-    // ── 因子A: 笔画平衡度 (0-40分) ──
+    // 因子A: 笔画平衡度 (0-40分)
     let strokeBalanceScore = 40;
-    const strokes = chars.map(c => strokeMap.get(c) || 8); // 默认8画
+    const strokes = chars.map(c => strokeMap.get(c) || 8);
 
     if (strokes.length >= 2) {
       const maxStroke = Math.max(...strokes);
       const minStroke = Math.min(...strokes);
       const diff = maxStroke - minStroke;
 
-      if (diff > 12) {
-        strokeBalanceScore = 10;  // 笔画差异过大
-      } else if (diff > 8) {
-        strokeBalanceScore = 20;
-      } else if (diff > 5) {
-        strokeBalanceScore = 30;
-      } else {
-        strokeBalanceScore = 40;  // 笔画平衡
-      }
+      if (diff > 12) strokeBalanceScore = 10;
+      else if (diff > 8) strokeBalanceScore = 20;
+      else if (diff > 5) strokeBalanceScore = 30;
+      else strokeBalanceScore = 40;
 
-      // 总笔画数的适宜度（2字名 16-30画为宜，3字名 20-40画为宜）
       const totalStrokes = strokes.reduce((a, b) => a + b, 0);
       const idealMin = chars.length === 2 ? 16 : 20;
       const idealMax = chars.length === 2 ? 30 : 40;
 
-      if (totalStrokes < idealMin) {
-        strokeBalanceScore -= 10; // 笔画过少
-      } else if (totalStrokes > idealMax) {
-        strokeBalanceScore -= 10; // 笔画过多
-      }
+      if (totalStrokes < idealMin) strokeBalanceScore -= 10;
+      else if (totalStrokes > idealMax) strokeBalanceScore -= 10;
     } else {
       strokeBalanceScore = 30;
     }
 
-    // ── 因子B: 结构多样性 (0-30分) ──
+    // 因子B: 结构多样性 (0-30分)
     let structureScore = 30;
     const radicals = chars.map(c => radicalMap.get(c) || "");
 
-    // 如果所有字都有同部首，扣分（单调）
     if (radicals.length >= 2) {
       const uniqueRadicals = [...new Set(radicals.filter(r => r))];
       if (uniqueRadicals.length === 1 && uniqueRadicals[0]) {
-        structureScore = 10; // 同部首，结构单调
+        structureScore = 10;
       } else if (uniqueRadicals.length <= 1) {
         structureScore = 20;
       }
     }
 
-    // ── 因子C: 难易搭配度 (0-30分) ──
+    // 因子C: 难易搭配度 (0-30分)
     let difficultyScore = 30;
-    const verySimpleCount = strokes.filter(s => s <= 5).length;  // 极简字
-    const veryComplexCount = strokes.filter(s => s >= 15).length; // 极繁字
+    const verySimpleCount = strokes.filter(s => s <= 5).length;
+    const veryComplexCount = strokes.filter(s => s >= 15).length;
 
     if (chars.length >= 2) {
-      if (verySimpleCount === chars.length) {
-        difficultyScore = 10;  // 全简单字，缺乏变化
-      } else if (veryComplexCount === chars.length) {
-        difficultyScore = 10;  // 全复杂字，书写困难
-      } else if (verySimpleCount > 0 && veryComplexCount > 0) {
-        difficultyScore = 25;  // 繁简搭配合理
-      } else {
-        difficultyScore = 30;  // 搭配良好
-      }
+      if (verySimpleCount === chars.length) difficultyScore = 10;
+      else if (veryComplexCount === chars.length) difficultyScore = 10;
+      else if (verySimpleCount > 0 && veryComplexCount > 0) difficultyScore = 25;
+      else difficultyScore = 30;
     } else {
-      // 单字名
-      if (verySimpleCount > 0 || veryComplexCount > 0) {
-        difficultyScore = 15;
-      } else {
-        difficultyScore = 25;
-      }
+      if (verySimpleCount > 0 || veryComplexCount > 0) difficultyScore = 15;
+      else difficultyScore = 25;
     }
 
     const total = clampScore(strokeBalanceScore + structureScore + difficultyScore);
@@ -396,59 +714,7 @@ export async function scoreGlyph(
 }
 
 // ============================================================
-// 5. 五行平衡 (15%)
-// ============================================================
-
-/**
- * 评估名字的五行平衡度
- * 复用 bazi-service 的 analyzeNameWuxing
- */
-export async function scoreWuxing(
-  givenName: string,
-  context: ScoringContext
-): Promise<DimensionScore> {
-  const chars = extractChars(givenName);
-  if (chars.length === 0) {
-    return { score: 0, detail: "名字为空" };
-  }
-
-  try {
-    if (!context.wuxingPreference) {
-      // 无八字数据时，返回中性分
-      return { score: 50, detail: "未提供八字信息，五行维度采用中性评分" };
-    }
-
-    const result = await analyzeNameWuxing(givenName, context.wuxingPreference);
-    const wuxingScore = result.score; // 0-100
-
-    // 如果名字中没有五行信息，降低评分
-    const charsWithWuxing = result.characters.filter(c => c.wuxing).length;
-    const hasWuxingInfo = charsWithWuxing > 0;
-
-    let finalScore = wuxingScore;
-    if (!hasWuxingInfo) {
-      finalScore = Math.min(finalScore, 40); // 没有五行信息时最高40分
-    }
-
-    // 如果包含忌讳五行，严重扣分
-    if (result.conflictingElements.length > 0) {
-      finalScore = Math.max(0, finalScore - 30);
-    }
-
-    return {
-      score: clampScore(finalScore),
-      detail: result.isFavorable
-        ? `五行搭配合理${result.description ? "：" + result.description : ""}`
-        : (result.description || "五行评分"),
-    };
-  } catch (error) {
-    console.warn("[ScorerV2] 五行评分失败:", error);
-    return { score: 50, detail: "五行评分降级" };
-  }
-}
-
-// ============================================================
-// 6. 独特性 (10%)
+// 7. 独特性 (5%)
 // ============================================================
 
 /**
@@ -467,23 +733,20 @@ export async function scoreUniqueness(
   }
 
   try {
-    // ── 因子A: 重名风险 (0-50分) ──
+    // 因子A: 重名风险 (0-50分)
     const uniqueness = await queryUniqueness(fullName, givenName, surname, gender);
-    const uniquenessScore = uniqueness.uniquenessScore; // 0-100
+    const uniquenessScore = uniqueness.uniquenessScore;
 
-    // 重名风险分映射到0-50分区间
     const homophonePenalty = uniqueness.homophoneRisk === "high" ? 15
       : uniqueness.homophoneRisk === "medium" ? 8
       : 0;
     const nameRarityScore = Math.max(0, Math.round(uniquenessScore / 2) - homophonePenalty);
 
-    // ── 因子B: 字频稀缺度 (0-50分) ──
+    // 因子B: 字频稀缺度 (0-50分)
     const charInfo = toCharacterInfo(chars);
     const popularity = await queryPopularity(charInfo, gender);
-    // rarityScore 越高越生僻 → 越独特，但过于生僻也要扣分
     let rarityScore = Math.round(popularity.rarityScore / 2);
 
-    // 过高的生僻度（>80）反而要降低独特性分（生僻≠好名）
     if (popularity.rarityScore > 85) {
       rarityScore = Math.round(50 * (1 - (popularity.rarityScore - 85) / 15));
     }
@@ -502,164 +765,11 @@ export async function scoreUniqueness(
 }
 
 // ============================================================
-// 7. 性别契合度 (5%)  ← 新增性别评分维度
-// ============================================================
-
-/**
- * 评估名字与性别的契合度
- * 
- * 核心逻辑：
- * - 定义女性偏好字（婉/淑/娴/婷/娜/妍/姝/嫣/娉/婀/倩/慧/清/雅/韵/瑶/瑾/璐/沁/湉等）
- * - 定义男性偏好字（刚/健/雄/英/豪/杰/伟/毅/勇/猛/强/力/武/斌/浩/然/志/远/光/安/恒/坚等）
- * - 女宝宝名字包含男性偏好字 → 扣分（轻则-10%，重则-30%）
- * - 女宝宝名字包含女性偏好字 → 加分
- * - 男宝宝反之
- * - 双字名中两个都是异性别字 → 重罚
- */
-export function scoreGenderFit(
-  givenName: string,
-  context: ScoringContext
-): DimensionScore {
-  const chars = extractChars(givenName);
-  if (chars.length === 0) {
-    return { score: 0, detail: "名字为空" };
-  }
-
-  const gender = context.gender;
-  if (!gender) {
-    return { score: 60, detail: "未指定性别，采用中性评分" };
-  }
-
-  // ── 女性偏好字（强烈女性化特征） ──
-  const FEMALE_CHARS = new Set([
-    "婉", "淑", "娴", "婷", "娜", "妍", "姝", "嫣", "娉", "婀", "倩",
-    "慧", "清", "雅", "韵", "瑶", "瑾", "璐", "沁", "湉", "涓", "漪",
-    "涵", "菲", "芳", "芬", "馥", "兰", "菊", "莲", "荷", "蕊", "蕾",
-    "玫", "瑰", "瑛", "玲", "珑", "璎", "珮", "环", "黛", "碧",
-    "云", "月", "雪", "霞", "虹", "霓", "露", "冰", "霜", "霖",
-    "娟", "婵", "妙", "妮", "娃", "婴", "婴", "妃", "媛", "姬",
-    "悦", "恬", "怡", "惬", "愫", "慈", "惠", "爱", "怜", "惜",
-    "绮", "绣", "彩", "艳", "灿", "绚", "素", "纯", "洁", "静",
-    "莺", "燕", "凤", "凰", "鸾", "鹊", "蝶", "萤", "霓", "霞",
-    "美", "丽", "秀", "娇", "柔", "顺", "安", "宁", "静", "幽",
-  ]);
-
-  // ── 男性偏好字（强烈男性化特征） ──
-  const MALE_CHARS = new Set([
-    "刚", "健", "雄", "英", "豪", "杰", "伟", "毅", "勇", "猛",
-    "强", "力", "武", "斌", "浩", "然", "志", "远", "光", "安",
-    "恒", "坚", "锋", "锐", "剑", "戈", "矛", "盾", "甲", "铠",
-    "龙", "虎", "豹", "鹰", "鹏", "鲲", "麒", "麟", "驹", "骏",
-    "雄", "霸", "王", "帝", "皇", "君", "国", "家", "邦", "域",
-    "德", "仁", "义", "正", "直", "诚", "信", "忠", "孝", "廉",
-    "博", "深", "渊", "瀚", "宏", "伟", "壮", "丽", "富", "强",
-    "振", "兴", "昌", "盛", "荣", "耀", "辉", "煌", "昊", "晟",
-    "峰", "峦", "岳", "岗", "岭", "岩", "石", "铁", "钢", "金",
-    "海", "江", "河", "湖", "洋", "波", "浪", "涛", "潮", "滔",
-    "明", "亮", "旦", "旭", "晨", "曦", "曙", "曜", "旷", "广",
-  ]);
-
-  // ── 中性偏好字（男女皆可） ──
-  const NEUTRAL_CHARS = new Set([
-    "子", "之", "一", "小", "天", "文", "华", "瑞", "祥", "福",
-    "欣", "乐", "欢", "喜", "嘉", "庆", "哲", "思", "宇", "书",
-    "若", "如", "亦", "以", "与", "其", "所", "为", "因", "可",
-    "言", "语", "音", "知", "识", "见", "闻", "声", "意", "情",
-  ]);
-
-  // 分析名字中每个字的性别倾向
-  let femaleCount = 0;
-  let maleCount = 0;
-  let totalScored = 0;
-
-  for (const ch of chars) {
-    if (FEMALE_CHARS.has(ch)) {
-      femaleCount++;
-      totalScored++;
-    } else if (MALE_CHARS.has(ch)) {
-      maleCount++;
-      totalScored++;
-    }
-    // NEUTRAL_CHARS 不计数也不扣分
-  }
-
-  // 如果名字中没有任何性别特征字，给予中等偏上分数（允许中性名存在）
-  if (totalScored === 0) {
-    return { score: 60, detail: "名字无明显性别特征，中性评分" };
-  }
-
-  // 计算性别匹配度
-  const femaleRatio = femaleCount / chars.length;
-  const maleRatio = maleCount / chars.length;
-
-  let genderMatchRatio: number;
-  let detail: string;
-
-  if (gender === "F") {
-    // 女性期望：女性字越多越好，男性字越少越好
-    if (maleCount > 0 && femaleCount === 0) {
-      // 全是男性字 → 严重不匹配
-      genderMatchRatio = 0.1;
-      detail = `含男性特征字（${maleCount}个），严重偏离女性气质`;
-    } else if (maleCount > femaleCount) {
-      // 男性字多于女性字
-      genderMatchRatio = 0.3;
-      detail = `男性特征偏多（男${maleCount}女${femaleCount}），女性气质不足`;
-    } else if (maleCount > 0 && maleCount <= femaleCount) {
-      // 男女搭配但女性字为主
-      genderMatchRatio = 0.7;
-      detail = `女性字占优（女${femaleCount}男${maleCount}），基本符合女性特征`;
-    } else {
-      // 全是女性字
-      genderMatchRatio = 1.0;
-      detail = `含女性特征字（${femaleCount}个），完美契合女性气质`;
-    }
-  } else {
-    // 男性期望：男性字越多越好，女性字越少越好
-    if (femaleCount > 0 && maleCount === 0) {
-      // 全是女性字 → 严重不匹配
-      genderMatchRatio = 0.1;
-      detail = `含女性特征字（${femaleCount}个），严重偏离男性气质`;
-    } else if (femaleCount > maleCount) {
-      // 女性字多于男性字
-      genderMatchRatio = 0.3;
-      detail = `女性特征偏多（女${femaleCount}男${maleCount}），男性气质不足`;
-    } else if (femaleCount > 0 && femaleCount <= maleCount) {
-      // 男女搭配但男性字为主
-      genderMatchRatio = 0.7;
-      detail = `男性字占优（男${maleCount}女${femaleCount}），基本符合男性特征`;
-    } else {
-      // 全是男性字
-      genderMatchRatio = 1.0;
-      detail = `含男性特征字（${maleCount}个），完美契合男性气质`;
-    }
-  }
-
-  // 性别分映射到 0-100 区间
-  // 完美匹配 = 90~100，严重不匹配 = 10~20
-  const score = clampScore(Math.round(30 + genderMatchRatio * 70));
-
-  return { score, detail };
-}
-
-// ============================================================
 // 8. 风格契合度 (5%)
 // ============================================================
 
 /**
  * 评估名字与用户选定风格的契合程度
- * 
- * 核心思想：用户选择的风格决定了得分标准，而非用固定审美评分
- * 
- * 风格→评分策略映射：
- * - 古典/古风/典雅   → 出自典籍、使用典雅汉字的得分高
- * - 温婉/柔美/淑女   → 使用婉约类汉字（婉清淑娴雅慧等）得分高
- * - 大气/雄浑/豪迈   → 使用雄浑类汉字（浩然天佑志远英杰等）得分高
- * - 现代/时尚/洋气   → 使用当代流行字（子轩宇涵沐泽等）得分高
- * - 自然/山水/诗意   → 使用自然意象字（云月风林溪岚等）得分高
- * - 无明确风格       → 中性评分（不扣分不加分）
- * 
- * 多风格时取各风格匹配度的加权综合。
  */
 export async function scoreStyleFit(
   givenName: string,
@@ -671,13 +781,11 @@ export async function scoreStyleFit(
   }
 
   try {
-    // 如果没有指定风格，返回中性分
     const userStyles = context.styles || [];
     if (userStyles.length === 0) {
       return { score: 60, detail: "未指定风格偏好，采用中性评分" };
     }
 
-    // ── 风格关键词到风格类别的映射（支持同义词） ──
     type StyleCategory = "古典" | "温婉" | "大气" | "现代" | "自然" | "简约";
 
     const styleKeywordToCategory: Array<{ keywords: RegExp[]; category: StyleCategory }> = [
@@ -707,7 +815,6 @@ export async function scoreStyleFit(
       },
     ];
 
-    // 匹配用户风格到类别
     const matchedCategories = new Set<StyleCategory>();
     for (const style of userStyles) {
       for (const mapping of styleKeywordToCategory) {
@@ -716,10 +823,8 @@ export async function scoreStyleFit(
       }
     }
 
-    // 如果没有匹配到任何类别，尝试按关键词模糊匹配
     let effectiveCategories: StyleCategory[];
     if (matchedCategories.size === 0) {
-      // 对所有用户风格做通用文本匹配
       const styleText = userStyles.join(" ").toLowerCase();
       if (/古|典|雅|诗|文/.test(styleText)) matchedCategories.add("古典");
       if (/婉|柔|淑|娴|清/.test(styleText)) matchedCategories.add("温婉");
@@ -735,7 +840,6 @@ export async function scoreStyleFit(
       effectiveCategories = [...matchedCategories];
     }
 
-    // ── 各风格类别的汉字偏好定义 ──
     const styleCharMap: Record<StyleCategory, string[]> = {
       "古典": ["雅", "懿", "淑", "贤", "德", "仁", "义", "礼", "智", "信",
                "文", "章", "华", "国", "邦", "瑞", "祥", "祯", "祺", "禧",
@@ -756,33 +860,21 @@ export async function scoreStyleFit(
                "中", "朴", "素", "真", "善", "美", "纯", "宁", "静", "远"],
     };
 
-    // ── 打分逻辑：对每个匹配的风格类别计算契合度，取平均 ──
     let totalStyleScore = 0;
 
     for (const cat of effectiveCategories) {
       const preferredChars = new Set(styleCharMap[cat] || []);
       if (preferredChars.size === 0) {
-        totalStyleScore += 50; // 无偏好字的风格类别，给中间分
+        totalStyleScore += 50;
         continue;
       }
 
-      // 因子A: 名字中的字落在偏好集中的比例 (0-70分)
       const matchCount = chars.filter(c => preferredChars.has(c)).length;
       const matchRatio = chars.length > 0 ? matchCount / chars.length : 0;
       const matchScore = Math.round(matchRatio * 70);
 
-      // 因子B: 风格关键词在名字含义中的匹配度 (0-30分)
-      // 检查名字寓意描述是否包含风格关键词
-      // 此处简化处理：直接查看名字是否与风格同属一个语域
-      let meaningScore = 15; // 中间分
-
-      // 从名字字形推断风格契合度（额外的加分）
-      // 如果名字中所有字的平均笔画适中（6-12画），对大多数风格都友好
-      // 但不宜在此维度过度扣分，风格契合度主要看字义和语域
-
+      let meaningScore = 15;
       let catScore = clampScore(matchScore + meaningScore);
-
-      // 加权：用户风格列表中该类别的比重（均匀分布）
       totalStyleScore += catScore;
     }
 
@@ -804,11 +896,11 @@ export async function scoreStyleFit(
 // ============================================================
 
 /**
- * 对单个名字进行七维加权综合评分
+ * 对单个名字进行八维加权综合评分（v3.0）
  */
 export async function computeScoreV2(
   nameObj: {
-    name: string;       // 全名（含姓）
+    name: string;
     givenName: string;
     surname: string;
   },
@@ -816,15 +908,15 @@ export async function computeScoreV2(
 ): Promise<ScoreBreakdownV2> {
   const { givenName, surname, name: fullName } = nameObj;
 
-  // 并行计算七维分数
+  // 并行计算八维分数
   const gender = Promise.resolve(scoreGenderFit(givenName, context));
 
-  const [semantic, phonetic, cultural, glyph, wuxing, uniqueness, styleFit, genderScore] = await Promise.all([
+  const [semantic, phonetic, wuxing, cultural, glyph, uniqueness, styleFit, genderScore] = await Promise.all([
     scoreSemanticMatch(givenName, context),
     Promise.resolve(scorePhonetic(givenName, context)),
+    scoreWuxing(givenName, context),
     scoreCultural(givenName, context),
     scoreGlyph(givenName, context),
-    scoreWuxing(givenName, context),
     scoreUniqueness(givenName, fullName, surname, context.gender),
     scoreStyleFit(givenName, context),
     gender,
@@ -834,26 +926,57 @@ export async function computeScoreV2(
   let total = clampScore(
     semantic.score * WEIGHTS.semantic +
     phonetic.score * WEIGHTS.phonetic +
+    wuxing.score * WEIGHTS.wuxing +
     cultural.score * WEIGHTS.cultural +
     glyph.score * WEIGHTS.glyph +
-    wuxing.score * WEIGHTS.wuxing +
     uniqueness.score * WEIGHTS.uniqueness +
     styleFit.score * WEIGHTS.styleFit +
     genderScore.score * WEIGHTS.gender
   );
 
-  // 注意：不再设高基线！让评分分布式自然落在40~95分区间
-  // 只设最低40分基线，防止完全无法使用的名字也不至于给0分
-  total = Math.max(40, total);
+  // v3.1: ★ 全局直白惩罚（第2层）— 不受权重稀释
+  // 名字直接复用用户期望词时，在加权总分上直接扣20-40分
+  // 这是最关键的一层：确保"智慧"类名字即使其他维度分数再高，总分也不会超过50
+  let globalOvertPenalty = 0;
+  if (context.expectations) {
+    const expectationKeywords = extractKeywords(context.expectations);
+    const overtResult = checkOvertName(givenName, expectationKeywords);
+    if (overtResult.isOvert) {
+      for (const word of overtResult.overtWords) {
+        const cleanWord = word.replace(/[^一-龥]/g, "");
+        if (cleanWord.length >= 2 && givenName.includes(cleanWord)) {
+          // 名字直接复用了用户期望词（如期望"智慧"→取名"智慧"）
+          globalOvertPenalty = 40; // 全局扣40分，确保分数极低
+          break;
+        }
+      }
+      // 名字包含直白组合但未完全复用时，也扣20分
+      if (globalOvertPenalty === 0) {
+        globalOvertPenalty = 20;
+      }
+    }
+  }
+
+  // 应用全局直白惩罚
+  total = clampScore(total - globalOvertPenalty);
+
+  // v3.0: 低基线防护从40→50，防止过低分带来的体验差
+  // v3.1: 如果名字受全局直白惩罚，不应用低基线防护（确保"智慧"类名不要反弹）
+  // v3.2: ★ 直白名底线从40→25，确保"智慧""美丽""智丽"等老土名不会排在前面
+  if (globalOvertPenalty > 0) {
+    total = Math.max(25, total); // 直白名最⾼25分
+  } else {
+    total = Math.max(50, total); // 正常名字低基线防护50分
+  }
 
   return {
     semantic,
     phonetic,
+    gender: genderScore,
+    wuxing,
     cultural,
     glyph,
-    wuxing,
     uniqueness,
-    gender: genderScore,
     styleFit,
     total,
   };
@@ -861,18 +984,12 @@ export async function computeScoreV2(
 
 /**
  * 批量评分并排序
- *
- * @param names - 待评分名字列表
- * @param context - 评分上下文（用户期望、典籍匹配、八字等）
- * @returns 按总分降序排列的名字列表（含评分分解）
  */
 export async function scoreAndSortNames(
   names: GeneratedName[],
   context: ScoringContext,
   options?: {
-    /** 并发数，默认2 */
     concurrency?: number;
-    /** 是否输出详细日志 */
     verbose?: boolean;
   }
 ): Promise<Array<GeneratedName & { scoreBreakdownV2: ScoreBreakdownV2 }>> {
@@ -888,7 +1005,6 @@ export async function scoreAndSortNames(
     const scored = await Promise.all(
       batch.map(async (name) => {
         try {
-          // 解析姓氏
           const givenName = name.givenName || name.name;
           const surname = context.surname || (name.name.length > givenName.length ? name.name.slice(0, 1) : "张");
 
@@ -907,12 +1023,13 @@ export async function scoreAndSortNames(
             console.log(
               `[ScorerV2] ${name.name} | ` +
               `语义=${scoreBreakdown.semantic.score} ` +
-            `音律=${scoreBreakdown.phonetic.score} ` +
-            `文化=${scoreBreakdown.cultural.score} ` +
-            `字形=${scoreBreakdown.glyph.score} ` +
-            `五行=${scoreBreakdown.wuxing.score} ` +
-            `独特=${scoreBreakdown.uniqueness.score} ` +
-            `风格=${scoreBreakdown.styleFit.score} ` +
+              `音律=${scoreBreakdown.phonetic.score} ` +
+              `性别=${scoreBreakdown.gender.score} ` +
+              `五行=${scoreBreakdown.wuxing.score} ` +
+              `文化=${scoreBreakdown.cultural.score} ` +
+              `字形=${scoreBreakdown.glyph.score} ` +
+              `独特=${scoreBreakdown.uniqueness.score} ` +
+              `风格=${scoreBreakdown.styleFit.score} ` +
               `→ 总分=${scoreBreakdown.total}`
             );
           }
@@ -931,7 +1048,6 @@ export async function scoreAndSortNames(
     results.push(...scored);
   }
 
-  // 按总分降序排列
   results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   return results;
@@ -943,11 +1059,11 @@ function createDefaultBreakdown(detail: string): ScoreBreakdownV2 {
   return {
     semantic: defaultDim(60),
     phonetic: defaultDim(60),
+    gender: defaultDim(60),
+    wuxing: defaultDim(50),
     cultural: defaultDim(50),
     glyph: defaultDim(60),
-    wuxing: defaultDim(50),
     uniqueness: defaultDim(60),
-    gender: defaultDim(60),
     styleFit: defaultDim(60),
     total: 60,
   };
@@ -960,9 +1076,10 @@ function createDefaultBreakdown(detail: string): ScoreBreakdownV2 {
 export const NameScorerV2 = {
   scoreSemanticMatch,
   scorePhonetic,
+  scoreGenderFit,
+  scoreWuxing,
   scoreCultural,
   scoreGlyph,
-  scoreWuxing,
   scoreUniqueness,
   scoreStyleFit,
   computeScoreV2,
