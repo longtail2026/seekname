@@ -134,11 +134,7 @@ export default function EnglishNamePage() {
   const [avoidFlags, setAvoidFlags] = useState<string[]>(["不要有负面谐音/含义"]);
   const [lengthPreference, setLengthPreference] = useState("");
 
-  // IME 组合输入状态标志（使用 isComposing 属性判断更可靠）
-  const isComposing = useRef(false);
-  const isFullNameComposing = useRef(false);
-  const isCustomNeedComposing = useRef(false);
-
+  // 无额外 IME 状态管理 - React 受控组件原生支持 IME 输入
   const [results, setResults] = useState<EnameScoredResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -352,16 +348,9 @@ export default function EnglishNamePage() {
                 type="text"
                 value={surname}
                 onChange={(e) => {
-                  // 使用原生 isComposing 属性判断 IME 组合状态
-                  const nativeEvent = e.nativeEvent as InputEvent;
-                  if (nativeEvent.isComposing) return;
-                  setSurname(e.target.value.slice(0, 2));
+                  setSurname(e.target.value);
                 }}
-                onCompositionStart={() => { isComposing.current = true; }}
-                onCompositionEnd={(e) => {
-                  isComposing.current = false;
-                  setSurname(e.currentTarget.value.slice(0, 2));
-                }}
+                maxLength={2}
                 placeholder="例如：李、王、张..."
                 className="w-full py-3 px-4 rounded-xl text-sm border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none transition-all focus:border-[#E86A17] focus:ring-2 focus:ring-[#E86A17]/10"
               />
@@ -397,15 +386,9 @@ export default function EnglishNamePage() {
                     type="text"
                     value={fullName}
                     onChange={(e) => {
-                      const nativeEvent = e.nativeEvent as InputEvent;
-                      if (nativeEvent.isComposing) return;
-                      setFullName(e.target.value.slice(0, 4));
+                      setFullName(e.target.value);
                     }}
-                    onCompositionStart={() => { isFullNameComposing.current = true; }}
-                    onCompositionEnd={(e) => {
-                      isFullNameComposing.current = false;
-                      setFullName(e.currentTarget.value.slice(0, 4));
-                    }}
+                    maxLength={4}
                     placeholder="例如：李瑶、王鹤棣..."
                     className="w-full py-2.5 px-4 rounded-xl text-sm border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none focus:border-[#E86A17] focus:ring-2 focus:ring-[#E86A17]/10"
                   />
@@ -443,15 +426,9 @@ export default function EnglishNamePage() {
                         type="text"
                         value={customNeed}
                         onChange={(e) => {
-                          const nativeEvent = e.nativeEvent as InputEvent;
-                          if (nativeEvent.isComposing) return;
                           setCustomNeed(e.target.value);
                         }}
-                        onCompositionStart={() => { isCustomNeedComposing.current = true; }}
-                        onCompositionEnd={(e) => {
-                          isCustomNeedComposing.current = false;
-                          setCustomNeed(e.currentTarget.value);
-                        }}
+                        maxLength={30}
                         placeholder="自定义需求..."
                         className="w-28 px-3 py-1.5 rounded-full text-xs border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none focus:border-[#E86A17]"
                       />
