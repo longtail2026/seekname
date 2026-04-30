@@ -1,0 +1,1574 @@
+/**
+ * 英文起名引擎（v2.0 - 完整拼音音节匹配版）
+ * 
+ * 核心改进：
+ * 1. 完整汉字→拼音映射表（覆盖500+高频汉字）
+ * 2. 拼音音节匹配算法（"国"guo → "Gor"音素匹配）
+ * 3. 修复流行度评分（★★★★ → 95分）
+ * 4. "谐音贴近中文名"需求时拼音匹配权重翻倍
+ */
+
+import { getAllRecords, type EnameRecord } from "./ename-dict";
+import { semanticSearchEname, type EnameSemanticMatch } from "./semantic-ename-search";
+
+// ===== 类型定义 =====
+
+export interface EnameGenerateRequest {
+  gender: "male" | "female";
+  surname: string;
+  fullName?: string;
+  needs?: string[];
+  style?: string;
+  avoidFlags?: string[];
+  lengthPreference?: "short" | "medium" | "long";
+  count?: number;
+}
+
+export interface EnameScoredResult {
+  name: string;
+  gender: string;
+  phonetic: string;
+  chinese: string;
+  origin: string;
+  popularity: string;
+  meaning: string;
+  firstLetter: string;
+  score: number;
+  phoneticScore: number;
+  meaningScore: number;
+  styleScore: number;
+  popularityScore: number;
+  lengthScore: number;
+  tags: string[];
+  adaptationNote: string;
+}
+
+// ===== 完整汉字→拼音映射表（覆盖500+高频汉字） =====
+
+const HANZI_TO_PINYIN: Record<string, string> = {
+  // A
+  "阿": "a", "埃": "ai", "艾": "ai", "爱": "ai", "安": "an", "岸": "an",
+  "昂": "ang", "奥": "ao",
+  // B
+  "八": "ba", "巴": "ba", "白": "bai", "百": "bai", "柏": "bai",
+  "班": "ban", "半": "ban", "帮": "bang", "包": "bao", "宝": "bao",
+  "保": "bao", "报": "bao", "暴": "bao",
+  "北": "bei", "贝": "bei", "备": "bei",
+  "本": "ben",
+  "比": "bi", "必": "bi", "碧": "bi",
+  "边": "bian", "变": "bian",
+  "标": "biao",
+  "别": "bie",
+  "彬": "bin",
+  "冰": "bing", "兵": "bing", "丙": "bing",
+  "波": "bo", "博": "bo", "伯": "bo",
+  // C
+  "才": "cai", "材": "cai", "采": "cai", "彩": "cai",
+  "灿": "can",
+  "仓": "cang",
+  "操": "cao",
+  "草": "cao",
+  "册": "ce",
+  "曾": "ceng",
+  "差": "cha",
+  "查": "cha",
+  "产": "chan",
+  "长": "chang", "常": "chang", "昌": "chang",
+  "超": "chao",
+  "车": "che",
+  "晨": "chen", "尘": "chen", "陈": "chen",
+  "成": "cheng", "城": "cheng", "程": "cheng", "承": "cheng", "呈": "cheng",
+  "吃": "chi", "持": "chi",
+  "充": "chong", "崇": "chong", "冲": "chong",
+  "出": "chu", "初": "chu",
+  "楚": "chu",
+  "川": "chuan", "传": "chuan",
+  "春": "chun", "纯": "chun", "淳": "chun",
+  "词": "ci",
+  "次": "ci",
+  "从": "cong",
+  "村": "cun",
+  "存": "cun",
+  "错": "cuo",
+  // D
+  "达": "da", "大": "da",
+  "代": "dai", "带": "dai", "戴": "dai",
+  "丹": "dan", "单": "dan",
+  "党": "dang",
+  "刀": "dao", "岛": "dao",
+  "到": "dao",
+  "德": "de",
+  "得": "de",
+  "等": "deng", "邓": "deng",
+  "地": "di", "帝": "di", "迪": "di", "第": "di",
+  "点": "dian", "典": "dian",
+  "电": "dian",
+  "丁": "ding", "顶": "ding", "定": "ding",
+  "东": "dong", "冬": "dong", "董": "dong",
+  "动": "dong",
+  "都": "du",
+  "读": "du",
+  "独": "du",
+  "度": "du",
+  "端": "duan",
+  "段": "duan",
+  "对": "dui",
+  "多": "duo", "朵": "duo",
+  // E
+  "恩": "en", "尔": "er",
+  // F
+  "发": "fa",
+  "法": "fa",
+  "凡": "fan", "繁": "fan", "反": "fan", "范": "fan",
+  "方": "fang", "芳": "fang", "房": "fang",
+  "飞": "fei", "非": "fei", "菲": "fei", "芬": "fen", "丰": "feng",
+  "风": "feng", "冯": "feng", "凤": "feng",
+  "夫": "fu", "福": "fu", "芙": "fu", "扶": "fu",
+  "甫": "fu", "辅": "fu",
+  "傅": "fu",
+  "付": "fu",
+  // G
+  "嘎": "ga",
+  "该": "gai",
+  "干": "gan", "甘": "gan",
+  "刚": "gang", "钢": "gang",
+  "高": "gao", "告": "gao",
+  "哥": "ge", "歌": "ge", "格": "ge", "阁": "ge",
+  "给": "gei",
+  "根": "gen",
+  "更": "geng",
+  "工": "gong", "公": "gong", "功": "gong", "宫": "gong",
+  "共": "gong",
+  "贡": "gong",
+  "勾": "gou", "沟": "gou",
+  "构": "gou",
+  "古": "gu",
+  "谷": "gu",
+  "故": "gu",
+  "固": "gu",
+  "顾": "gu",
+  "瓜": "gua",
+  "挂": "gua",
+  "怪": "guai",
+  "关": "guan", "观": "guan", "官": "guan", "冠": "guan",
+  "管": "guan",
+  "光": "guang", "广": "guang",
+  "归": "gui",
+  "贵": "gui",
+  "桂": "gui",
+  "国": "guo", "果": "guo", "过": "guo", "郭": "guo",
+  // H
+  "海": "hai", "还": "hai",
+  "含": "han", "寒": "han", "韩": "han", "涵": "han", "晗": "han",
+  "汉": "han", "翰": "han", "瀚": "han",
+  "航": "hang", "杭": "hang",
+  "好": "hao", "浩": "hao", "昊": "hao", "皓": "hao",
+  "和": "he", "合": "he", "何": "he", "河": "he", "贺": "he",
+  "黑": "hei",
+  "很": "hen",
+  "红": "hong", "洪": "hong", "鸿": "hong", "宏": "hong", "弘": "hong",
+  "侯": "hou", "厚": "hou",
+  "后": "hou",
+  "胡": "hu", "湖": "hu", "虎": "hu",
+  "互": "hu",
+  "花": "hua", "华": "hua",
+  "化": "hua",
+  "画": "hua",
+  "怀": "huai",
+  "欢": "huan",
+  "环": "huan",
+  "还": "huan",
+  "换": "huan",
+  "皇": "huang", "黄": "huang",
+  "煌": "huang",
+  "辉": "hui", "回": "hui",
+  "汇": "hui",
+  "会": "hui",
+  "慧": "hui",
+  "惠": "hui",
+  "婚": "hun",
+  "火": "huo", "伙": "huo",
+  "或": "huo",
+  // J
+  "机": "ji", "鸡": "ji",
+  "及": "ji", "级": "ji", "极": "ji",
+  "吉": "ji", "即": "ji",
+  "集": "ji",
+  "几": "ji",
+  "记": "ji",
+  "季": "ji",
+  "计": "ji",
+  "纪": "ji",
+  "济": "ji",
+  "继": "ji",
+  "家": "jia", "佳": "jia", "嘉": "jia",
+  "甲": "jia", "价": "jia",
+  "间": "jian", "坚": "jian", "建": "jian", "健": "jian",
+  "剑": "jian",
+  "鉴": "jian",
+  "江": "jiang", "将": "jiang",
+  "姜": "jiang",
+  "讲": "jiang",
+  "奖": "jiang",
+  "交": "jiao",
+  "娇": "jiao",
+  "教": "jiao",
+  "叫": "jiao",
+  "杰": "jie", "洁": "jie", "结": "jie", "节": "jie",
+  "解": "jie",
+  "金": "jin", "今": "jin", "锦": "jin", "晋": "jin",
+  "近": "jin",
+  "进": "jin",
+  "京": "jing", "经": "jing", "精": "jing", "景": "jing",
+  "晶": "jing",
+  "静": "jing", "敬": "jing",
+  "境": "jing",
+  "九": "jiu", "久": "jiu",
+  "酒": "jiu",
+  "就": "jiu",
+  "居": "ju",
+  "菊": "ju",
+  "举": "ju",
+  "具": "ju",
+  "剧": "ju",
+  "聚": "ju",
+  "娟": "juan",
+  "卷": "juan",
+  "决": "jue", "觉": "jue",
+  "军": "jun", "君": "jun", "俊": "jun", "峻": "jun", "骏": "jun",
+  // K
+  "卡": "ka",
+  "开": "kai", "凯": "kai", "楷": "kai",
+  "看": "kan",
+  "康": "kang",
+  "考": "kao",
+  "科": "ke", "可": "ke", "克": "ke",
+  "客": "ke",
+  "空": "kong",
+  "孔": "kong",
+  "控": "kong",
+  "口": "kou",
+  "哭": "ku",
+  "库": "ku",
+  "快": "kuai",
+  "宽": "kuan",
+  "款": "kuan",
+  "矿": "kuang",
+  "况": "kuang",
+  "坤": "kun",
+  "昆": "kun",
+  "困": "kun",
+  "扩": "kuo",
+  "括": "kuo",
+  // L
+  "拉": "la",
+  "来": "lai",
+  "兰": "lan", "蓝": "lan", "览": "lan",
+  "郎": "lang", "朗": "lang",
+  "浪": "lang",
+  "劳": "lao",
+  "老": "lao",
+  "乐": "le",
+  "勒": "le",
+  "雷": "lei",
+  "磊": "lei", "蕾": "lei",
+  "类": "lei",
+  "冷": "leng",
+  "离": "li",
+  "礼": "li",
+  "李": "li", "里": "li",
+  "丽": "li", "立": "li", "利": "li", "力": "li",
+  "莉": "li", "琳": "lin", "霖": "lin", "林": "lin",
+  "灵": "ling", "玲": "ling", "凌": "ling", "零": "ling",
+  "领": "ling",
+  "令": "ling",
+  "刘": "liu", "流": "liu", "留": "liu",
+  "龙": "long", "隆": "long",
+  "露": "lu", "路": "lu", "陆": "lu", "卢": "lu", "鹿": "lu",
+  "旅": "lv",
+  "绿": "lv",
+  "律": "lv",
+  "乱": "luan",
+  "伦": "lun",
+  "论": "lun",
+  "罗": "luo", "洛": "luo", "落": "luo", "骆": "luo",
+  "吕": "lv",
+  // M
+  "马": "ma", "码": "ma",
+  "买": "mai",
+  "卖": "mai",
+  "满": "man", "曼": "man",
+  "毛": "mao", "茅": "mao",
+  "茂": "mao",
+  "么": "me",
+  "没": "mei", "美": "mei", "梅": "mei", "妹": "mei",
+  "门": "men",
+  "们": "men",
+  "梦": "meng", "盟": "meng",
+  "蒙": "meng",
+  "孟": "meng",
+  "米": "mi", "密": "mi", "蜜": "mi", "迷": "mi",
+  "棉": "mian", "眠": "mian",
+  "面": "mian",
+  "苗": "miao", "妙": "miao",
+  "民": "min", "敏": "min",
+  "明": "ming", "名": "ming",
+  "铭": "ming",
+  "命": "ming",
+  "模": "mo", "摩": "mo", "莫": "mo",
+  "墨": "mo",
+  "某": "mou",
+  "母": "mu",
+  "木": "mu", "目": "mu", "沐": "mu",
+  "牧": "mu",
+  "慕": "mu",
+  // N
+  "拿": "na",
+  "那": "na", "娜": "na",
+  "南": "nan", "男": "nan",
+  "难": "nan",
+  "脑": "nao",
+  "内": "nei",
+  "能": "neng",
+  "你": "ni", "妮": "ni", "尼": "ni",
+  "年": "nian",
+  "念": "nian",
+  "娘": "niang",
+  "鸟": "niao",
+  "宁": "ning", "凝": "ning",
+  "牛": "niu", "纽": "niu",
+  "农": "nong", "浓": "nong",
+  "女": "nv", "努": "nu",
+  "暖": "nuan",
+  "诺": "nuo",
+  // O
+  "哦": "o", "欧": "ou", "偶": "ou",
+  // P
+  "爬": "pa",
+  "怕": "pa",
+  "拍": "pai",
+  "排": "pai",
+  "派": "pai",
+  "潘": "pan",
+  "盘": "pan",
+  "判": "pan",
+  "旁": "pang",
+  "胖": "pang",
+  "跑": "pao",
+  "陪": "pei",
+  "配": "pei",
+  "佩": "pei",
+  "喷": "pen",
+  "朋": "peng", "鹏": "peng", "彭": "peng",
+  "碰": "peng",
+  "批": "pi", "皮": "pi", "啤": "pi",
+  "片": "pian",
+  "偏": "pian",
+  "票": "piao",
+  "漂": "piao",
+  "拼": "pin",
+  "频": "pin",
+  "品": "pin",
+  "平": "ping", "萍": "ping", "评": "ping",
+  "凭": "ping",
+  "苹": "ping",
+  "破": "po",
+  "普": "pu", "朴": "pu", "浦": "pu", "璞": "pu",
+  // Q
+  "七": "qi", "期": "qi",
+  "齐": "qi",
+  "其": "qi", "奇": "qi",
+  "起": "qi", "启": "qi", "琦": "qi",
+  "器": "qi",
+  "气": "qi",
+  "琪": "qi", "琦": "qi",
+  "千": "qian", "前": "qian", "钱": "qian",
+  "潜": "qian",
+  "茜": "qian",
+  "倩": "qian",
+  "强": "qiang",
+  "桥": "qiao", "乔": "qiao",
+  "巧": "qiao",
+  "切": "qie",
+  "且": "qie",
+  "亲": "qin",
+  "琴": "qin",
+  "勤": "qin",
+  "青": "qing", "清": "qing", "情": "qing",
+  "晴": "qing",
+  "请": "qing",
+  "庆": "qing",
+  "秋": "qiu",
+  "求": "qiu",
+  "球": "qiu",
+  "区": "qu",
+  "曲": "qu",
+  "取": "qu",
+  "去": "qu",
+  "全": "quan", "权": "quan", "泉": "quan",
+  "劝": "quan",
+  "缺": "que",
+  "却": "que",
+  "确": "que",
+  "群": "qun",
+  // R
+  "然": "ran", "染": "ran",
+  "让": "rang",
+  "饶": "rao",
+  "绕": "rao",
+  "热": "re",
+  "人": "ren", "仁": "ren", "忍": "ren",
+  "任": "ren",
+  "仍": "reng",
+  "日": "ri",
+  "荣": "rong", "容": "rong", "蓉": "rong",
+  "融": "rong",
+  "如": "ru",
+  "儒": "ru",
+  "入": "ru",
+  "软": "ruan",
+  "瑞": "rui", "锐": "rui",
+  "润": "run", "若": "ruo", "弱": "ruo",
+  // S
+  "撒": "sa",
+  "三": "san",
+  "散": "san",
+  "色": "se",
+  "森": "sen",
+  "杀": "sha",
+  "山": "shan", "珊": "shan", "闪": "shan",
+  "善": "shan",
+  "伤": "shang",
+  "商": "shang",
+  "上": "shang",
+  "尚": "shang",
+  "少": "shao",
+  "绍": "shao",
+  "设": "she",
+  "社": "she",
+  "射": "she",
+  "申": "shen", "身": "shen", "深": "shen",
+  "神": "shen",
+  "沈": "shen",
+  "审": "shen",
+  "生": "sheng", "声": "sheng", "升": "sheng",
+  "圣": "sheng",
+  "胜": "sheng",
+  "师": "shi", "失": "shi",
+  "诗": "shi",
+  "十": "shi", "石": "shi", "时": "shi", "识": "shi",
+  "实": "shi", "食": "shi",
+  "史": "shi", "始": "shi", "使": "shi",
+  "士": "shi", "世": "shi", "式": "shi", "事": "shi",
+  "势": "shi", "是": "shi", "适": "shi",
+  "收": "shou", "手": "shou", "守": "shou",
+  "首": "shou",
+  "受": "shou",
+  "书": "shu", "叔": "shu", "殊": "shu",
+  "淑": "shu",
+  "舒": "shu",
+  "输": "shu",
+  "术": "shu",
+  "树": "shu",
+  "数": "shu",
+  "双": "shuang", "霜": "shuang",
+  "谁": "shui", "水": "shui", "睡": "shui",
+  "顺": "shun",
+  "说": "shuo",
+  "丝": "si", "思": "si",
+  "司": "si",
+  "私": "si",
+  "斯": "si",
+  "死": "si",
+  "四": "si",
+  "松": "song",
+  "送": "song",
+  "苏": "su", "诉": "su", "素": "su",
+  "速": "su",
+  "宿": "su",
+  "酸": "suan",
+  "算": "suan",
+  "虽": "sui",
+  "随": "sui",
+  "岁": "sui",
+  "孙": "sun",
+  "损": "sun",
+  "缩": "suo",
+  "所": "suo",
+  // T
+  "他": "ta", "她": "ta",
+  "塔": "ta",
+  "太": "tai",
+  "态": "tai",
+  "谈": "tan", "潭": "tan",
+  "坦": "tan",
+  "汤": "tang", "唐": "tang", "堂": "tang",
+  "棠": "tang",
+  "涛": "tao", "桃": "tao",
+  "逃": "tao",
+  "讨": "tao",
+  "套": "tao",
+  "特": "te",
+  "疼": "teng",
+  "提": "ti",
+  "题": "ti",
+  "体": "ti",
+  "天": "tian", "田": "tian", "恬": "tian",
+  "甜": "tian",
+  "条": "tiao",
+  "调": "tiao",
+  "铁": "tie",
+  "听": "ting", "厅": "ting",
+  "庭": "ting",
+  "婷": "ting", "霆": "ting",
+  "停": "ting",
+  "通": "tong", "同": "tong", "彤": "tong",
+  "童": "tong",
+  "统": "tong",
+  "痛": "tong",
+  "头": "tou",
+  "投": "tou",
+  "透": "tou",
+  "突": "tu", "图": "tu",
+  "途": "tu",
+  "土": "tu",
+  "团": "tuan",
+  "推": "tui",
+  "退": "tui",
+  "托": "tuo", "脱": "tuo",
+  // W
+  "外": "wai",
+  "完": "wan", "玩": "wan",
+  "婉": "wan",
+  "万": "wan",
+  "王": "wang", "往": "wang", "网": "wang",
+  "望": "wang",
+  "威": "wei", "微": "wei",
+  "薇": "wei",
+  "为": "wei",
+  "维": "wei",
+  "伟": "wei",
+  "未": "wei",
+  "位": "wei",
+  "卫": "wei",
+  "温": "wen", "文": "wen", "闻": "wen", "雯": "wen",
+  "稳": "wen",
+  "问": "wen",
+  "我": "wo", "沃": "wo",
+  "握": "wo",
+  "乌": "wu", "无": "wu", "吴": "wu", "武": "wu",
+  "五": "wu", "午": "wu",
+  "舞": "wu",
+  "务": "wu",
+  "物": "wu",
+  // X
+  "西": "xi", "希": "xi", "析": "xi",
+  "息": "xi",
+  "溪": "xi", "熙": "xi", "曦": "xi",
+  "习": "xi",
+  "席": "xi",
+  "洗": "xi",
+  "喜": "xi",
+  "系": "xi",
+  "细": "xi",
+  "下": "xia", "夏": "xia",
+  "先": "xian", "仙": "xian",
+  "鲜": "xian",
+  "闲": "xian",
+  "显": "xian",
+  "险": "xian",
+  "现": "xian",
+  "县": "xian",
+  "限": "xian",
+  "线": "xian",
+  "香": "xiang", "乡": "xiang",
+  "相": "xiang", "湘": "xiang",
+  "箱": "xiang",
+  "祥": "xiang",
+  "享": "xiang",
+  "响": "xiang",
+  "想": "xiang",
+  "向": "xiang",
+  "象": "xiang",
+  "像": "xiang",
+  "消": "xiao", "潇": "xiao",
+  "小": "xiao", "晓": "xiao",
+  "晓": "xiao",
+  "孝": "xiao",
+  "校": "xiao",
+  "笑": "xiao",
+  "效": "xiao",
+  "协": "xie", "些": "xie",
+  "邪": "xie",
+  "谢": "xie",
+  "心": "xin", "新": "xin", "欣": "xin", "信": "xin",
+  "鑫": "xin",
+  "星": "xing", "兴": "xing",
+  "行": "xing",
+  "形": "xing",
+  "型": "xing",
+  "幸": "xing",
+  "性": "xing",
+  "休": "xiu",
+  "秀": "xiu",
+  "绣": "xiu",
+  "须": "xu",
+  "虚": "xu",
+  "需": "xu",
+  "徐": "xu",
+  "许": "xu",
+  "序": "xu", "叙": "xu", "绪": "xu",
+  "续": "xu",
+  "宣": "xuan", "轩": "xuan",
+  "玄": "xuan",
+  "旋": "xuan",
+  "选": "xuan",
+  "学": "xue", "雪": "xue",
+  "血": "xue",
+  "寻": "xun",
+  "训": "xun",
+  "迅": "xun",
+  // Y
+  "压": "ya",
+  "雅": "ya",
+  "亚": "ya",
+  "呀": "ya",
+  "烟": "yan",
+  "延": "yan",
+  "严": "yan",
+  "言": "yan",
+  "岩": "yan",
+  "沿": "yan",
+  "研": "yan", "盐": "yan",
+  "颜": "yan",
+  "眼": "yan",
+  "演": "yan",
+  "验": "yan",
+  "阳": "yang", "杨": "yang", "扬": "yang",
+  "羊": "yang",
+  "洋": "yang",
+  "养": "yang",
+  "样": "yang",
+  "姚": "yao",
+  "要": "yao",
+  "药": "yao",
+  "耀": "yao",
+  "爷": "ye",
+  "也": "ye", "叶": "ye",
+  "业": "ye",
+  "页": "ye",
+  "夜": "ye",
+  "一": "yi", "伊": "yi", "依": "yi",
+  "衣": "yi",
+  "医": "yi",
+  "宜": "yi",
+  "怡": "yi",
+  "已": "yi",
+  "以": "yi",
+  "艺": "yi",
+  "易": "yi",
+  "益": "yi",
+  "意": "yi", "义": "yi",
+  "因": "yin", "音": "yin",
+  "阴": "yin",
+  "银": "yin",
+  "尹": "yin",
+  "印": "yin",
+  "应": "ying",
+  "英": "ying", "樱": "ying",
+  "鹰": "ying",
+  "迎": "ying",
+  "盈": "ying",
+  "莹": "ying", "营": "ying",
+  "影": "ying",
+  "映": "ying",
+  "硬": "ying",
+  "永": "yong",
+  "泳": "yong",
+  "勇": "yong",
+  "用": "yong",
+  "优": "you", "尤": "you",
+  "由": "you",
+  "犹": "you",
+  "游": "you", "友": "you",
+  "有": "you",
+  "又": "you",
+  "右": "you",
+  "幼": "you",
+  "于": "yu", "余": "yu",
+  "鱼": "yu",
+  "愉": "yu",
+  "瑜": "yu",
+  "宇": "yu", "雨": "yu", "语": "yu",
+  "玉": "yu", "育": "yu", "郁": "yu",
+  "预": "yu",
+  "御": "yu",
+  "元": "yuan", "原": "yuan", "源": "yuan",
+  "圆": "yuan",
+  "袁": "yuan",
+  "远": "yuan",
+  "院": "yuan",
+  "愿": "yuan",
+  "月": "yue", "乐": "yue",
+  "越": "yue",
+  "云": "yun", "运": "yun",
+  "韵": "yun",
+  // Z
+  "杂": "za",
+  "灾": "zai",
+  "再": "zai",
+  "在": "zai",
+  "咱": "zan",
+  "暂": "zan",
+  "赞": "zan",
+  "脏": "zang",
+  "早": "zao",
+  "造": "zao",
+  "则": "ze", "泽": "ze",
+  "责": "ze",
+  "怎": "zen",
+  "增": "zeng",
+  "赠": "zeng",
+  "扎": "zha",
+  "摘": "zhai",
+  "宅": "zhai",
+  "窄": "zhai",
+  "债": "zhai",
+  "粘": "zhan",
+  "展": "zhan", "盏": "zhan",
+  "占": "zhan",
+  "战": "zhan", "站": "zhan",
+  "张": "zhang", "章": "zhang", "彰": "zhang",
+  "长": "zhang",
+  "掌": "zhang",
+  "丈": "zhang",
+  "招": "zhao", "昭": "zhao",
+  "赵": "zhao",
+  "照": "zhao",
+  "遮": "zhe",
+  "折": "zhe",
+  "哲": "zhe",
+  "者": "zhe",
+  "这": "zhe",
+  "珍": "zhen", "真": "zhen", "甄": "zhen",
+  "针": "zhen",
+  "振": "zhen",
+  "镇": "zhen",
+  "震": "zhen",
+  "争": "zheng", "正": "zheng", "政": "zheng",
+  "证": "zheng",
+  "郑": "zheng",
+  "之": "zhi", "支": "zhi",
+  "知": "zhi",
+  "织": "zhi",
+  "执": "zhi",
+  "直": "zhi",
+  "值": "zhi",
+  "职": "zhi",
+  "植": "zhi",
+  "止": "zhi",
+  "只": "zhi",
+  "纸": "zhi",
+  "指": "zhi",
+  "至": "zhi", "志": "zhi", "制": "zhi",
+  "质": "zhi",
+  "治": "zhi",
+  "致": "zhi",
+  "智": "zhi",
+  "中": "zhong", "忠": "zhong",
+  "钟": "zhong",
+  "终": "zhong",
+  "种": "zhong",
+  "仲": "zhong",
+  "众": "zhong",
+  "周": "zhou", "洲": "zhou",
+  "州": "zhou",
+  "朱": "zhu", "珠": "zhu",
+  "诸": "zhu",
+  "猪": "zhu",
+  "竹": "zhu",
+  "逐": "zhu",
+  "主": "zhu",
+  "住": "zhu",
+  "助": "zhu",
+  "注": "zhu",
+  "筑": "zhu",
+  "抓": "zhua",
+  "专": "zhuan",
+  "转": "zhuan",
+  "赚": "zhuan",
+  "庄": "zhuang", "装": "zhuang",
+  "壮": "zhuang",
+  "状": "zhuang",
+  "追": "zhui",
+  "准": "zhun",
+  "捉": "zhuo",
+  "桌": "zhuo",
+  "着": "zhao",
+  "资": "zi", "姿": "zi",
+  "滋": "zi",
+  "子": "zi", "紫": "zi",
+  "字": "zi",
+  "自": "zi",
+  "宗": "zong",
+  "总": "zong",
+  "走": "zou",
+  "奏": "zou",
+  "租": "zu",
+  "足": "zu",
+  "族": "zu",
+  "组": "zu",
+  "祖": "zu",
+  "最": "zui",
+  "罪": "zui",
+  "昨": "zuo",
+  "左": "zuo",
+  "作": "zuo",
+  "坐": "zuo",
+  "座": "zuo",
+};
+
+// 补充特殊姓氏
+const SPECIAL_SURNAMES: Record<string, string> = {
+  "艾": "ai", "安": "an", "敖": "ao",
+  "白": "bai", "柏": "bai", "班": "ban", "包": "bao",
+  "鲍": "bao", "贝": "bei", "毕": "bi", "边": "bian",
+  "卞": "bian", "卜": "bu",
+  "蔡": "cai", "仓": "cang", "曹": "cao", "岑": "cen",
+  "柴": "chai", "常": "chang", "晁": "chao", "车": "che",
+  "陈": "chen", "成": "cheng", "程": "cheng", "迟": "chi",
+  "仇": "qiu", "楚": "chu", "褚": "chu", "淳于": "chunyu",
+  "崔": "cui",
+  "戴": "dai", "单": "shan", "邓": "deng", "狄": "di",
+  "丁": "ding", "东方": "dongfang", "董": "dong", "窦": "dou",
+  "杜": "du", "端木": "duanmu", "段": "duan",
+  "范": "fan", "方": "fang", "房": "fang", "费": "fei",
+  "冯": "feng", "伏": "fu", "符": "fu", "傅": "fu",
+  "甘": "gan", "高": "gao", "葛": "ge", "耿": "geng",
+  "龚": "gong", "公孙": "gongsun", "苟": "gou", "顾": "gu",
+  "关": "guan", "管": "guan", "郭": "guo", "国": "guo",
+  "韩": "han", "杭": "hang", "郝": "hao", "何": "he",
+  "贺": "he", "洪": "hong", "侯": "hou", "胡": "hu",
+  "扈": "hu", "华": "hua", "滑": "hua", "黄": "huang",
+  "皇甫": "huangpu", "霍": "huo",
+  "姬": "ji", "嵇": "ji", "计": "ji", "纪": "ji",
+  "季": "ji", "贾": "jia", "简": "jian", "江": "jiang",
+  "姜": "jiang", "蒋": "jiang", "焦": "jiao", "金": "jin",
+  "靳": "jin", "荆": "jing", "景": "jing",
+  "康": "kang", "柯": "ke", "孔": "kong", "寇": "kou",
+  "匡": "kuang", "邝": "kuang",
+  "赖": "lai", "蓝": "lan", "郎": "lang", "劳": "lao",
+  "乐": "le", "雷": "lei", "冷": "leng", "黎": "li",
+  "李": "li", "厉": "li", "郦": "li", "连": "lian",
+  "廉": "lian", "梁": "liang", "廖": "liao", "林": "lin",
+  "蔺": "lin", "凌": "ling", "刘": "liu", "柳": "liu",
+  "龙": "long", "隆": "long", "楼": "lou", "卢": "lu",
+  "鲁": "lu", "陆": "lu", "路": "lu", "吕": "lv",
+  "栾": "luan", "罗": "luo", "骆": "luo",
+  "马": "ma", "满": "man", "毛": "mao", "茅": "mao",
+  "梅": "mei", "蒙": "meng", "孟": "meng", "糜": "mi",
+  "米": "mi", "苗": "miao", "闵": "min", "缪": "miao",
+  "莫": "mo", "牟": "mou", "穆": "mu",
+  "倪": "ni", "聂": "nie", "宁": "ning", "牛": "niu",
+  "钮": "niu", "农": "nong",
+  "欧": "ou", "欧阳": "ouyang",
+  "潘": "pan", "庞": "pang", "裴": "pei", "彭": "peng",
+  "皮": "pi", "平": "ping", "蒲": "pu", "濮": "pu",
+  "戚": "qi", "齐": "qi", "钱": "qian", "强": "qiang",
+  "乔": "qiao", "秦": "qin", "覃": "qin", "丘": "qiu",
+  "邱": "qiu", "仇": "qiu", "裘": "qiu", "屈": "qu",
+  "瞿": "qu", "全": "quan", "权": "quan",
+  "冉": "ran", "饶": "rao", "任": "ren", "荣": "rong",
+  "容": "rong", "阮": "ruan", "芮": "rui",
+  "桑": "sang", "沙": "sha", "单": "shan", "商": "shang",
+  "上官": "shangguan", "尚": "shang", "邵": "shao", "佘": "she",
+  "申": "shen", "沈": "shen", "盛": "sheng", "施": "shi",
+  "石": "shi", "时": "shi", "史": "shi", "舒": "shu",
+  "束": "shu", "司马": "sima", "司徒": "situ", "宋": "song",
+  "苏": "su", "孙": "sun", "索": "suo",
+  "邰": "tai", "谭": "tan", "谈": "tan", "汤": "tang",
+  "唐": "tang", "陶": "tao", "滕": "teng", "田": "tian",
+  "童": "tong", "涂": "tu", "屠": "tu", "万": "wan",
+  "汪": "wang", "王": "wang", "危": "wei", "韦": "wei",
+  "卫": "wei", "魏": "wei", "温": "wen", "文": "wen",
+  "闻": "wen", "翁": "weng", "沃": "wo", "巫": "wu",
+  "吴": "wu", "武": "wu", "伍": "wu", "邬": "wu",
+  "奚": "xi", "席": "xi", "夏": "xia", "鲜于": "xianyu",
+  "冼": "xian", "项": "xiang", "相": "xiang", "向": "xiang",
+  "萧": "xiao", "谢": "xie", "辛": "xin", "邢": "xing",
+  "熊": "xiong", "修": "xiu", "徐": "xu", "许": "xu",
+  "薛": "xue", "荀": "xun",
+  "严": "yan", "言": "yan", "阎": "yan", "颜": "yan",
+  "晏": "yan", "杨": "yang", "姚": "yao", "叶": "ye",
+  "易": "yi", "益": "yi", "殷": "yin", "尹": "yin",
+  "应": "ying", "尤": "you", "游": "you", "于": "yu",
+  "余": "yu", "虞": "yu", "俞": "yu", "宇文": "yuwen",
+  "郁": "yu", "喻": "yu", "袁": "yuan", "岳": "yue",
+  "云": "yun", "恽": "yun", "郓": "yun",
+  "臧": "zang", "曾": "zeng", "翟": "zhai", "詹": "zhan",
+  "张": "zhang", "章": "zhang", "赵": "zhao", "甄": "zhen",
+  "郑": "zheng", "钟": "zhong", "仲": "zhong",
+  "周": "zhou", "朱": "zhu", "诸葛": "zhuge", "祝": "zhu",
+  "庄": "zhuang", "卓": "zhuo", "宗": "zong", "邹": "zou",
+  "祖": "zu", "左": "zuo",
+};
+
+/** 获取汉字拼音（全拼） */
+function getPinyin(char: string): string {
+  if (!char) return "";
+  return SPECIAL_SURNAMES[char] || HANZI_TO_PINYIN[char] || "";
+}
+
+/** 获取汉字拼音首字母 */
+function getInitial(char: string): string {
+  const py = getPinyin(char);
+  return py ? py[0].toUpperCase() : "";
+}
+
+/** 获取拼音的声母（首辅音部分） */
+function getShengmu(pinyin: string): string {
+  const initials = ["zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l",
+    "g", "k", "h", "j", "q", "x", "r", "z", "c", "s", "y", "w"];
+  for (const ini of initials) {
+    if (pinyin.startsWith(ini)) return ini;
+  }
+  return "";
+}
+
+/** 获取拼音的韵母（除去声母后的部分） */
+function getYunmu(pinyin: string): string {
+  const shengmu = getShengmu(pinyin);
+  return shengmu ? pinyin.slice(shengmu.length) : pinyin;
+}
+
+// ===== 拼音-英文名发音相似度计算 =====
+
+/**
+ * 将英文音标转换为近似拼音表示，用于与中文拼音匹配
+ * 去除音标中HTML实体标记
+ */
+function cleanPhonetic(phonetic: string): string {
+  return (phonetic || "")
+    .replace(/&#\d+;/g, "")  // 去除HTML实体
+    .replace(/[\[\]'ˈˌ:]/g, "")  // 去除音标符号
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
+
+/**
+ * 核心算法：计算中文拼音音节与英文名发音的相似度
+ * 
+ * 算法原理：
+ * 1. 将中文名每个字的拼音分解为【声母+韵母】
+ * 2. 将英文名音标按音节拆分
+ * 3. 计算每个中文音节与英文名音节的声母匹配度 + 韵母发音相似度
+ * 4. 取最佳匹配组合之和
+ * 5. 特别加分：英文名首字母匹配、连续多字匹配
+ */
+function calcPinyinMatchScore(
+  chineseNameChars: string[],  // 中文名各个汉字
+  englishName: string,
+  englishPhonetic: string
+): number {
+  // 1. 获取每个汉字的拼音
+  const pinyins = chineseNameChars.map(c => getPinyin(c)).filter(p => p.length > 0);
+  if (pinyins.length === 0) return 0;
+
+  // 2. 将英文名转为用于匹配的"拼音化"表示
+  const nameLower = englishName.toLowerCase();
+  const cleanedPhonetic = cleanPhonetic(englishPhonetic);
+  
+  // 英文名的"假想拼音"：取英文名前N个字母（N=每个中文字的平均长度）
+  // 例如 Gordon -> gor / don
+  const avgPinyinLen = Math.ceil(nameLower.length / pinyins.length);
+  
+  let totalScore = 0;
+  let matchCount = 0;
+
+  for (let pi = 0; pi < pinyins.length; pi++) {
+    const py = pinyins[pi];
+    const shengmu = getShengmu(py);
+    const yunmu = getYunmu(py);
+    const initial = py[0];
+
+    // 3a. 将英文名按拼音音节分割，找最佳匹配位置
+    let bestSyllableScore = 0;
+    let bestPos = -1;
+
+    // 在英文名中滑动窗口查找最匹配的音节
+    for (let start = 0; start < nameLower.length; start++) {
+      // 窗口长度：拼音长度±2
+      for (let len = Math.max(2, py.length - 2); len <= Math.min(6, py.length + 2); len++) {
+        if (start + len > nameLower.length) break;
+        const segment = nameLower.slice(start, start + len);
+        
+        // 计算发音相似度
+        const segInitial = segment[0];
+        const segRest = segment.slice(1);
+
+        // 声母匹配（核心）
+        let shengmuScore = 0;
+        if (shengmu && segInitial === shengmu[0]) {
+          shengmuScore = 30;  // 首辅音匹配
+          if (shengmu.length > 1 && segment.startsWith(shengmu)) {
+            shengmuScore = 40;  // 复合声母完整匹配
+          }
+        } else if (initial === segInitial) {
+          shengmuScore = 25;  // 首字母匹配
+        } else {
+          // 近似匹配：L≈R, B≈P, D≈T, G≈K, J≈Z, S≈C≈Z
+          const approx: Record<string, string[]> = {
+            "b": ["p"], "p": ["b"], "d": ["t"], "t": ["d"],
+            "g": ["k", "j"], "k": ["g"], "j": ["z", "g"], "z": ["j", "c"],
+            "s": ["c", "z"], "c": ["s", "z"], "l": ["r"], "r": ["l"],
+            "m": ["n"], "n": ["m"], "f": ["h", "v"], "h": ["f"],
+            "y": ["i", "e"], "w": ["u", "v"],
+          };
+          if (approx[initial]?.includes(segInitial) || approx[segInitial]?.includes(initial)) {
+            shengmuScore = 15;
+          }
+        }
+
+        if (shengmuScore === 0) continue;
+
+        // 韵母近似匹配
+        let yunmuScore = 0;
+        // 拼音韵母 vs 英文片段剩余部分
+        const keyPairs: [string, RegExp][] = [
+          [yunmu, new RegExp(yunmu, "i")],
+          // 常见韵母近似
+        ];
+        
+        // 计算韵母与剩余部分的LCS（最长公共子序列）长度
+        let lcsLen = 0;
+        for (let yi = 0; yi < yunmu.length; yi++) {
+          for (let si = 0; si < segRest.length; si++) {
+            if (yunmu[yi] === segRest[si]) {
+              lcsLen++;
+              break;
+            }
+          }
+        }
+        yunmuScore = Math.round((lcsLen / Math.max(yunmu.length, segRest.length)) * 60);
+
+        // 常见韵母发音近似加分
+        const vowelApprox: [string, string[]][] = [
+          ["uo", ["or", "o", "aw", "ou"]],
+          ["ou", ["o", "ow", "oa"]],
+          ["ei", ["ay", "ai", "e"]],
+          ["ui", ["u", "oo", "we"]],
+          ["an", ["an", "en", "un"]],
+          ["en", ["en", "in", "an"]],
+          ["in", ["in", "en", "ing"]],
+          ["ing", ["ing", "in", "eng"]],
+          ["ang", ["ang", "ong", "ung"]],
+          ["ong", ["ong", "ung", "ang"]],
+          ["ua", ["wa", "wo", "ua"]],
+          ["ie", ["ie", "ye", "e"]],
+          ["iu", ["iu", "ew", "u"]],
+          ["ao", ["ao", "ow", "au", "or"]],
+          ["ia", ["ia", "ya", "i"]],
+          ["iao", ["iao", "yow", "io"]],
+          ["ian", ["ian", "yen", "ien"]],
+          ["iang", ["iang", "yang", "iong"]],
+          ["u", ["oo", "u", "ew"]],
+          ["i", ["ee", "i", "y", "e"]],
+          ["a", ["a", "ah", "ar"]],
+          ["e", ["e", "eh", "er"]],
+          ["o", ["o", "oh", "or", "aw"]],
+          ["ai", ["ai", "i", "ay", "y"]],
+        ];
+
+        for (const [vowel, patterns] of vowelApprox) {
+          if (yunmu === vowel && patterns.some(p => segment.includes(p))) {
+            yunmuScore = Math.max(yunmuScore, 50);
+            break;
+          }
+          // 部分匹配
+          if (vowel.includes(yunmu) || yunmu.includes(vowel)) {
+            if (patterns.some(p => segment.includes(p))) {
+              yunmuScore = Math.max(yunmuScore, 35);
+            }
+          }
+        }
+
+        const syllableScore = shengmuScore + yunmuScore;
+        if (syllableScore > bestSyllableScore) {
+          bestSyllableScore = syllableScore;
+          bestPos = start;
+        }
+      }
+    }
+
+    if (bestSyllableScore > 0) {
+      totalScore += bestSyllableScore;
+      matchCount++;
+    }
+  }
+
+  if (matchCount === 0) return 0;
+
+  // 平均分
+  const avgScore = totalScore / matchCount;
+
+  // 首字母匹配加成
+  const firstInitial = getInitial(chineseNameChars[0]).toLowerCase();
+  const nameFirst = nameLower[0];
+  const firstBonus = (firstInitial === nameFirst) ? 20 : 0;
+
+  // 多字连续匹配加成
+  const fullMatchBonus = (matchCount === pinyins.length) ? 15 : 0;
+
+  return Math.min(100, Math.round(avgScore + firstBonus + fullMatchBonus));
+}
+
+// ===== 姓氏首字母映射 =====
+const SURNAME_PHONETIC_MAP: Record<string, string[]> = {
+  "李": ["L", "E", "I"], "王": ["W", "V", "U"], "张": ["Z", "J", "C"],
+  "刘": ["L", "E", "I"], "陈": ["C", "S", "J"], "杨": ["Y", "E", "I"],
+  "赵": ["Z", "J", "C"], "黄": ["H", "W", "U"], "周": ["Z", "J", "C"],
+  "吴": ["W", "U", "V"], "徐": ["X", "S", "C"], "孙": ["S", "X", "C"],
+  "马": ["M", "N"], "胡": ["H", "F", "U"], "朱": ["Z", "J", "G"],
+  "郭": ["G", "K", "C"], "何": ["H", "E", "I"], "罗": ["L", "R", "N"],
+  "高": ["G", "K", "C"], "林": ["L", "N"], "梁": ["L", "E", "N"],
+  "郑": ["Z", "J", "C"], "谢": ["X", "S", "C"], "宋": ["S", "C", "X"],
+  "唐": ["T", "D", "C"], "许": ["X", "S", "H"], "韩": ["H", "C", "K"],
+  "冯": ["F", "P", "H"], "邓": ["D", "T", "G"], "曹": ["C", "K", "S"],
+  "彭": ["P", "B", "F"], "曾": ["Z", "C", "S"], "萧": ["X", "S", "C"],
+  "田": ["T", "D", "C"], "董": ["D", "T", "B"], "潘": ["P", "B", "F"],
+  "袁": ["Y", "U"], "蔡": ["C", "S", "T"], "蒋": ["J", "C", "Z"],
+  "余": ["Y", "E", "U"], "叶": ["Y", "E", "I"], "程": ["C", "S", "J"],
+  "苏": ["S", "C", "Z"], "吕": ["L", "E", "I"], "魏": ["W", "U", "V"],
+  "丁": ["D", "T", "C"], "沈": ["S", "C", "J"], "任": ["R", "L", "N"],
+  "姚": ["Y", "E", "I"], "卢": ["L", "R", "N"], "傅": ["F", "P", "H"],
+  "钟": ["Z", "C", "G"], "崔": ["C", "T", "S"], "汪": ["W", "V", "U"],
+  "范": ["F", "V", "P"], "陆": ["L", "R", "N"], "廖": ["L", "E", "N"],
+  "杜": ["D", "T", "G"], "方": ["F", "P", "H"], "石": ["S", "C", "Z"],
+  "熊": ["X", "S", "C"], "金": ["J", "G", "C"], "邱": ["Q", "C", "K"],
+  "侯": ["H", "C", "K"], "白": ["B", "P", "F"], "江": ["J", "G", "C"],
+  "史": ["S", "C", "Z"], "龙": ["L", "N", "R"], "万": ["W", "V", "M"],
+  "段": ["D", "T", "Z"], "雷": ["L", "R", "N"], "钱": ["Q", "C", "K"],
+  "汤": ["T", "D", "C"], "尹": ["Y", "E", "I"], "易": ["Y", "E", "I"],
+  "常": ["C", "S", "J"], "武": ["W", "V", "U"], "乔": ["Q", "C", "J"],
+  "贺": ["H", "C", "K"], "赖": ["L", "R", "N"], "龚": ["G", "K", "C"],
+  "文": ["W", "V", "U"], "欧": ["O", "A", "U"],
+};
+
+function getSurnameLetters(surname: string): string[] {
+  const s = surname?.trim() || "";
+  if (!s) return [];
+  const found = SURNAME_PHONETIC_MAP[s];
+  if (found) return found;
+  const firstPinyin = getPinyin(s[0])?.[0] || s[0];
+  const pinyinMap: Record<string, string[]> = {
+    "b": ["B", "P", "F"], "p": ["P", "B", "F"], "m": ["M", "N"],
+    "f": ["F", "P", "H"], "d": ["D", "T", "G"], "t": ["T", "D", "C"],
+    "n": ["N", "L", "M"], "l": ["L", "N", "R"], "g": ["G", "K", "C"],
+    "k": ["K", "C", "G"], "h": ["H", "F", "W"], "j": ["J", "Z", "G"],
+    "q": ["Q", "C", "K"], "x": ["X", "S", "C"], "zh": ["Z", "J", "C"],
+    "ch": ["C", "S", "J"], "sh": ["S", "C", "X"], "r": ["R", "L"],
+    "z": ["Z", "J", "C"], "c": ["C", "S", "Z"], "s": ["S", "C", "X"],
+    "y": ["Y", "E", "I"], "w": ["W", "V", "U"],
+  };
+  return pinyinMap[firstPinyin] || ["A", "E", "I", "O", "U", "Y"];
+}
+
+// ===== 评分器 =====
+
+/**
+ * v2.0 谐音匹配评分
+ * 
+ * 基于完整拼音音节匹配：
+ * - 中文姓氏：匹配姓氏拼音与英文名首字母
+ * - 中文全名：逐字拼音音节匹配英文名
+ * - 使用拼音→英文音节的发音相似度算法
+ */
+function calcPhoneticScore(
+  name: string,
+  surname: string,
+  givenName?: string,
+  fullName?: string
+): { score: number; tags: string[] } {
+  const tags: string[] = [];
+  const firstLetter = name[0]?.toUpperCase() || "";
+  if (!firstLetter) return { score: 0, tags };
+
+  // ====== 1. 姓氏匹配分 ======
+  const surnameLetters = getSurnameLetters(surname);
+  let surnameScore = 0;
+  if (surnameLetters.length > 0) {
+    if (surnameLetters[0] === firstLetter) {
+      surnameScore = 100;
+      tags.push("姓氏首字母完美匹配");
+    } else if (surnameLetters.includes(firstLetter)) {
+      surnameScore = 75;
+      tags.push("姓氏首字母较好匹配");
+    } else {
+      const nearMap: Record<string, string[]> = {
+        "B": ["P", "F"], "P": ["B", "F"], "D": ["T"], "T": ["D"],
+        "G": ["K"], "K": ["G"], "L": ["N", "R"], "N": ["L"],
+        "M": ["N"], "S": ["C", "Z"], "C": ["S", "Z"], "Z": ["C", "S"],
+        "H": ["F"], "F": ["H"], "J": ["Z", "G"], "Y": ["E", "I"], "W": ["V", "U"],
+      };
+      const nearLetters = nearMap[firstLetter] || [];
+      if (surnameLetters.some((l) => nearLetters.includes(l))) {
+        surnameScore = 40;
+        tags.push("姓氏发音有一定关联");
+      } else {
+        surnameScore = 20;
+      }
+    }
+  } else {
+    surnameScore = 30;
+  }
+
+  // ====== 2. 全名拼音音节匹配分 ======
+  // 获取中文名所有字的拼音，计算与英文名的音节匹配度
+  let pinyinMatchScore = 0;
+  let hasPinyinMatch = false;
+
+  // 准备要匹配的中文字符列表
+  const nameChars: string[] = [];
+  if (fullName && fullName.length > 0) {
+    // 使用完整全名逐字匹配
+    for (let i = 0; i < fullName.length; i++) {
+      nameChars.push(fullName[i]);
+    }
+  } else if (givenName && givenName.length > 0) {
+    // 只用名字（不含姓）
+    for (let i = 0; i < givenName.length; i++) {
+      nameChars.push(givenName[i]);
+    }
+  } else {
+    // 只用姓氏
+    nameChars.push(surname[0]);
+  }
+
+  if (nameChars.length > 0) {
+    const matchResult = calcPinyinMatchScore(nameChars, name, "");
+    if (matchResult > 0) {
+      pinyinMatchScore = matchResult;
+      hasPinyinMatch = true;
+    }
+  }
+
+  // ====== 3. 综合评分 ======
+  // 有全名信息时：姓氏匹配(40%) + 拼音音节匹配(60%)
+  // 没有全名信息时：只用姓氏匹配
+  const hasNameInfo = fullName && fullName.length > 0;
+  
+  if (hasPinyinMatch) {
+    if (hasNameInfo) {
+      const finalScore = Math.round(surnameScore * 0.35 + pinyinMatchScore * 0.65);
+      if (pinyinMatchScore >= 60) {
+        tags.push(`拼音音节匹配度${pinyinMatchScore}分`);
+      }
+      return { score: finalScore, tags };
+    } else {
+      // 没有全名但有givenName（可能从fullName拆分出来），也用音节匹配
+      const finalScore = Math.round(surnameScore * 0.35 + pinyinMatchScore * 0.65);
+      if (pinyinMatchScore >= 60) {
+        tags.push(`拼音音节匹配度${pinyinMatchScore}分`);
+      }
+      return { score: finalScore, tags };
+    }
+  }
+
+  // 备选：传统givenName首字母匹配
+  let givenNameScore = 0;
+  if (givenName && givenName.length > 0) {
+    const givenInitial = getInitial(givenName[0]);
+    if (givenInitial && givenInitial === firstLetter) {
+      givenNameScore = 100;
+      tags.push(`中文名「${givenName}」首字母完美匹配`);
+    } else if (givenInitial) {
+      const gSurnameLetters = getSurnameLetters(givenName[0]);
+      if (gSurnameLetters.includes(firstLetter)) {
+        givenNameScore = 60;
+        tags.push(`中文名「${givenName}」发音相近`);
+      } else {
+        givenNameScore = 20;
+      }
+    }
+  }
+
+  const finalScore = givenName ? Math.round(surnameScore * 0.55 + givenNameScore * 0.45) : surnameScore;
+  return { score: finalScore, tags };
+}
+
+function calcMeaningScore(meaning: string, needs: string[]): { score: number; tags: string[] } {
+  const tags: string[] = [];
+  if (!needs || needs.length === 0 || !meaning) {
+    return { score: 50, tags: ["含义信息不足，中评"] };
+  }
+
+  const meaningLower = meaning.toLowerCase();
+  let matchCount = 0;
+  const matchedNeeds: string[] = [];
+
+  for (const need of needs) {
+    let matched = false;
+    switch (need) {
+      case "谐音贴近中文名":
+        // 此时含义分数不重要，谐音分数由calcPhoneticScore已处理
+        matched = true;  // 标记为已处理，避免影响含义分数
+        break;
+      case "含义美好":
+        matched = ["blessing", "hope", "light", "peace", "health", "wise", "strength", "fortunate",
+          "幸福", "平安", "健康", "美好", "希望", "光明", "智慧"].some(k => meaningLower.includes(k));
+        break;
+      case "平安":
+        matched = ["peace", "safe", "calm", "serene", "tranquil", "平安", "安宁"].some(k => meaningLower.includes(k));
+        break;
+      case "健康":
+        matched = ["health", "strong", "vigor", "vital", "well", "健康", "强壮"].some(k => meaningLower.includes(k));
+        break;
+      case "聪明":
+        matched = ["wise", "wisdom", "intelligent", "bright", "clever", "smart", "聪明", "智慧"].some(k => meaningLower.includes(k));
+        break;
+      case "富贵":
+        matched = ["wealth", "rich", "fortune", "prosper", "noble", "富贵", "财富"].some(k => meaningLower.includes(k));
+        break;
+      case "商务正式":
+        matched = ["noble", "leader", "ruler", "king", "power", "strong", "dignity", "商务", "正式"].some(k => meaningLower.includes(k));
+        break;
+      case "简约好记":
+        matched = meaning.length >= 3 && meaning.length <= 5;
+        break;
+      case "文艺小众":
+        matched = ["poet", "muse", "lyric", "grace", "elegant", "art", "文艺", "优雅", "诗意"].some(k => meaningLower.includes(k));
+        break;
+      case "可爱灵动":
+        matched = ["sweet", "joy", "happy", "love", "play", "bright", "merry", "可爱", "快乐", "甜蜜"].some(k => meaningLower.includes(k));
+        break;
+      default:
+        matched = meaningLower.includes(need.toLowerCase());
+    }
+
+    if (matched) {
+      matchCount++;
+      matchedNeeds.push(need);
+    }
+  }
+
+  if (matchCount === 0) {
+    return { score: 30, tags: ["含义匹配度较低"] };
+  }
+
+  const score = Math.min(100, 30 + matchCount * 25);
+  const uniqueNeeds = [...new Set(matchedNeeds)];
+  tags.push(`含义匹配「${uniqueNeeds.join("、")}」`);
+
+  return { score, tags };
+}
+
+function calcStyleScore(meaning: string, name: string, style?: string): { score: number; tags: string[] } {
+  const tags: string[] = [];
+  const meaningLower = (meaning || "").toLowerCase();
+  const nameLower = name.toLowerCase();
+
+  if (!style) return { score: 50, tags: [] };
+
+  let keywordCheck: (m: string, n: string) => boolean;
+
+  switch (style) {
+    case "现代简约":
+      keywordCheck = (m, n) => n.length <= 5 && !m.includes("古") &&
+        (["modern", "simple", "clean", "clear", "bright"].some(k => m.includes(k)));
+      break;
+    case "古典文艺":
+      keywordCheck = (m, _n) =>
+        ["classic", "ancient", "poet", "muse", "grace", "elegant", "classical", "old", "traditional", "希腊", "罗马", "圣经", "拉丁"].some(k => m.includes(k));
+      break;
+    case "商务精英":
+      keywordCheck = (m, _n) =>
+        ["ruler", "king", "leader", "power", "dignity", "noble", "strong", "authority", "executive", "enterprise"].some(k => m.includes(k));
+      break;
+    case "校园清新":
+      keywordCheck = (m, _n) =>
+        ["youth", "fresh", "pure", "gentle", "sweet", "spring", "flower", "nature", "natural", "garden", "meadow"].some(k => m.includes(k));
+      break;
+    case "可爱软萌":
+      keywordCheck = (m, _n) =>
+        ["sweet", "love", "joy", "cute", "little", "happy", "delight", "dear", "baby", "tender", "soft", "warm"].some(k => m.includes(k));
+      break;
+    case "小众独特":
+      keywordCheck = (m, _n) =>
+        ["unique", "rare", "uncommon", "unusual", "distinctive", "rarely", "seldom", "ancient", "mythical"].some(k => m.includes(k));
+      break;
+    default:
+      keywordCheck = () => false;
+  }
+
+  const matched = keywordCheck(meaningLower, nameLower);
+  const score = matched ? 80 : 40;
+  if (matched) tags.push(`风格匹配「${style}」`);
+
+  return { score, tags };
+}
+
+/**
+ * v2.0 流行度评分 - 修复★★★★及以上级别
+ */
+function calcPopularityScore(popularity: string): number {
+  const starCount = (popularity || "").split("★").length - 1;
+  if (starCount >= 5) return 100;
+  if (starCount === 4) return 95;
+  if (starCount === 3) return 85;
+  if (starCount === 2) return 65;
+  if (starCount === 1) return 45;
+  return 25;
+}
+
+function calcLengthScore(name: string, preference?: "short" | "medium" | "long"): number {
+  const len = name.length;
+  if (!preference) return 50;
+  switch (preference) {
+    case "short": return len <= 4 ? 100 : len <= 5 ? 70 : len <= 6 ? 40 : 10;
+    case "medium": return len === 5 || len === 6 ? 100 : len === 4 || len === 7 ? 70 : 30;
+    case "long": return len >= 7 ? 100 : len >= 6 ? 70 : len >= 5 ? 40 : 10;
+  }
+}
+
+function checkAvoidRules(name: string, meaning: string, popularity: string, avoidFlags?: string[]): { passed: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!avoidFlags || avoidFlags.length === 0) return { passed: true, reasons };
+
+  const meaningLower = (meaning || "").toLowerCase();
+
+  for (const flag of avoidFlags) {
+    switch (flag) {
+      case "不要太常见的爆款名": {
+        const starCount = (popularity || "").split("★").length - 1;
+        if (starCount >= 4) reasons.push("此名流行度极高，属于常见爆款名");
+        break;
+      }
+      case "不要生僻难读的":
+        if (name.length > 8) reasons.push("名字过长（超过8字母），可能难读");
+        break;
+      case "不要有负面谐音/含义":
+        const negativeWords = ["death", "evil", "dark", "demon", "devil", "sorrow", "pain", "fear", "danger", "poison", "war", "blood", "凶", "死"];
+        for (const word of negativeWords) {
+          if (meaningLower.includes(word)) { reasons.push(`含义包含负面词汇「${word}」`); break; }
+        }
+        break;
+    }
+  }
+
+  return { passed: reasons.length === 0, reasons };
+}
+
+// ===== 综合起名引擎 =====
+
+export async function generateEnglishNames(
+  request: EnameGenerateRequest
+): Promise<{ success: boolean; data: EnameScoredResult[]; totalCandidates: number; message?: string }> {
+  const { gender, surname, fullName, needs = [], style, avoidFlags = [], lengthPreference, count = 10 } = request;
+
+  try {
+    const allNames = getAllRecords();
+    const genderCn = gender === "male" ? "男性" : "女性";
+    let candidates = allNames.filter((r) => r.gender === genderCn || r.gender === "中性");
+
+    if (candidates.length === 0) {
+      return { success: false, data: [], totalCandidates: 0, message: "没有找到匹配性别的英文名" };
+    }
+
+    // 语义搜索
+    let semanticMatches: EnameSemanticMatch[] = [];
+    try {
+      let semanticQuery = `适合${genderCn}的英文名字`;
+      if (needs.length > 0) semanticQuery += `，含义${needs.join("、")}`;
+      if (style) semanticQuery += `，${style}风格`;
+      semanticMatches = await semanticSearchEname(semanticQuery, { limit: 60, threshold: 0.45, gender });
+    } catch { /* ignore */ }
+
+    // 候选池（扩大候选数量，保证更多名字被评分）
+    let namePool: EnameRecord[];
+    if (semanticMatches.length > 0) {
+      const semanticNameSet = new Set(semanticMatches.map((m) => m.name));
+      const matchedRecords = candidates.filter((r) => semanticNameSet.has(r.name));
+      const unmatched = candidates.filter((r) => !semanticNameSet.has(r.name));
+      // 从unmatched中补充，优先取流行度高的
+      const supplementCount = Math.max(0, 150 - matchedRecords.length);
+      const supplemented = unmatched.sort((a, b) => (b.popularity?.length || 0) - (a.popularity?.length || 0)).slice(0, supplementCount);
+      namePool = [...matchedRecords, ...supplemented];
+    } else {
+      namePool = candidates.sort((a, b) => (b.popularity?.length || 0) - (a.popularity?.length || 0)).slice(0, 300);
+    }
+
+    // 分割全名
+    let givenName = "";
+    let displayFullName = fullName || "";
+    if (fullName && fullName.length > 0) {
+      givenName = fullName.startsWith(surname) ? fullName.slice(surname.length) : fullName;
+    }
+
+    const scoredResults: EnameScoredResult[] = [];
+
+    for (const record of namePool) {
+      // v2.0: 使用新谐音评分（传入全名用于音节匹配）
+      const { score: phoneticScore, tags: phoneticTags } = calcPhoneticScore(
+        record.name, surname, givenName || undefined, displayFullName || undefined
+      );
+
+      const { score: meaningScore, tags: meaningTags } = calcMeaningScore(record.meaning, needs);
+      const { score: styleScore, tags: styleTags } = calcStyleScore(record.meaning, record.name, style);
+      const popularityScore = calcPopularityScore(record.popularity);
+      const lengthScore = calcLengthScore(record.name, lengthPreference);
+      const avoidCheck = checkAvoidRules(record.name, record.meaning, record.popularity, avoidFlags);
+
+      let semanticBonus = 0;
+      if (semanticMatches.length > 0) {
+        const sm = semanticMatches.find((m) => m.name.toLowerCase() === record.name.toLowerCase());
+        if (sm) semanticBonus = Math.round(sm.similarity * 30);
+      }
+
+      // v2.0: 如果用户勾选了"谐音贴近中文名"，大幅提高phoneticScore权重
+      const hasPhoneticNeed = needs.includes("谐音贴近中文名");
+      const phoneticWeight = hasPhoneticNeed ? 0.35 : 0.25;  // 从25%提升到35%
+      const meaningWeight = hasPhoneticNeed ? 0.15 : 0.20;   // 相应降低含义权重
+
+      const totalScore = Math.round(
+        phoneticScore * phoneticWeight + meaningScore * meaningWeight + styleScore * 0.15 +
+        popularityScore * 0.10 + lengthScore * 0.10 + semanticBonus
+      );
+      const avoidPenalty = avoidCheck.reasons.length * 10;
+      const finalScore = Math.max(0, Math.min(100, totalScore - avoidPenalty));
+
+      const tags: string[] = [];
+      tags.push(...phoneticTags.filter((t) => !t.includes("信息不足")));
+      tags.push(...meaningTags);
+      tags.push(...styleTags);
+      if (lengthScore >= 80) {
+        const lenDesc = lengthPreference === "short" ? "短名" : lengthPreference === "long" ? "长名" : "适名";
+        tags.push(`长度偏好「${lenDesc}」`);
+      }
+      if (popularityScore >= 70) tags.push("较流行");
+      else if (popularityScore <= 30) tags.push("小众");
+      if (avoidCheck.reasons.length > 0) tags.push(...avoidCheck.reasons.map((r) => `⚠️${r}`));
+
+      let adaptationNote = `你的${gender === "male" ? "姓氏" : "姓名"}「${surname}」`;
+      if (givenName) adaptationNote += `${givenName}`;
+      adaptationNote += `，推荐「${record.name}」(${record.name[0].toUpperCase()}开头)`;
+      if (phoneticScore >= 60) adaptationNote += `，发音与姓名字音相近，`;
+      if (meaningScore >= 60 && needs.length > 0) adaptationNote += `含义契合「${needs.slice(0, 2).join("、")}」`;
+      adaptationNote += `。综合评分${finalScore}分。`;
+
+      scoredResults.push({
+        name: record.name, gender: record.gender, phonetic: record.phonetic, chinese: record.chinese,
+        origin: record.origin, popularity: record.popularity, meaning: record.meaning,
+        firstLetter: record.firstLetter, score: finalScore, phoneticScore, meaningScore,
+        styleScore, popularityScore, lengthScore, tags: [...new Set(tags)], adaptationNote,
+      });
+    }
+
+    scoredResults.sort((a, b) => b.score - a.score);
+    const topResults = scoredResults.slice(0, Math.max(count, 20));
+
+    return { success: true, data: topResults, totalCandidates: candidates.length };
+  } catch (error) {
+    console.error("[ename-generator] 生成英文名失败:", error);
+    return { success: false, data: [], totalCandidates: 0, message: `生成失败: ${error instanceof Error ? error.message : "未知错误"}` };
+  }
+}
