@@ -10,7 +10,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 /* ═══════════ 导航数据（模块级常量） ═══════════ */
 const PERSONAL_SUBMENU = [
   { label: "起名改名", href: "/rename", desc: "AI智能起名" },
-  { label: "英文起名", href: "/personal?type=english", desc: "英文名字" },
+  { label: "英文起名", href: "/en/choose-name", desc: "英文名字" },
   { label: "社交网名", href: "/personal?type=nickname", desc: "网名昵称" },
 ];
 const BUSINESS_SUBMENU = [

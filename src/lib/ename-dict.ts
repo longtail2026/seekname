@@ -20,6 +20,8 @@ export interface EnameRecord {
   origin: string;
   /** 流行度（如：★★★、★★、★、无） */
   popularity: string;
+  /** 含义/寓意描述（由DeepSeek AI补充） */
+  meaning: string;
   /** 首字母 */
   firstLetter: string;
 }
@@ -73,7 +75,8 @@ function decodeHtmlEntities(text: string): string {
 function loadDict(): EnameRecord[] {
   if (records) return records;
 
-  const csvPath = path.join(process.cwd(), 'ename_dict_data.csv');
+  // 使用含含义的增强版CSV
+  const csvPath = path.join(process.cwd(), 'ename_dict_with_meaning.csv');
   if (!fs.existsSync(csvPath)) {
     console.warn('[ename-dict] CSV文件不存在:', csvPath);
     records = [];
@@ -98,6 +101,8 @@ function loadDict(): EnameRecord[] {
     const chinese = cols[3]?.trim() || '';
     const origin = cols[4]?.trim() || '';
     const popularity = cols[5]?.trim() || '';
+    // 第7列为含义（由DeepSeek AI补充）
+    const meaning = cols.length >= 7 ? cols.slice(6).join(',').trim() : '';
 
     if (!name) continue;
 
@@ -108,6 +113,7 @@ function loadDict(): EnameRecord[] {
       chinese,
       origin: origin || '',
       popularity: popularity || '无',
+      meaning,
       firstLetter: name[0].toUpperCase(),
     });
   }
