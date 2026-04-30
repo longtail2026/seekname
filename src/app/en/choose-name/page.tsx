@@ -134,10 +134,10 @@ export default function EnglishNamePage() {
   const [avoidFlags, setAvoidFlags] = useState<string[]>(["不要有负面谐音/含义"]);
   const [lengthPreference, setLengthPreference] = useState("");
 
-  // IME 组合输入状态
-  const [surnameComposing, setSurnameComposing] = useState(false);
-  const [fullNameComposing, setFullNameComposing] = useState(false);
-  const [customNeedComposing, setCustomNeedComposing] = useState(false);
+  // IME 组合输入状态标志（使用 isComposing 属性判断更可靠）
+  const isComposing = useRef(false);
+  const isFullNameComposing = useRef(false);
+  const isCustomNeedComposing = useRef(false);
 
   const [results, setResults] = useState<EnameScoredResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -352,12 +352,15 @@ export default function EnglishNamePage() {
                 type="text"
                 value={surname}
                 onChange={(e) => {
-                  if (!surnameComposing) setSurname(e.target.value.slice(0, 2));
+                  // 使用原生 isComposing 属性判断 IME 组合状态
+                  const nativeEvent = e.nativeEvent as InputEvent;
+                  if (nativeEvent.isComposing) return;
+                  setSurname(e.target.value.slice(0, 2));
                 }}
-                onCompositionStart={() => setSurnameComposing(true)}
+                onCompositionStart={() => { isComposing.current = true; }}
                 onCompositionEnd={(e) => {
-                  setSurnameComposing(false);
-                  setSurname((e.target as HTMLInputElement).value.slice(0, 2));
+                  isComposing.current = false;
+                  setSurname(e.currentTarget.value.slice(0, 2));
                 }}
                 placeholder="例如：李、王、张..."
                 className="w-full py-3 px-4 rounded-xl text-sm border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none transition-all focus:border-[#E86A17] focus:ring-2 focus:ring-[#E86A17]/10"
@@ -394,12 +397,14 @@ export default function EnglishNamePage() {
                     type="text"
                     value={fullName}
                     onChange={(e) => {
-                      if (!fullNameComposing) setFullName(e.target.value.slice(0, 4));
+                      const nativeEvent = e.nativeEvent as InputEvent;
+                      if (nativeEvent.isComposing) return;
+                      setFullName(e.target.value.slice(0, 4));
                     }}
-                    onCompositionStart={() => setFullNameComposing(true)}
+                    onCompositionStart={() => { isFullNameComposing.current = true; }}
                     onCompositionEnd={(e) => {
-                      setFullNameComposing(false);
-                      setFullName((e.target as HTMLInputElement).value.slice(0, 4));
+                      isFullNameComposing.current = false;
+                      setFullName(e.currentTarget.value.slice(0, 4));
                     }}
                     placeholder="例如：李瑶、王鹤棣..."
                     className="w-full py-2.5 px-4 rounded-xl text-sm border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none focus:border-[#E86A17] focus:ring-2 focus:ring-[#E86A17]/10"
@@ -438,12 +443,14 @@ export default function EnglishNamePage() {
                         type="text"
                         value={customNeed}
                         onChange={(e) => {
-                          if (!customNeedComposing) setCustomNeed(e.target.value);
+                          const nativeEvent = e.nativeEvent as InputEvent;
+                          if (nativeEvent.isComposing) return;
+                          setCustomNeed(e.target.value);
                         }}
-                        onCompositionStart={() => setCustomNeedComposing(true)}
+                        onCompositionStart={() => { isCustomNeedComposing.current = true; }}
                         onCompositionEnd={(e) => {
-                          setCustomNeedComposing(false);
-                          setCustomNeed((e.target as HTMLInputElement).value);
+                          isCustomNeedComposing.current = false;
+                          setCustomNeed(e.currentTarget.value);
                         }}
                         placeholder="自定义需求..."
                         className="w-28 px-3 py-1.5 rounded-full text-xs border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none focus:border-[#E86A17]"
