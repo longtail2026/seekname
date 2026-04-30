@@ -357,14 +357,26 @@ export async function generateEnglishNames(
       return { success: false, data: [], totalCandidates: 0, message: "没有找到匹配性别的英文名" };
     }
 
-    // 语义搜索
+    // 语义搜索（含中文名字发音匹配）
     let semanticMatches: EnameSemanticMatch[] = [];
     try {
       let semanticQuery = `适合${genderCn}的英文名字`;
       if (needs.length > 0) semanticQuery += `，含义${needs.join("、")}`;
       if (style) semanticQuery += `，${style}风格`;
+      
+      // 加入中文名字信息，使语义搜索能匹配到中文译名相近的英文名
+      const nameForSearch = fullName || surname;
+      if (nameForSearch && nameForSearch.length > 0) {
+        // 提取每个汉字作为关键词，帮助向量搜索匹配中文译名
+        const chars = nameForSearch.replace(/\s/g, "").split("");
+        const uniqueChars = [...new Set(chars)];
+        semanticQuery += `，中文名「${nameForSearch}」发音相近、中文译名包含「${uniqueChars.slice(0, 3).join("、")}」`;
+      }
+      
       semanticMatches = await semanticSearchEname(semanticQuery, { limit: 60, threshold: 0.45, gender });
-    } catch { /* ignore */ }
+    } catch (error) {
+      console.error("[ename-generator] 语义搜索失败（不影响主流程）:", error);
+    }
 
     // 候选池
     let namePool: EnameRecord[];

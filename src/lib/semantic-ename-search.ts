@@ -218,9 +218,9 @@ export async function semanticSearchEname(
       params.push(mapped);
     }
 
-    // 首字母过滤
+    // 首字母过滤（从 english_name 取首字母）
     if (options.firstLetter) {
-      conditions.push(`LOWER(first_letter) = LOWER($${params.length + 1})`);
+      conditions.push(`LOWER(SUBSTRING(english_name, 1, 1)) = LOWER($${params.length + 1})`);
       params.push(options.firstLetter.substring(0, 1));
     }
 
@@ -228,7 +228,7 @@ export async function semanticSearchEname(
     if (options.exclude && options.exclude.length > 0) {
       const excludeLower = options.exclude.map((n) => n.toLowerCase());
       const placeholders = excludeLower.map((_, i) => `$${params.length + i + 1}`);
-      conditions.push(`LOWER(name) NOT IN (${placeholders.join(",")})`);
+      conditions.push(`LOWER(english_name) NOT IN (${placeholders.join(",")})`);
       params.push(...excludeLower);
     }
 
@@ -236,13 +236,12 @@ export async function semanticSearchEname(
 
     const sql = `
       SELECT 
-        name,
+        english_name AS name,
         gender,
         phonetic,
-        chinese,
+        chinese_name AS chinese,
         origin,
         popularity,
-        first_letter,
         (embedding <=> $2::vector) AS distance
       FROM ename_dict
       WHERE ${whereClause}
@@ -261,7 +260,6 @@ export async function semanticSearchEname(
       chinese: string;
       origin: string;
       popularity: string;
-      first_letter: string;
       distance: number;
     }>(sql, params);
 
@@ -281,7 +279,7 @@ export async function semanticSearchEname(
         chinese: entry.chinese || "",
         origin: entry.origin || "",
         popularity: entry.popularity || "无",
-        firstLetter: entry.first_letter?.toUpperCase() || "",
+        firstLetter: (entry.name || "")[0]?.toUpperCase() || "",
         similarity,
       };
     });
