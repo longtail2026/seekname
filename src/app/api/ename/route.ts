@@ -25,6 +25,7 @@ import {
   getAllRecords,
   getTotalCount,
 } from "@/lib/ename-dict";
+import { semanticSearchEname, searchByMeaning } from "@/lib/semantic-ename-search";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -39,6 +40,21 @@ export async function GET(request: NextRequest) {
     : [];
 
   try {
+    // 语义搜索：根据含义/描述搜索
+    if (action === "semantic" && search) {
+      const semanticResults = await semanticSearchEname(search, {
+        limit: count,
+        gender: gender,
+        firstLetter: letter || undefined,
+        exclude,
+      });
+      return NextResponse.json({
+        success: true,
+        data: semanticResults,
+        total: semanticResults.length,
+      });
+    }
+
     switch (action) {
       case "stats":
         return NextResponse.json({
