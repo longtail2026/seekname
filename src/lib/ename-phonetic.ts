@@ -1,19 +1,20 @@
 /**
- * 中文拼音 → 英文名发音匹配引擎
+ * 中文拼音 ↔ 英文名音标发音匹配引擎 v2
  * 
- * 根据中文名字的拼音发音，找到发音最贴近的英文名。
- * 核心逻辑：
- * 1. 中文名字 → 拼音音节拆分
- * 2. 每个音节的声母 → 可能的英文对应起始字母模式
- * 3. 每个音节的韵母 → 可能的英文拼写模式
- * 4. 评估英文名与中文拼音的发音相似度
+ * 核心改进：使用 IPA 音标（国际音标）进行发音匹配，而非文本字符串匹配。
+ * 
+ * 匹配逻辑：
+ * 1. 中文名字 → 按字拆分 → 每个字转为拼音音节
+ * 2. 拼音音节 → IPA 近似音素序列（如 "guo" → /ɡ/ + /w/ + /ɔ/）
+ * 3. 英文名 → 使用词典中已有的 IPA 音标字段（如 Gordon → /ɡɔːrdən/）
+ * 4. 音素序列之间计算相似度：辅音匹配 + 元音匹配 + 音节数匹配
  */
 import { getAllRecords, type EnameRecord } from "./ename-dict";
 
 // ========== 汉字 → 拼音映射表 ==========
 
 const CHAR_PINYIN_MAP: Record<string, string> = {
-  // 姓氏+名用字去重合并
+  // 姓氏
   '李': 'li', '王': 'wang', '张': 'zhang', '刘': 'liu', '陈': 'chen',
   '杨': 'yang', '赵': 'zhao', '黄': 'huang', '周': 'zhou', '吴': 'wu',
   '徐': 'xu', '孙': 'sun', '马': 'ma', '胡': 'hu', '朱': 'zhu',
@@ -63,20 +64,28 @@ const CHAR_PINYIN_MAP: Record<string, string> = {
   '忠': 'zhong', '众': 'zhong', '壮': 'zhuang',
 };
 
-// ========== 拼音声母 → 英文发音起始字母映射 ==========
+// ========== 拼音音节 → IPA 音素序列转换 ==========
 
-/** 各组声母对应的英文近似起始字母/字母组合 */
-function generateEnglishPatterns(pinyinSyllable: string): string[] {
-  const patterns: string[] = [];
-  if (!pinyinSyllable) return patterns;
+/**
+ * 将汉语拼音音节转为近似 IPA 音素序列
+ * 
+ * 例：
+ *   "guo"  → ["ɡ", "w", "ɔ"]    (guo → g + uo → g + w + ɔ)
+ *   "guang" → ["ɡ", "w", "ɑ", "ŋ"]  (guang → g + u + ang → g + w + ɑ + ŋ)
+ *   "zhang" → ["dʒ", "ɑ", "ŋ"]    (zhang → zh + ang → dʒ + ɑ + ŋ)
+ *   "li"   → ["l", "i"]
+ *   "xiao" → ["ɕ", "j", "ɑ", "ʊ"] 
+ */
+function pinyinToIpaPhonemes(pinyin: string): string[] {
+  if (!pinyin) return [];
+  const lower = pinyin.toLowerCase().trim();
 
-  const lower = pinyinSyllable.toLowerCase().trim();
+  // 声母（initial consonant）列表（按长度降序排列，优先匹配多字母声母）
+  const initials = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 
-  // 提取声母（initial consonant）
-  const initialConsonants = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
   let initial = '';
   let rest = lower;
-  for (const ic of initialConsonants) {
+  for (const ic of initials) {
     if (lower.startsWith(ic)) {
       initial = ic;
       rest = lower.slice(ic.length);
@@ -84,235 +93,367 @@ function generateEnglishPatterns(pinyinSyllable: string): string[] {
     }
   }
 
-  // 根据声母生成英文起始字母模式
-  const initialToEnglish: Record<string, string[]> = {
-    'zh': ['J', 'Z', 'G', 'ZH'],
-    'ch': ['CH', 'C', 'SH', 'S'],
-    'sh': ['SH', 'S', 'X'],
-    'b': ['B', 'P'],
-    'p': ['P', 'B', 'F'],
-    'm': ['M', 'N'],
-    'f': ['F', 'V', 'PH'],
-    'd': ['D', 'T'],
-    't': ['T', 'D'],
-    'n': ['N', 'L', 'M'],
-    'l': ['L', 'R', 'N'],
-    'g': ['G', 'K', 'GW'],
-    'k': ['K', 'C', 'G'],
-    'h': ['H', 'W', 'F'],
-    'j': ['J', 'G', 'Z', 'Y'],
-    'q': ['Q', 'C', 'CH', 'K'],
-    'x': ['X', 'SH', 'S', 'C'],
-    'r': ['R', 'L'],
-    'z': ['Z', 'S', 'C', 'J'],
-    'c': ['C', 'S', 'TS'],
-    's': ['S', 'C', 'X', 'SH'],
-    'y': ['Y', 'E', 'I'],
-    'w': ['W', 'V', 'U'],
-    '': ['A', 'E', 'I', 'O', 'U'],
+  // 声母 → IPA 辅音映射
+  const initialIpaMap: Record<string, string[]> = {
+    'b': ['p'],        // 不送气清双唇塞音
+    'p': ['pʰ'],       // 送气清双唇塞音
+    'm': ['m'],
+    'f': ['f'],
+    'd': ['t'],        // 不送气清齿龈塞音
+    't': ['tʰ'],       // 送气清齿龈塞音
+    'n': ['n'],
+    'l': ['l'],
+    'g': ['ɡ'],        // 不送气清软腭塞音
+    'k': ['kʰ'],       // 送气清软腭塞音
+    'h': ['x', 'h'],
+    'j': ['tɕ'],       // 不送气清龈腭塞擦音
+    'q': ['tɕʰ'],      // 送气清龈腭塞擦音
+    'x': ['ɕ'],
+    'zh': ['tʂ', 'dʒ'], // 不送气卷舌塞擦音 / 英语 j 近似
+    'ch': ['tʂʰ', 'tʃ'], // 送气卷舌塞擦音 / 英语 ch 近似
+    'sh': ['ʂ', 'ʃ'],
+    'r': ['ɻ', 'r'],
+    'z': ['ts'],
+    'c': ['tsʰ'],
+    's': ['s'],
+    'y': ['j'],
+    'w': ['w'],
   };
 
-  // 生成声母对应的英文起始字母
-  const engInitials = initialToEnglish[initial] || [initial.toUpperCase() || lower[0]?.toUpperCase() || ''];
+  const initialPhonemes = initialIpaMap[initial] || [];
 
-  // 根据韵母（rest）生成英文拼写近似模式
-  const vowelToPatterns: Record<string, string[]> = {
-    'ang': ['ang', 'ong', 'ung', 'an'],
-    'eng': ['eng', 'ing', 'ung', 'en'],
-    'ing': ['ing', 'eng', 'ink', 'in'],
-    'ong': ['ong', 'ung', 'ong', 'on'],
-    'an': ['an', 'en', 'on', 'un', 'and'],
-    'en': ['en', 'an', 'in', 'on'],
-    'in': ['in', 'en', 'an', 'ing'],
-    'un': ['un', 'on', 'an', 'ung'],
-    'ao': ['ao', 'ow', 'o', 'au'],
-    'ou': ['ou', 'o', 'ow', 'oe'],
-    'ai': ['ai', 'i', 'ie', 'y', 'igh'],
-    'ei': ['ei', 'ay', 'ey', 'e'],
-    'ui': ['ui', 'we', 'wee', 'ue'],
-    'ia': ['ia', 'ya', 'a'],
-    'ie': ['ie', 'ye', 'e'],
-    'iu': ['iu', 'yo', 'you', 'yu'],
-    'ian': ['ian', 'ien', 'in', 'en', 'ian'],
-    'iang': ['iang', 'iang', 'yang'],
-    'iong': ['iong', 'yong'],
-    'uan': ['uan', 'wan', 'on', 'un'],
-    'uang': ['uang', 'wan', 'ang', 'wang'],
-    'uo': ['uo', 'or', 'o', 'wa', 'wo', 'oa'],
-    'ue': ['ue', 'we', 'e'],
-    'a': ['a', 'ah', 'ar'],
-    'o': ['o', 'oh', 'or', 'oa'],
-    'e': ['e', 'eh', 'er', 'a'],
-    'i': ['i', 'ee', 'y', 'ie'],
-    'u': ['u', 'oo', 'w', 'ew'],
-    'v': ['v', 'u', 'oo'],
+  // 韵母 → IPA 元音/辅音序列映射
+  const finalIpaMap: Record<string, string[]> = {
+    'a': ['ɑ'],
+    'o': ['ɔ'],
+    'e': ['ɤ', 'ə'],
+    'i': ['i'],
+    'u': ['u'],
+    'v': ['y'],
+    'ai': ['a', 'i'],
+    'ei': ['e', 'i'],
+    'ui': ['u', 'e', 'i'],
+    'ao': ['ɑ', 'ʊ'],
+    'ou': ['o', 'ʊ'],
+    'iu': ['i', 'o', 'ʊ'],
+    'ie': ['i', 'e'],
+    've': ['y', 'e'],
+    'er': ['ɚ'],
+    'an': ['a', 'n'],
+    'en': ['ə', 'n'],
+    'in': ['i', 'n'],
+    'un': ['u', 'ə', 'n'],
+    'vn': ['y', 'n'],
+    'ang': ['ɑ', 'ŋ'],
+    'eng': ['ɤ', 'ŋ'],
+    'ing': ['i', 'ŋ'],
+    'ong': ['ʊ', 'ŋ'],
+    'ian': ['i', 'ɛ', 'n'],
+    'iang': ['i', 'ɑ', 'ŋ'],
+    'iong': ['i', 'ʊ', 'ŋ'],
+    'uan': ['u', 'a', 'n'],
+    'uang': ['u', 'ɑ', 'ŋ'],
+    'uo': ['u', 'ɔ', 'w', 'ɔ'],
+    'ue': ['y', 'e'],
+    'ia': ['i', 'a'],
+    'iao': ['i', 'ɑ', 'ʊ'],
+    'ua': ['u', 'a'],
+    'uai': ['u', 'a', 'i'],
   };
 
-  // 生成完整音节的近似英文拼写
-  for (const ei of engInitials) {
-    // 完整拼音作为整体模式
-    patterns.push(ei + lower);
-    // 声母+韵母模式
-    const vowelPatterns = vowelToPatterns[rest] || [rest || ''];
-    for (const vp of vowelPatterns) {
-      patterns.push(ei + vp);
-    }
-    // 仅声母模式
-    patterns.push(ei);
+  const finalPhonemes = finalIpaMap[rest] || (rest ? [rest] : []);
+
+  // 合并结果为音素序列
+  let combined: string[];
+  if (initial === 'y' && finalPhonemes.length > 0 && finalPhonemes[0] === 'i') {
+    combined = [...finalPhonemes];
+  } else if (initial === 'w' && finalPhonemes.length > 0 && finalPhonemes[0] === 'u') {
+    combined = [...finalPhonemes];
+  } else {
+    combined = [...initialPhonemes, ...finalPhonemes];
   }
 
-  // 去重并限制数量
-  return [...new Set(patterns)].slice(0, 15);
+  return combined.length > 0 ? combined : [lower];
 }
-
-// ========== 核心发音匹配评分 ==========
-
-/** 针对特定常用字的手工声母/韵首映射，加强匹配 */
-const INITIAL_OVERRIDES: Record<string, string[]> = {
-  'zhang': ['J', 'Z', 'G'],
-  'guo': ['G', 'Gor', 'Gord'],
-  'guang': ['G', 'Gor', 'Gwan'],
-};
 
 /**
- * 计算中文名字拼音与英文名之间的发音相似度
- * 
- * @param chineseName 中文名字（如"张国光"）
- * @param englishName 英文名（如"Gordon"）
- * @param chineseTranslation 英文名的中文译名（如"戈登"）
- * @returns 发音相似度分数 0~100
+ * 将中文名字拆分为拼音音节，再转为 IPA 音素数组
+ * 例："张国光" → [["dʒ","ɑ","ŋ"], ["ɡ","w","ɔ"], ["ɡ","w","ɑ","ŋ"]]
  */
-function calcPinyinMatchScore(
-  chineseName: string,
-  englishName: string,
-  chineseTranslation: string
-): number {
-  if (!chineseName || !englishName) return 0;
-
-  const engLower = englishName.toLowerCase();
-
-  // 1. 中文译名字符重叠检查
-  let charOverlapScore = 0;
-  if (chineseTranslation) {
-    for (const char of chineseName) {
-      if (chineseTranslation.includes(char)) {
-        charOverlapScore += 15;
-      }
-    }
-    // 拼音首字母重叠检查
-    const chinesePinyinInitials = chineseName.split('').map(c => {
-      const py = CHAR_PINYIN_MAP[c];
-      return py ? py[0].toLowerCase() : '';
-    }).filter(Boolean);
-    const uniqueInitials = [...new Set(chinesePinyinInitials)];
-    const engLetters = [...new Set(engLower.split('').filter(c => /[a-z]/.test(c)))];
-    const overlapInitials = uniqueInitials.filter(i => engLetters.includes(i));
-    charOverlapScore += overlapInitials.length * 5;
-  }
-  charOverlapScore = Math.min(charOverlapScore, 30);
-
-  // 2. 逐音节发音匹配
+function chineseNameToPhonemes(chineseName: string): string[][] {
   const chars = chineseName.replace(/\s/g, '').split('');
-  const pinyins: string[] = [];
-  for (const char of chars) {
+  const syllablePhonemes: string[][] = [];
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
     const py = CHAR_PINYIN_MAP[char];
-    if (py) pinyins.push(py);
-  }
-
-  if (pinyins.length === 0) {
-    const surnamePinyin = CHAR_PINYIN_MAP[chineseName[0]];
-    if (surnamePinyin) pinyins.push(surnamePinyin);
-  }
-
-  if (pinyins.length === 0) return charOverlapScore;
-
-  // 对每个拼音音节生成英文近似模式，检查英文名是否包含
-  let syllableMatchCount = 0;
-
-  for (const py of pinyins) {
-    const patterns = generateEnglishPatterns(py);
-    const overrides = INITIAL_OVERRIDES[py] || [];
-    let allPatterns = patterns;
-    if (overrides.length > 0) {
-      allPatterns = [...new Set([...overrides, ...patterns])];
-    }
-    
-    let matched = false;
-    for (const pattern of allPatterns) {
-      const patternLower = pattern.toLowerCase();
-      if (engLower.includes(patternLower)) {
-        matched = true;
-        break;
-      }
-    }
-    if (matched) {
-      syllableMatchCount++;
-    }
-  }
-
-  // 3. 英文名音节与中文拼音近似匹配
-  const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
-  const engSyllables: string[] = [];
-  let currentSyllable = '';
-  for (const ch of engLower) {
-    if (vowels.has(ch) && currentSyllable.length > 0 && !vowels.has(currentSyllable[currentSyllable.length - 1])) {
-      engSyllables.push(currentSyllable + ch);
-      currentSyllable = '';
+    if (py) {
+      syllablePhonemes.push(pinyinToIpaPhonemes(py));
     } else {
-      currentSyllable += ch;
+      syllablePhonemes.push([char]);
     }
   }
-  if (currentSyllable) engSyllables.push(currentSyllable);
-
-  let engSyllableMatchCount = 0;
-  for (const es of engSyllables) {
-    for (const py of pinyins) {
-      if (es.length >= 2) {
-        const minLen = Math.min(es.length, py.length);
-        let matchScore = 0;
-        for (let i = 0; i < minLen; i++) {
-          if (es[i] === py[i]) matchScore++;
-        }
-        const similarity = matchScore / Math.max(es.length, py.length);
-        if (similarity >= 0.4) {
-          engSyllableMatchCount++;
-          break;
-        }
-      }
-    }
-  }
-
-  // 综合评分
-  const maxSyllables = Math.max(pinyins.length, 1);
-  const syllableScore = (syllableMatchCount / maxSyllables) * 50;
-  const engSyllableScore = Math.min(engSyllableMatchCount, maxSyllables) / maxSyllables * 20;
-
-  const totalScore = Math.round(charOverlapScore + syllableScore + engSyllableScore);
-  return Math.min(100, Math.max(0, totalScore));
+  return syllablePhonemes;
 }
 
-// ========== 高级发音匹配 ==========
+// ========== 英文名音标解析 ==========
+
+/**
+ * 清理并标准化 IPA 音标字符串
+ * 如 "/geilən/" → "geilən"
+ */
+function cleanIpaPhonetic(phonetic: string): string {
+  if (!phonetic) return '';
+  let result = phonetic.trim();
+  result = result.replace(/^\/+|\/+$/g, '');
+  result = result.replace(/[¹²³⁴⁵⁶⁷⁸⁹⁰ˈˌ]/g, '');
+  return result.trim();
+}
+
+/**
+ * 将 IPA 音标字符串切分为独立音素
+ * 例："gɔːrdən" → ["ɡ", "ɔː", "r", "d", "ə", "n"]
+ */
+function ipaStringToPhonemes(ipaStr: string): string[] {
+  if (!ipaStr) return [];
+  const result: string[] = [];
+  const chars = Array.from(ipaStr);
+  let i = 0;
+  while (i < chars.length) {
+    const twoChars = i + 1 < chars.length ? chars[i] + chars[i + 1] : '';
+    const threeChars = i + 2 < chars.length ? chars[i] + chars[i + 1] + chars[i + 2] : '';
+    const multiCharIpa = ['tɕ', 'tʂ', 'tʃ', 'dʒ', 'tɕʰ', 'tʂʰ', 'a:', 'e:', 'i:', 'o:', 'u:', 'ə:', 'ɔ:', 'ɑ:', 'ɜ:', 'ɛ:', 'æ:', 'ɚ'];
+    if (threeChars && multiCharIpa.includes(threeChars)) {
+      result.push(threeChars);
+      i += 3;
+      continue;
+    }
+    if (twoChars && multiCharIpa.includes(twoChars)) {
+      result.push(twoChars);
+      i += 2;
+      continue;
+    }
+    result.push(chars[i]);
+    i++;
+  }
+  return result;
+}
+
+/**
+ * 从 EnameRecord 中提取音素序列
+ */
+function getEnglishPhonemes(record: EnameRecord): string[] {
+  if (record.phonetic) {
+    const cleaned = cleanIpaPhonetic(record.phonetic);
+    if (cleaned) {
+      const phonemes = ipaStringToPhonemes(cleaned);
+      if (phonemes.length > 0) return phonemes;
+    }
+  }
+  return record.name.toLowerCase().split('');
+}
+
+// ========== 音素相似度计算 ==========
+
+/**
+ * 辅音相似度矩阵（按发音部位分组）
+ */
+const CONSONANT_GROUPS: Record<string, string[]> = {
+  'bilabial': ['p', 'b', 'm', 'pʰ', 'bʰ'],
+  'labiodental': ['f', 'v'],
+  'dental': ['θ', 'ð'],
+  'alveolar': ['t', 'd', 'n', 's', 'z', 'l', 'r', 'tʰ', 'dʰ', 'ts', 'dz', 'tsʰ'],
+  'retroflex': ['tʂ', 'tʂʰ', 'ʂ', 'ʐ', 'ɻ'],
+  'palatal': ['tɕ', 'tɕʰ', 'ɕ', 'j', 'ʝ'],
+  'palato-alveolar': ['tʃ', 'dʒ', 'ʃ', 'ʒ'],
+  'velar': ['k', 'ɡ', 'x', 'kʰ', 'ŋ', 'g', 'ɣ'],
+  'glottal': ['h', 'ʔ', 'ɦ'],
+  'approximant': ['w', 'j', 'ɻ', 'l', 'r'],
+};
+
+function getConsonantGroupIndex(phone: string): number {
+  const groups = Object.values(CONSONANT_GROUPS);
+  for (let i = 0; i < groups.length; i++) {
+    if (groups[i].includes(phone)) return i;
+  }
+  return -1;
+}
+
+const VOWEL_GROUPS: Record<string, string[]> = {
+  'close_front': ['i', 'y', 'i:', 'y:'],
+  'close_central': ['ɨ', 'ʉ', 'ɨ:', 'ʉ:'],
+  'close_back': ['u', 'u:', 'ʊ'],
+  'close_mid_front': ['e', 'ø', 'e:', 'ø:', 'ɪ'],
+  'close_mid_central': ['ɘ', 'ɵ', 'ɘ:', 'ɵ:', 'ə'],
+  'close_mid_back': ['o', 'ɤ', 'o:', 'ɤ:'],
+  'open_mid_front': ['ɛ', 'œ', 'ɛ:', 'œ:'],
+  'open_mid_central': ['ɜ', 'ɞ', 'ɜ:', 'ɞ:', 'ʌ'],
+  'open_mid_back': ['ɔ', 'ɔ:'],
+  'open_front': ['a', 'æ', 'a:', 'æ:'],
+  'open_central': ['ä', 'ɐ', 'ä:', 'ɐ:'],
+  'open_back': ['ɑ', 'ɒ', 'ɑ:', 'ɒ:'],
+  'rhotic': ['ɚ', 'ɝ', 'ɚ:', 'ɝ:'],
+};
+
+function isVowel(phone: string): boolean {
+  const base = phone.replace(/[ː:ʰʱ]/g, '');
+  return /[aeiouæɑɒɔəɛɜɝɞɐɶɪʊʉɨʏøœɤɯʌɚ]/.test(base);
+}
+
+function isConsonant(phone: string): boolean {
+  const base = phone.replace(/[ː:ʰʱʲʷ]/g, '');
+  return /[bcdfghjklmnpqrstvwxzθðʃʒŋɲɳɴʀʁħʔɦɬɮʋβɣχⱱɾɽɸ]/.test(base) ||
+         /[ʈɖɟɠɢʡʐʑɕʝɻ]/.test(base) ||
+         /^[tɕtʂdʒtʃtsdz]/.test(base) || /[ɡ]/.test(base);
+}
+
+/**
+ * 计算两个音素之间的相似度（0~1）
+ */
+function phonemeSimilarity(a: string, b: string): number {
+  const aBase = a.replace(/[ː:ʰʱ]/g, '');
+  const bBase = b.replace(/[ː:ʰʱ]/g, '');
+
+  if (aBase === bBase) return 1.0;
+
+  const aIsVowel = isVowel(aBase);
+  const bIsVowel = isVowel(bBase);
+
+  // 元音 vs 元音
+  if (aIsVowel && bIsVowel) {
+    for (const group of Object.values(VOWEL_GROUPS)) {
+      if (group.includes(aBase) && group.includes(bBase)) return 0.8;
+    }
+    const vowelGroupKeys = Object.keys(VOWEL_GROUPS);
+    for (let i = 0; i < vowelGroupKeys.length; i++) {
+      const group = VOWEL_GROUPS[vowelGroupKeys[i]];
+      const inA = group.includes(aBase);
+      const inB = group.includes(bBase);
+      if (inA && inB) return 0.8;
+      if (inA || inB) {
+        if (i > 0 && VOWEL_GROUPS[vowelGroupKeys[i - 1]].includes(bBase)) return 0.5;
+        if (i < vowelGroupKeys.length - 1 && VOWEL_GROUPS[vowelGroupKeys[i + 1]].includes(bBase)) return 0.5;
+        return 0.2;
+      }
+    }
+    return 0.3;
+  }
+
+  // 辅音 vs 辅音
+  const aCons = isConsonant(aBase);
+  const bCons = isConsonant(bBase);
+  if (aCons && bCons) {
+    const groupAIdx = getConsonantGroupIndex(aBase);
+    const groupBIdx = getConsonantGroupIndex(bBase);
+    if (groupAIdx >= 0 && groupBIdx >= 0) {
+      if (groupAIdx === groupBIdx) return 0.7;
+      if (Math.abs(groupAIdx - groupBIdx) === 1) return 0.4;
+    }
+    if (['m', 'n', 'ŋ'].includes(aBase) && ['m', 'n', 'ŋ'].includes(bBase)) return 0.6;
+    if (['l', 'r', 'ɻ'].includes(aBase) && ['l', 'r', 'ɻ'].includes(bBase)) return 0.6;
+    if (['s', 'ʂ', 'ʃ', 'ɕ'].includes(aBase) && ['s', 'ʂ', 'ʃ', 'ɕ'].includes(bBase)) return 0.5;
+    return 0.1;
+  }
+
+  // 半元音 w/j 与元音近似
+  if ((a === 'w' && (b === 'u' || b === 'o' || b === 'ɔ')) ||
+      (b === 'w' && (a === 'u' || a === 'o' || a === 'ɔ'))) {
+    return 0.7;
+  }
+  if ((a === 'j' && (b === 'i' || b === 'e' || b === 'y')) ||
+      (b === 'j' && (a === 'i' || a === 'e' || a === 'y'))) {
+    return 0.7;
+  }
+
+  return 0;
+}
+
+// ========== 发音匹配评分（核心算法）==========
 
 export interface PhoneticMatchResult {
   name: string;
   phoneticScore: number;
-  pinyinScore: number;
+  phonemeMatchScore: number;
+  syllableMatchScore: number;
+  translationBonus: number;
   combinedScore: number;
 }
 
 /**
+ * 计算中文名拼音音素序列与英文名 IPA 音素序列的匹配度
+ */
+function calcPhonemeSequenceMatch(
+  chinesePhonemeSyllables: string[][],
+  englishPhonemes: string[]
+): number {
+  if (chinesePhonemeSyllables.length === 0 || englishPhonemes.length === 0) return 0;
+
+  const chineseFlat: string[] = chinesePhonemeSyllables.flat();
+  const minLen = Math.min(chineseFlat.length, englishPhonemes.length);
+  
+  let bestMatchScore = 0;
+  const windowSize = minLen;
+  
+  for (let offset = 0; offset <= Math.max(0, englishPhonemes.length - windowSize); offset++) {
+    let matchSum = 0;
+    for (let i = 0; i < windowSize; i++) {
+      const ci = i < chineseFlat.length ? chineseFlat[i] : chineseFlat[chineseFlat.length - 1];
+      const ei = (offset + i) < englishPhonemes.length ? englishPhonemes[offset + i] : englishPhonemes[englishPhonemes.length - 1];
+      matchSum += phonemeSimilarity(ci, ei);
+    }
+    const avgMatch = matchSum / windowSize;
+    if (avgMatch > bestMatchScore) {
+      bestMatchScore = avgMatch;
+    }
+  }
+
+  // 音节数匹配
+  const chineseSyllableCount = chinesePhonemeSyllables.length;
+  const englishSyllableCount = Math.max(1, Math.round(englishPhonemes.filter(p => isVowel(p)).length));
+  const syllableDiff = Math.abs(chineseSyllableCount - englishSyllableCount);
+  let syllableScore: number;
+  if (syllableDiff === 0) syllableScore = 1.0;
+  else if (syllableDiff === 1) syllableScore = 0.7;
+  else if (syllableDiff === 2) syllableScore = 0.4;
+  else syllableScore = 0.1;
+
+  // 首音匹配
+  let onsetScore = 0;
+  if (chineseFlat.length > 0 && englishPhonemes.length > 0) {
+    onsetScore = phonemeSimilarity(chineseFlat[0], englishPhonemes[0]);
+  }
+
+  // 尾音匹配
+  let codaScore = 0;
+  if (chineseFlat.length > 0 && englishPhonemes.length > 0) {
+    codaScore = phonemeSimilarity(chineseFlat[chineseFlat.length - 1], englishPhonemes[englishPhonemes.length - 1]);
+  }
+
+  const combinedScore = bestMatchScore * 0.40 + syllableScore * 0.20 + onsetScore * 0.25 + codaScore * 0.15;
+  return Math.round(combinedScore * 100);
+}
+
+/**
+ * 中文译名字面重叠加分
+ */
+function calcTranslationBonus(chineseName: string, chineseTranslation: string): number {
+  if (!chineseTranslation) return 0;
+  let overlap = 0;
+  for (const char of chineseName) {
+    if (chineseTranslation.includes(char)) overlap++;
+  }
+  return Math.min(overlap * 8, 30);
+}
+
+/**
  * 根据中文名字的拼音发音，在英文名词典中搜索发音最贴近的英文名
- * 
- * @param chineseName 中文全名（如"张国光"）
- * @param gender 性别过滤
- * @param limit 返回数量
- * @returns 按发音匹配度排序的英文名列表
  */
 export function searchByPhoneticMatch(
   chineseName: string,
   gender?: string,
   limit: number = 20
 ): PhoneticMatchResult[] {
+  if (!chineseName || chineseName.length === 0) return [];
+  
   const allRecords = getAllRecords();
   const genderCn = gender === 'male' ? '男性' : gender === 'female' ? '女性' : null;
 
@@ -321,30 +462,42 @@ export function searchByPhoneticMatch(
     candidates = candidates.filter(r => r.gender === genderCn || r.gender === '中性');
   }
 
+  const chinesePhonemeSyllables = chineseNameToPhonemes(chineseName);
+  if (chinesePhonemeSyllables.length === 0) return [];
+
   const results: PhoneticMatchResult[] = [];
 
   for (const record of candidates) {
-    const pinyinScore = calcPinyinMatchScore(
-      chineseName,
-      record.name,
-      record.chinese || ''
-    );
+    const englishPhonemes = getEnglishPhonemes(record);
+    if (englishPhonemes.length === 0) continue;
 
-    if (pinyinScore > 0) {
+    const phonemeMatchScore = calcPhonemeSequenceMatch(chinesePhonemeSyllables, englishPhonemes);
+    const translationBonus = calcTranslationBonus(chineseName, record.chinese || '');
+    const combinedScore = Math.min(100, phonemeMatchScore + translationBonus);
+
+    if (combinedScore > 0) {
+      const chineseSyllableCount = chinesePhonemeSyllables.length;
+      const englishSyllableCount = Math.max(1, Math.round(englishPhonemes.filter(p => isVowel(p)).length));
+      const syllableDiff = Math.abs(chineseSyllableCount - englishSyllableCount);
+      let syllableMatchScore: number;
+      if (syllableDiff === 0) syllableMatchScore = 100;
+      else if (syllableDiff === 1) syllableMatchScore = 70;
+      else if (syllableDiff === 2) syllableMatchScore = 40;
+      else syllableMatchScore = 10;
+
       results.push({
         name: record.name,
-        phoneticScore: pinyinScore,
-        pinyinScore,
-        combinedScore: pinyinScore,
+        phoneticScore: phonemeMatchScore,
+        phonemeMatchScore,
+        syllableMatchScore,
+        translationBonus,
+        combinedScore,
       });
     }
   }
 
-  // 按拼音匹配评分排序
   results.sort((a, b) => b.combinedScore - a.combinedScore);
   return results.slice(0, limit);
 }
 
-// ========== 导出 ==========
-
-export { generateEnglishPatterns, calcPinyinMatchScore, CHAR_PINYIN_MAP };
+export { CHAR_PINYIN_MAP, pinyinToIpaPhonemes, chineseNameToPhonemes, ipaStringToPhonemes };

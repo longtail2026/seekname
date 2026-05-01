@@ -132,11 +132,30 @@ function getChineseFirstLetter(char: string): string {
 
 // ===== 评分器 =====
 
-function calcPhoneticScore(name: string, surname: string, givenName?: string): { score: number; tags: string[] } {
+/**
+ * 新版发音评分：优先使用 IPA 音标匹配引擎，
+ * 兜底使用首字母匹配
+ */
+function calcPhoneticScore(
+  name: string,
+  surname: string,
+  givenName?: string,
+  phoneticMatchScore?: number  // 来自 ename-phonetic 引擎的 IPA 匹配分数
+): { score: number; tags: string[] } {
   const tags: string[] = [];
   const firstLetter = name[0]?.toUpperCase() || "";
   if (!firstLetter) return { score: 0, tags };
 
+  // 如果 IPA 发音匹配分数可用且有效，直接用它作为主要分数
+  if (phoneticMatchScore !== undefined && phoneticMatchScore > 0) {
+    const score = Math.round(phoneticMatchScore);
+    if (score >= 80) tags.push("发音完美贴合中文名（IPA音标匹配）");
+    else if (score >= 60) tags.push("发音近似中文名（IPA音标匹配）");
+    else if (score >= 40) tags.push("发音部分匹配中文名");
+    return { score, tags };
+  }
+
+  // 兜底：首字母/语音近似匹配
   const surnameLetters = getSurnameLetters(surname);
   let surnameScore = 0;
   if (surnameLetters.length > 0) {
@@ -246,7 +265,7 @@ function calcMeaningScore(meaning: string, needs: string[]): { score: number; ta
   }
 
   const score = Math.min(100, 30 + matchCount * 25);
-  const uniqueNeeds = [...new Set(matchedNeeds)];
+  const uniqueNeeds = Array.from(new Set(matchedNeeds));
   tags.push(`含义匹配「${uniqueNeeds.join("、")}」`);
 
   return { score, tags };
@@ -368,7 +387,7 @@ export async function generateEnglishNames(
       const nameForSearch = fullName || surname;
       if (nameForSearch && nameForSearch.length > 0) {
         const chars = nameForSearch.replace(/\s/g, "").split("");
-        const uniqueChars = [...new Set(chars)];
+        const uniqueChars = Array.from(new Set(chars));
         semanticQuery += `，中文名「${nameForSearch}」发音相近、中文译名包含「${uniqueChars.slice(0, 3).join("、")}」`;
       }
       
@@ -469,7 +488,7 @@ export async function generateEnglishNames(
         name: record.name, gender: record.gender, phonetic: record.phonetic, chinese: record.chinese,
         origin: record.origin, popularity: record.popularity, meaning: record.meaning,
         firstLetter: record.firstLetter, score: finalScore, phoneticScore: effectivePhoneticScore, meaningScore,
-        styleScore, popularityScore, lengthScore, tags: [...new Set(tags)], adaptationNote,
+        styleScore, popularityScore, lengthScore, tags: Array.from(new Set(tags)), adaptationNote,
       });
     }
 
