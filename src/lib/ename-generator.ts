@@ -7,6 +7,7 @@
 
 import { getAllRecords, searchNames, type EnameRecord } from "./ename-dict";
 import { semanticSearchEname, type EnameSemanticMatch } from "./semantic-ename-search";
+import { searchByPhoneticMatch, type PhoneticMatchResult } from "./ename-phonetic";
 
 // ===== 类型定义 =====
 
@@ -357,17 +358,15 @@ export async function generateEnglishNames(
       return { success: false, data: [], totalCandidates: 0, message: "没有找到匹配性别的英文名" };
     }
 
-    // 语义搜索（含中文名字发音匹配）
+    // 语义搜索
     let semanticMatches: EnameSemanticMatch[] = [];
     try {
       let semanticQuery = `适合${genderCn}的英文名字`;
       if (needs.length > 0) semanticQuery += `，含义${needs.join("、")}`;
       if (style) semanticQuery += `，${style}风格`;
       
-      // 加入中文名字信息，使语义搜索能匹配到中文译名相近的英文名
       const nameForSearch = fullName || surname;
       if (nameForSearch && nameForSearch.length > 0) {
-        // 提取每个汉字作为关键词，帮助向量搜索匹配中文译名
         const chars = nameForSearch.replace(/\s/g, "").split("");
         const uniqueChars = [...new Set(chars)];
         semanticQuery += `，中文名「${nameForSearch}」发音相近、中文译名包含「${uniqueChars.slice(0, 3).join("、")}」`;
@@ -376,6 +375,22 @@ export async function generateEnglishNames(
       semanticMatches = await semanticSearchEname(semanticQuery, { limit: 60, threshold: 0.45, gender });
     } catch (error) {
       console.error("[ename-generator] 语义搜索失败（不影响主流程）:", error);
+    }
+
+    // 拼音发音匹配（根据中文名发音搜索近似英文名）
+    let phoneticMatches: PhoneticMatchResult[] = [];
+    const nameForPhonetic = fullName || surname;
+    if (nameForPhonetic && nameForPhonetic.length > 0) {
+      try {
+        phoneticMatches = searchByPhoneticMatch(nameForPhonetic, gender, 50);
+      } catch (error) {
+        console.error("[ename-generator] 拼音发音匹配失败（不影响主流程）:", error);
+      }
+    }
+    // 创建拼音匹配得分查找表（name -> score）
+    const phoneticMatchMap = new Map<string, number>();
+    for (const pm of phoneticMatches) {
+      phoneticMatchMap.set(pm.name.toLowerCase(), pm.combinedScore);
     }
 
     // 候选池
@@ -413,9 +428,19 @@ export async function generateEnglishNames(
         if (sm) semanticBonus = Math.round(sm.similarity * 30);
       }
 
+      // 拼音发音匹配加分（提升发音贴近中文名的英文名排名）
+      let phoneticBonus = 0;
+      const recordFullPhoneticScore = phoneticMatchMap.get(record.name.toLowerCase()) || 0;
+      if (recordFullPhoneticScore > 0) {
+        // 拼音匹配分数越高，加分越多（最高+35分）
+        phoneticBonus = Math.round((recordFullPhoneticScore / 100) * 35);
+      }
+      // 如果已有首字母匹配且还有全拼音匹配，取较高值
+      const effectivePhoneticScore = Math.max(phoneticScore, phoneticBonus > 0 ? phoneticBonus : 0);
+
       const totalScore = Math.round(
-        phoneticScore * 0.25 + meaningScore * 0.20 + styleScore * 0.15 +
-        popularityScore * 0.10 + lengthScore * 0.10 + semanticBonus
+        effectivePhoneticScore * 0.25 + meaningScore * 0.20 + styleScore * 0.15 +
+        popularityScore * 0.10 + lengthScore * 0.10 + semanticBonus + phoneticBonus * 0.5
       );
       const avoidPenalty = avoidCheck.reasons.length * 10;
       const finalScore = Math.max(0, Math.min(100, totalScore - avoidPenalty));
@@ -435,14 +460,15 @@ export async function generateEnglishNames(
       let adaptationNote = `你的${gender === "male" ? "姓氏" : "姓名"}「${surname}」`;
       if (givenName) adaptationNote += `${givenName}`;
       adaptationNote += `，推荐「${record.name}」(${record.name[0].toUpperCase()}开头)`;
-      if (phoneticScore >= 60) adaptationNote += `，发音与姓氏相近，`;
+      if (effectivePhoneticScore >= 60) adaptationNote += `，发音与中文名相近，`;
       if (meaningScore >= 60 && needs.length > 0) adaptationNote += `含义契合「${needs.slice(0, 2).join("、")}」`;
+      if (recordFullPhoneticScore > 50) adaptationNote += `（全拼音发音匹配度${recordFullPhoneticScore}%）`;
       adaptationNote += `。综合评分${finalScore}分。`;
 
       scoredResults.push({
         name: record.name, gender: record.gender, phonetic: record.phonetic, chinese: record.chinese,
         origin: record.origin, popularity: record.popularity, meaning: record.meaning,
-        firstLetter: record.firstLetter, score: finalScore, phoneticScore, meaningScore,
+        firstLetter: record.firstLetter, score: finalScore, phoneticScore: effectivePhoneticScore, meaningScore,
         styleScore, popularityScore, lengthScore, tags: [...new Set(tags)], adaptationNote,
       });
     }
