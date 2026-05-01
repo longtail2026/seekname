@@ -83,26 +83,37 @@ function calcPhoneticScore(
   const tags: string[] = [];
   
   if (!givenNamePinyin) {
-    return { score: 30, detail: "无法计算发音匹配", tags: [] };
+    return { score: 20, detail: "无法计算发音匹配", tags: [] };
   }
   
   const result = matchPronunciation(givenNamePinyin, name);
   
+  // ★★★ V4.2 更严格的评分映射 ★★★
+  // V4以前：0.5→60（太松，Diana得60进入结果集）
+  // V4.2：提高硬性门槛，确保排在前面的名字发音确实接近
+  // 0.9+ 完美匹配（所有音节都良好匹配）
+  // 0.7+ 良好匹配（过半音节良好匹配，其余至少fair）
+  // 0.5+ 部分匹配（多音节有零分时，或单音节一般匹配）
+  // 0.3+ 弱匹配（不太可能发音接近）
+  // <0.3 很差或无匹配
   if (result.score >= 0.9) {
     tags.push("发音完美贴合中文名");
     return { score: 95, detail: result.detail, tags };
   } else if (result.score >= 0.7) {
     tags.push("发音近似中文名");
-    return { score: 80, detail: result.detail, tags };
+    return { score: 75, detail: result.detail, tags };
   } else if (result.score >= 0.5) {
     tags.push("发音部分匹配中文名");
-    return { score: 60, detail: result.detail, tags };
+    return { score: 50, detail: result.detail, tags };
   } else if (result.score >= 0.3) {
     tags.push("发音弱相关");
-    return { score: 40, detail: result.detail, tags };
+    return { score: 30, detail: result.detail, tags };
+  } else if (result.score >= 0.15) {
+    tags.push("发音勉强相关");
+    return { score: 15, detail: result.detail, tags };
   }
   
-  return { score: 10, detail: result.detail, tags };
+  return { score: 0, detail: result.detail, tags };
 }
 
 /**
@@ -301,12 +312,20 @@ export async function generateEnglishNames(
     const nameForPhonetic = fullName || surname;
     const pinyinInfo = getChineseNamePinyin(nameForPhonetic);
     
+    // ★★★ V4增强：当用户勾选"谐音贴近中文名"时，同时使用全名拼音（姓氏+名字）进行匹配 ★★★
+    // 因为英文名通常以姓氏+名字形式展示，全名发音匹配更准确
+    const hasPhoneticNeed = needs.includes("谐音贴近中文名");
+    
+    // 如果提供了全名且勾选了谐音选项，同时用全名拼音和名字拼音做匹配
+    let fullNamePinyinInfo = pinyinInfo;
+    if (fullName && hasPhoneticNeed) {
+      fullNamePinyinInfo = getChineseNamePinyin(fullName);
+    }
+    
     // 语义搜索（包含中文名拼音发音信息）
     let semanticMatches: EnameSemanticMatch[] = [];
     try {
-      // ★★★ 核心修复：语义搜索 query 必须包含中文名的拼音发音信息 ★★★
-      // 这样 BGE-M3 才能搜索到发音近似中文名的英文名，
-      // 而不仅仅是按"适合男性/女性+含义需求+风格"来匹配
+      // 语义搜索 query 必须包含中文名的拼音发音信息
       let semanticQuery = `适合${genderCn}的英文名字`;
       if (pinyinInfo.givenName) {
         semanticQuery += `，发音近似"${pinyinInfo.givenName}"，拼音为"${pinyinInfo.givenName}"`;
@@ -315,8 +334,8 @@ export async function generateEnglishNames(
       if (style) semanticQuery += `，${style}风格`;
       
       semanticMatches = await semanticSearchEname(semanticQuery, { 
-        limit: 80, 
-        threshold: 0.40,    // 降低阈值，让更多候选名进入
+        limit: 60, 
+        threshold: 0.40,
         gender 
       });
     } catch (error) {
@@ -333,10 +352,17 @@ export async function generateEnglishNames(
           meaning: r.meaning, 
           gender: r.gender 
         }));
+        
+        // ★★★ V4增强：使用全名拼音（姓氏+名字）进行匹配搜索 ★★★
+        // 对于"张国光"→"zhang guo guang"，全名匹配可以找到 Gordon (gor≈guo, don≈guang)
+        const searchPinyin = hasPhoneticNeed && fullNamePinyinInfo.fullPinyin 
+          ? fullNamePinyinInfo.fullPinyin 
+          : pinyinInfo.givenName;
+          
         phoneticMatchedNames = searchByPhoneticMatch(
-          pinyinInfo.givenName, 
+          searchPinyin, 
           namesForMatch, 
-          100  // 取 top 100
+          100
         );
       } catch (error) {
         console.error("[ename-generator] 拼音发音匹配失败（不影响主流程）:", error);
@@ -422,11 +448,18 @@ export async function generateEnglishNames(
       // 它比 semanticBonus 更可靠地反映"和中文名读音相似度"
       const effectivePhoneticScore = phoneticResult.score;
 
+      // ★★★ V4.2 核心优化：当用户选择"谐音贴近中文名"时，发音匹配结果必须过硬 ★★★
+      // 硬性过滤：如果勾选了"谐音贴近中文名"，phoneticScore < 60 的名字直接砍掉
+      // V4.1 之前是60（太松，但那时评分映射太松，Diana/71分能通过）
+      // V4.2 评分映射收紧后，60分及以上的结果是真正的合理匹配
+      const hasPhoneticNeed = needs.includes("谐音贴近中文名");
+      const isPhoneticPass = !hasPhoneticNeed || effectivePhoneticScore >= 60;
+      
       // ★★★ 综合评分公式优化：以发音匹配为主导 ★★★
       // 权重分配：发音40% + 含义20% + 风格15% + 流行度10% + 长度10% + 语义加分5%
       // 这样发音匹配好的名字（如 li↔Elia/Eli）必定排在前面，
       // 不会出现"无发音匹配但语义"超高的名字排在前面的情况
-      const totalScore = Math.round(
+      let totalScore = Math.round(
         effectivePhoneticScore * 0.40 + 
         meaningScore * 0.20 + 
         styleScore * 0.15 +
@@ -434,6 +467,11 @@ export async function generateEnglishNames(
         lengthScore * 0.10 + 
         semanticBonus
       );
+      
+      // 发音硬性过滤：不符合发音标准的名字直接打零分
+      if (!isPhoneticPass) {
+        totalScore = 0;
+      }
       
       const avoidPenalty = avoidCheck.reasons.length * 10;
       let finalScore = Math.max(0, Math.min(100, totalScore - avoidPenalty));
@@ -490,15 +528,28 @@ export async function generateEnglishNames(
       });
     }
 
+    // ★★★ V4.2 新增：过滤零分结果 ★★★
+    // 原因：发音匹配为0的名字不应该出现在结果集中
+    // 例如"xiao yan"匹配"Diana"→得分0（因为xiao为零分音节，totalScore被设为0）
+    // 这些名字根本不发音接近，展示出来只会让用户困惑
+    const meaningfulResults = scoredResults.filter(r => r.score > 0);
+    
+    // 如果过滤后结果太少，最多允许保留一些 phoneticscore>0 但综合分不高的
+    const filteredResults = meaningfulResults.length >= count 
+      ? meaningfulResults 
+      : meaningfulResults.length > 0 
+        ? meaningfulResults 
+        : scoredResults.filter(r => r.phoneticScore > 0);
+    
     // 排序：综合分数 + 拼音匹配度加权
-    scoredResults.sort((a, b) => {
+    filteredResults.sort((a, b) => {
       // 综合分优先
       if (b.score !== a.score) return b.score - a.score;
       // 同分时拼音匹配度高的排前面
       return b.phoneticScore - a.phoneticScore;
     });
     
-    const topResults = scoredResults.slice(0, Math.max(count, 20));
+    const topResults = filteredResults.slice(0, Math.max(count, 20));
 
     return { 
       success: true, 
