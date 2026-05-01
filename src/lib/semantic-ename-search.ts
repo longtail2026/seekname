@@ -204,7 +204,11 @@ export async function semanticSearchEname(
 
     // 构建动态 WHERE 条件
     const conditions: string[] = ["embedding IS NOT NULL"];
-    const params: unknown[] = [limit, vectorStr, threshold / 2]; // 余弦距离阈值 = (1 - threshold) / 2 的近似
+    // BGE-M3 使用归一化向量，cosine distance 范围 [0, 2]
+    // 用户传入的 threshold 是相似度阈值 (0~1)，需要转换为距离阈值
+    // similarity >= threshold → 1 - distance/2 >= threshold → distance <= 2 * (1 - threshold)
+    const distanceThreshold = 2 * (1 - threshold);
+    const params: unknown[] = [limit, vectorStr, distanceThreshold];
 
     // 性别过滤
     if (options.gender && options.gender !== "all") {
