@@ -1,13 +1,23 @@
 /**
- * 英文起名引擎
+ * 英文起名引擎 v2.0
  * 
- * 结合 ename-dict 词典数据 + 语义搜索 + 多维度评分，
- * 根据用户输入（姓氏、性别、需求、风格等）生成匹配的英文名推荐。
+ * 全新算法架构：
+ * 1. 按【中文名拼音发音】匹配英文名（ename-phonetic）
+ * 2. 按【姓氏】匹配英文姓氏变体（ename-surname-map）
+ * 3. 组合输出：英文名（发音匹配）+ 英文姓氏变体 + 中文名
+ * 4. 黑名单过滤 + 多维度评分排序
  */
 
 import { getAllRecords, searchNames, type EnameRecord } from "./ename-dict";
 import { semanticSearchEname, type EnameSemanticMatch } from "./semantic-ename-search";
-import { searchByPhoneticMatch, type PhoneticMatchResult } from "./ename-phonetic";
+import { 
+  getChineseNamePinyin, 
+  searchByPhoneticMatch, 
+  matchPronunciation,
+  type PhoneticMatchResult 
+} from "./ename-phonetic";
+import { getRecommendedSurnameSpellings, getSurnamePinyin } from "./ename-surname-map";
+import { isHardBlocked, getBlacklistPenalty } from "./ename-blacklist";
 
 // ===== 类型定义 =====
 
@@ -39,173 +49,66 @@ export interface EnameScoredResult {
   popularity: string;
   meaning: string;
   firstLetter: string;
+  /** 综合评分（0-100） */
   score: number;
+  /** 发音匹配分数（0-100） */
   phoneticScore: number;
+  /** 含义匹配分数（0-100） */
   meaningScore: number;
+  /** 风格匹配分数（0-100） */
   styleScore: number;
+  /** 流行度分数（0-100） */
   popularityScore: number;
+  /** 长度分数（0-100） */
   lengthScore: number;
+  /** 标签 */
   tags: string[];
+  /** 个性化推荐说明 */
   adaptationNote: string;
-}
-
-// ===== 姓氏首字母映射 =====
-const SURNAME_PHONETIC_MAP: Record<string, string[]> = {
-  "李": ["L", "E", "I"], "王": ["W", "V", "U"], "张": ["Z", "J", "C"],
-  "刘": ["L", "E", "I"], "陈": ["C", "S", "J"], "杨": ["Y", "E", "I"],
-  "赵": ["Z", "J", "C"], "黄": ["H", "W", "U"], "周": ["Z", "J", "C"],
-  "吴": ["W", "U", "V"], "徐": ["X", "S", "C"], "孙": ["S", "X", "C"],
-  "马": ["M", "N"], "胡": ["H", "F", "U"], "朱": ["Z", "J", "G"],
-  "郭": ["G", "K", "C"], "何": ["H", "E", "I"], "罗": ["L", "R", "N"],
-  "高": ["G", "K", "C"], "林": ["L", "N"], "梁": ["L", "E", "N"],
-  "郑": ["Z", "J", "C"], "谢": ["X", "S", "C"], "宋": ["S", "C", "X"],
-  "唐": ["T", "D", "C"], "许": ["X", "S", "H"], "韩": ["H", "C", "K"],
-  "冯": ["F", "P", "H"], "邓": ["D", "T", "G"], "曹": ["C", "K", "S"],
-  "彭": ["P", "B", "F"], "曾": ["Z", "C", "S"], "萧": ["X", "S", "C"],
-  "田": ["T", "D", "C"], "董": ["D", "T", "B"], "潘": ["P", "B", "F"],
-  "袁": ["Y", "U"], "蔡": ["C", "S", "T"], "蒋": ["J", "C", "Z"],
-  "余": ["Y", "E", "U"], "叶": ["Y", "E", "I"], "程": ["C", "S", "J"],
-  "苏": ["S", "C", "Z"], "吕": ["L", "E", "I"], "魏": ["W", "U", "V"],
-  "丁": ["D", "T", "C"], "沈": ["S", "C", "J"], "任": ["R", "L", "N"],
-  "姚": ["Y", "E", "I"], "卢": ["L", "R", "N"], "傅": ["F", "P", "H"],
-  "钟": ["Z", "C", "G"], "崔": ["C", "T", "S"], "汪": ["W", "V", "U"],
-  "范": ["F", "V", "P"], "陆": ["L", "R", "N"], "廖": ["L", "E", "N"],
-  "杜": ["D", "T", "G"], "方": ["F", "P", "H"], "石": ["S", "C", "Z"],
-  "熊": ["X", "S", "C"], "金": ["J", "G", "C"], "邱": ["Q", "C", "K"],
-  "侯": ["H", "C", "K"], "白": ["B", "P", "F"], "江": ["J", "G", "C"],
-  "史": ["S", "C", "Z"], "龙": ["L", "N", "R"], "万": ["W", "V", "M"],
-  "段": ["D", "T", "Z"], "雷": ["L", "R", "N"], "钱": ["Q", "C", "K"],
-  "汤": ["T", "D", "C"], "尹": ["Y", "E", "I"], "易": ["Y", "E", "I"],
-  "常": ["C", "S", "J"], "武": ["W", "V", "U"], "乔": ["Q", "C", "J"],
-  "贺": ["H", "C", "K"], "赖": ["L", "R", "N"], "龚": ["G", "K", "C"],
-  "文": ["W", "V", "U"], "欧": ["O", "A", "U"],
-};
-
-function getSurnameLetters(surname: string): string[] {
-  const s = surname?.trim() || "";
-  if (!s) return [];
-  const found = SURNAME_PHONETIC_MAP[s];
-  if (found) return found;
-  const firstPinyin = s[0];
-  const pinyinMap: Record<string, string[]> = {
-    "b": ["B", "P", "F"], "p": ["P", "B", "F"], "m": ["M", "N"],
-    "f": ["F", "P", "H"], "d": ["D", "T", "G"], "t": ["T", "D", "C"],
-    "n": ["N", "L", "M"], "l": ["L", "N", "R"], "g": ["G", "K", "C"],
-    "k": ["K", "C", "G"], "h": ["H", "F", "W"], "j": ["J", "Z", "G"],
-    "q": ["Q", "C", "K"], "x": ["X", "S", "C"], "zh": ["Z", "J", "C"],
-    "ch": ["C", "S", "J"], "sh": ["S", "C", "X"], "r": ["R", "L"],
-    "z": ["Z", "J", "C"], "c": ["C", "S", "Z"], "s": ["S", "C", "X"],
-    "y": ["Y", "E", "I"], "w": ["W", "V", "U"],
-  };
-  return pinyinMap[firstPinyin] || ["A", "E", "I", "O", "U", "Y"];
-}
-
-/** 简单映射：常用汉字 -> 拼音首字母 */
-function getChineseFirstLetter(char: string): string {
-  const pinyinMap: Record<string, string> = {
-    "爱": "A", "安": "A", "奥": "A",
-    "白": "B", "柏": "B", "宝": "B", "博": "B",
-    "才": "C", "彩": "C", "灿": "C", "晨": "C", "成": "C", "程": "C", "超": "C",
-    "达": "D", "丹": "D", "德": "D", "东": "D",
-    "恩": "E", "尔": "E",
-    "发": "F", "方": "F", "芳": "F", "菲": "F", "芬": "F", "丰": "F", "福": "F", "芙": "F",
-    "高": "G", "光": "G", "国": "G",
-    "海": "H", "涵": "H", "晗": "H", "浩": "H", "皓": "H", "华": "H", "辉": "H", "慧": "H",
-    "佳": "J", "嘉": "J", "杰": "J", "洁": "J", "金": "J", "景": "J", "静": "J", "君": "J", "俊": "J",
-    "凯": "K", "可": "K", "坤": "K",
-    "兰": "L", "朗": "L", "乐": "L", "磊": "L", "丽": "L", "莉": "L", "琳": "L", "玲": "L", "龙": "L", "露": "L", "罗": "L", "洛": "L",
-    "马": "M", "曼": "M", "梅": "M", "美": "M", "梦": "M", "敏": "M", "明": "M", "铭": "M",
-    "楠": "N", "宁": "N", "诺": "N",
-    "欧": "O",
-    "佩": "P", "鹏": "P", "萍": "P", "璞": "P",
-    "琪": "Q", "琦": "Q", "启": "Q", "倩": "Q", "晴": "Q", "秋": "Q", "群": "Q",
-    "然": "R", "仁": "R", "荣": "R", "蓉": "R", "瑞": "R", "润": "R", "若": "R",
-    "珊": "S", "诗": "S", "姝": "S", "淑": "S", "思": "S", "松": "S",
-    "涛": "T", "天": "T", "恬": "T", "婷": "T", "彤": "T",
-    "婉": "W", "万": "W", "威": "W", "薇": "W", "维": "W", "伟": "W", "文": "W", "雯": "W",
-    "西": "X", "希": "X", "溪": "X", "熙": "X", "曦": "X", "潇": "X", "晓": "X", "欣": "X", "星": "X", "轩": "X", "萱": "X", "璇": "X", "雪": "X",
-    "雅": "Y", "阳": "Y", "瑶": "Y", "伊": "Y", "依": "Y", "怡": "Y", "艺": "Y", "英": "Y", "莹": "Y", "宇": "Y", "雨": "Y", "玉": "Y", "元": "Y", "悦": "Y", "云": "Y",
-    "泽": "Z", "哲": "Z", "珍": "Z", "振": "Z", "正": "Z", "志": "Z", "智": "Z", "中": "Z", "子": "Z", "紫": "Z",
-  };
-  return pinyinMap[char] || "";
+  /** 推荐全名（英文名 + 英文姓氏变体） */
+  recommendedFullName?: string;
+  /** 姓氏英文变体 */
+  surnameEnglish?: string;
 }
 
 // ===== 评分器 =====
 
 /**
- * 新版发音评分：优先使用 IPA 音标匹配引擎，
- * 兜底使用首字母匹配
+ * 发音评分：使用拼音发音匹配引擎
  */
 function calcPhoneticScore(
   name: string,
-  surname: string,
-  givenName?: string,
-  phoneticMatchScore?: number  // 来自 ename-phonetic 引擎的 IPA 匹配分数
-): { score: number; tags: string[] } {
+  givenNamePinyin: string
+): { score: number; detail: string; tags: string[] } {
   const tags: string[] = [];
-  const firstLetter = name[0]?.toUpperCase() || "";
-  if (!firstLetter) return { score: 0, tags };
-
-  // 如果 IPA 发音匹配分数可用且有效，直接用它作为主要分数
-  if (phoneticMatchScore !== undefined && phoneticMatchScore > 0) {
-    const score = Math.round(phoneticMatchScore);
-    if (score >= 80) tags.push("发音完美贴合中文名（IPA音标匹配）");
-    else if (score >= 60) tags.push("发音近似中文名（IPA音标匹配）");
-    else if (score >= 40) tags.push("发音部分匹配中文名");
-    return { score, tags };
+  
+  if (!givenNamePinyin) {
+    return { score: 30, detail: "无法计算发音匹配", tags: [] };
   }
-
-  // 兜底：首字母/语音近似匹配
-  const surnameLetters = getSurnameLetters(surname);
-  let surnameScore = 0;
-  if (surnameLetters.length > 0) {
-    if (surnameLetters[0] === firstLetter) {
-      surnameScore = 100;
-      tags.push("姓氏谐音完美匹配");
-    } else if (surnameLetters.includes(firstLetter)) {
-      surnameScore = 70;
-      tags.push("姓氏谐音较好匹配");
-    } else {
-      const nearMap: Record<string, string[]> = {
-        "B": ["P", "F"], "P": ["B", "F"], "D": ["T"], "T": ["D"],
-        "G": ["K"], "K": ["G"], "L": ["N", "R"], "N": ["L"],
-        "M": ["N"], "S": ["C", "Z"], "C": ["S", "Z"], "Z": ["C", "S"],
-        "H": ["F"], "F": ["H"], "J": ["Z", "G"], "Y": ["E", "I"], "W": ["V", "U"],
-      };
-      const nearLetters = nearMap[firstLetter] || [];
-      if (surnameLetters.some((l) => nearLetters.includes(l))) {
-        surnameScore = 40;
-        tags.push("姓氏发音有一定关联");
-      } else {
-        surnameScore = 20;
-      }
-    }
-  } else {
-    surnameScore = 30;
+  
+  const result = matchPronunciation(givenNamePinyin, name);
+  
+  if (result.score >= 0.9) {
+    tags.push("发音完美贴合中文名");
+    return { score: 95, detail: result.detail, tags };
+  } else if (result.score >= 0.7) {
+    tags.push("发音近似中文名");
+    return { score: 80, detail: result.detail, tags };
+  } else if (result.score >= 0.5) {
+    tags.push("发音部分匹配中文名");
+    return { score: 60, detail: result.detail, tags };
+  } else if (result.score >= 0.3) {
+    tags.push("发音弱相关");
+    return { score: 40, detail: result.detail, tags };
   }
-
-  let givenNameScore = 0;
-  if (givenName && givenName.length > 0) {
-    const givenLetter = getChineseFirstLetter(givenName[0]);
-    if (givenLetter && givenLetter === firstLetter) {
-      givenNameScore = 100;
-      tags.push(`中文名「${givenName}」首字母完美匹配`);
-    } else if (givenLetter) {
-      const gSurnameLetters = getSurnameLetters(givenName[0]);
-      if (gSurnameLetters.includes(firstLetter)) {
-        givenNameScore = 60;
-        tags.push(`中文名「${givenName}」发音相近`);
-      } else {
-        givenNameScore = 20;
-      }
-    }
-  }
-
-  const finalScore = givenName ? Math.round(surnameScore * 0.6 + givenNameScore * 0.4) : surnameScore;
-  return { score: finalScore, tags };
+  
+  return { score: 10, detail: result.detail, tags };
 }
 
-function calcMeaningScore(meaning: string, needs: string[]): { score: number; tags: string[] } {
+/**
+ * 含义评分 - 匹配用户需求
+ */
+function calcMeaningScore(meaning: string, needs: string[], name?: string): { score: number; tags: string[] } {
   const tags: string[] = [];
   if (!needs || needs.length === 0 || !meaning) {
     return { score: 50, tags: ["含义信息不足，中评"] };
@@ -214,6 +117,7 @@ function calcMeaningScore(meaning: string, needs: string[]): { score: number; ta
   const meaningLower = meaning.toLowerCase();
   let matchCount = 0;
   const matchedNeeds: string[] = [];
+  const nameStr = name || "";
 
   for (const need of needs) {
     let matched = false;
@@ -241,7 +145,7 @@ function calcMeaningScore(meaning: string, needs: string[]): { score: number; ta
         matched = ["noble", "leader", "ruler", "king", "power", "strong", "dignity", "商务", "正式"].some(k => meaningLower.includes(k));
         break;
       case "简约好记":
-        matched = meaning.length >= 3 && meaning.length <= 5;
+        matched = nameStr.length >= 3 && nameStr.length <= 5;
         break;
       case "文艺小众":
         matched = ["poet", "muse", "lyric", "grace", "elegant", "art", "文艺", "优雅", "诗意"].some(k => meaningLower.includes(k));
@@ -250,7 +154,6 @@ function calcMeaningScore(meaning: string, needs: string[]): { score: number; ta
         matched = ["sweet", "joy", "happy", "love", "play", "bright", "merry", "可爱", "快乐", "甜蜜"].some(k => meaningLower.includes(k));
         break;
       default:
-        // 自定义需求：直接搜索关键词
         matched = meaningLower.includes(need.toLowerCase());
     }
 
@@ -271,10 +174,12 @@ function calcMeaningScore(meaning: string, needs: string[]): { score: number; ta
   return { score, tags };
 }
 
+/**
+ * 风格评分
+ */
 function calcStyleScore(meaning: string, name: string, style?: string): { score: number; tags: string[] } {
   const tags: string[] = [];
   const meaningLower = (meaning || "").toLowerCase();
-  const nameLower = name.toLowerCase();
 
   if (!style) return { score: 50, tags: [] };
 
@@ -309,13 +214,16 @@ function calcStyleScore(meaning: string, name: string, style?: string): { score:
       keywordCheck = () => false;
   }
 
-  const matched = keywordCheck(meaningLower, nameLower);
+  const matched = keywordCheck(meaningLower, name.toLowerCase());
   const score = matched ? 80 : 40;
   if (matched) tags.push(`风格匹配「${style}」`);
 
   return { score, tags };
 }
 
+/**
+ * 流行度评分
+ */
 function calcPopularityScore(popularity: string): number {
   switch (popularity) {
     case "★★★": return 90;
@@ -325,6 +233,9 @@ function calcPopularityScore(popularity: string): number {
   }
 }
 
+/**
+ * 长度评分
+ */
 function calcLengthScore(name: string, preference?: "short" | "medium" | "long"): number {
   const len = name.length;
   if (!preference) return 50;
@@ -335,11 +246,20 @@ function calcLengthScore(name: string, preference?: "short" | "medium" | "long")
   }
 }
 
+/**
+ * 避坑规则检查
+ */
 function checkAvoidRules(name: string, meaning: string, popularity: string, avoidFlags?: string[]): { passed: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (!avoidFlags || avoidFlags.length === 0) return { passed: true, reasons };
 
   const meaningLower = (meaning || "").toLowerCase();
+
+  // 黑名单检查
+  const blacklistCheck = getBlacklistPenalty(name);
+  if (blacklistCheck.reason) {
+    reasons.push(`黑名单：${blacklistCheck.reason}`);
+  }
 
   for (const flag of avoidFlags) {
     switch (flag) {
@@ -377,53 +297,88 @@ export async function generateEnglishNames(
       return { success: false, data: [], totalCandidates: 0, message: "没有找到匹配性别的英文名" };
     }
 
-    // 语义搜索
+    // 解析中文名拼音
+    const nameForPhonetic = fullName || surname;
+    const pinyinInfo = getChineseNamePinyin(nameForPhonetic);
+    
+    // 语义搜索（包含中文名拼音发音信息）
     let semanticMatches: EnameSemanticMatch[] = [];
     try {
+      // ★★★ 核心修复：语义搜索 query 必须包含中文名的拼音发音信息 ★★★
+      // 这样 BGE-M3 才能搜索到发音近似中文名的英文名，
+      // 而不仅仅是按"适合男性/女性+含义需求+风格"来匹配
       let semanticQuery = `适合${genderCn}的英文名字`;
+      if (pinyinInfo.givenName) {
+        semanticQuery += `，发音近似"${pinyinInfo.givenName}"，拼音为"${pinyinInfo.givenName}"`;
+      }
       if (needs.length > 0) semanticQuery += `，含义${needs.join("、")}`;
       if (style) semanticQuery += `，${style}风格`;
       
-      const nameForSearch = fullName || surname;
-      if (nameForSearch && nameForSearch.length > 0) {
-        const chars = nameForSearch.replace(/\s/g, "").split("");
-        const uniqueChars = Array.from(new Set(chars));
-        semanticQuery += `，中文名「${nameForSearch}」发音相近、中文译名包含「${uniqueChars.slice(0, 3).join("、")}」`;
-      }
-      
-      semanticMatches = await semanticSearchEname(semanticQuery, { limit: 60, threshold: 0.45, gender });
+      semanticMatches = await semanticSearchEname(semanticQuery, { 
+        limit: 80, 
+        threshold: 0.40,    // 降低阈值，让更多候选名进入
+        gender 
+      });
     } catch (error) {
       console.error("[ename-generator] 语义搜索失败（不影响主流程）:", error);
     }
 
-    // 拼音发音匹配（根据中文名发音搜索近似英文名）
-    let phoneticMatches: PhoneticMatchResult[] = [];
-    const nameForPhonetic = fullName || surname;
-    if (nameForPhonetic && nameForPhonetic.length > 0) {
+    // ===== 发音匹配搜索 =====
+    // 使用拼音引擎搜索发音匹配的英文名
+    let phoneticMatchedNames: Array<{ name: string; meaning?: string; gender?: string; phoneticScore: number; phoneticDetail: string }> = [];
+    if (pinyinInfo.givenName) {
       try {
-        phoneticMatches = searchByPhoneticMatch(nameForPhonetic, gender, 50);
+        const namesForMatch = candidates.map(r => ({ 
+          name: r.name, 
+          meaning: r.meaning, 
+          gender: r.gender 
+        }));
+        phoneticMatchedNames = searchByPhoneticMatch(
+          pinyinInfo.givenName, 
+          namesForMatch, 
+          100  // 取 top 100
+        );
       } catch (error) {
         console.error("[ename-generator] 拼音发音匹配失败（不影响主流程）:", error);
       }
     }
-    // 创建拼音匹配得分查找表（name -> score）
+
+    // 创建拼音匹配得分查找表
     const phoneticMatchMap = new Map<string, number>();
-    for (const pm of phoneticMatches) {
-      phoneticMatchMap.set(pm.name.toLowerCase(), pm.combinedScore);
+    for (const pm of phoneticMatchedNames) {
+      phoneticMatchMap.set(pm.name.toLowerCase(), pm.phoneticScore);
     }
 
-    // 候选池
+    // ===== 姓氏英文变体 =====
+    const surnameSpellings = getRecommendedSurnameSpellings(surname);
+    const surnameEnglish = surnameSpellings.length > 0 ? 
+      surnameSpellings[0] : 
+      surname.charAt(0).toUpperCase();
+
+    // 候选池：优先从语义匹配和拼音匹配中取，不足时补充热门名
     let namePool: EnameRecord[];
-    if (semanticMatches.length > 0) {
-      const semanticNameSet = new Set(semanticMatches.map((m) => m.name));
-      const matchedRecords = candidates.filter((r) => semanticNameSet.has(r.name));
-      const unmatched = candidates.filter((r) => !semanticNameSet.has(r.name));
-      const supplementCount = Math.max(0, 100 - matchedRecords.length);
-      const supplemented = unmatched.sort((a, b) => (b.popularity?.length || 0) - (a.popularity?.length || 0)).slice(0, supplementCount);
-      namePool = [...matchedRecords, ...supplemented];
-    } else {
-      namePool = candidates.sort((a, b) => (b.popularity?.length || 0) - (a.popularity?.length || 0)).slice(0, 200);
+    const semanticNameSet = new Set(semanticMatches.map((m) => m.name));
+    const phoneticNameSet = new Set(phoneticMatchedNames.map((m) => m.name));
+    
+    // 同时出现在语义和拼音匹配中的优先
+    const priorityNames = new Set<string>();
+    for (const n of semanticNameSet) {
+      if (phoneticNameSet.has(n)) priorityNames.add(n);
     }
+
+    const priorityRecords = candidates.filter(r => priorityNames.has(r.name));
+    const semanticOnly = candidates.filter(r => semanticNameSet.has(r.name) && !priorityNames.has(r.name));
+    const phoneticOnly = candidates.filter(r => phoneticNameSet.has(r.name) && !priorityNames.has(r.name) && !semanticNameSet.has(r.name));
+    
+    // 补充最流行的候选名
+    const usedNames = new Set([...priorityNames, ...semanticNameSet, ...phoneticNameSet]);
+    const remaining = candidates.filter(r => !usedNames.has(r.name));
+    const supplementCount = Math.max(0, 200 - (priorityRecords.length + semanticOnly.length + phoneticOnly.length));
+    const supplemented = remaining
+      .sort((a, b) => (b.popularity?.length || 0) - (a.popularity?.length || 0))
+      .slice(0, supplementCount);
+
+    namePool = [...priorityRecords, ...semanticOnly, ...phoneticOnly, ...supplemented];
 
     // 分割全名
     let givenName = "";
@@ -434,38 +389,61 @@ export async function generateEnglishNames(
     const scoredResults: EnameScoredResult[] = [];
 
     for (const record of namePool) {
-      const { score: phoneticScore, tags: phoneticTags } = calcPhoneticScore(record.name, surname, givenName || undefined);
-      const { score: meaningScore, tags: meaningTags } = calcMeaningScore(record.meaning, needs);
+      // 硬黑名单拦截
+      if (isHardBlocked(record.name)) {
+        continue;
+      }
+
+      // 发音评分（使用拼音匹配引擎）
+      const phoneticResult = calcPhoneticScore(record.name, pinyinInfo.givenName);
+      
+      // 含义匹配评分
+      const { score: meaningScore, tags: meaningTags } = calcMeaningScore(record.meaning, needs, record.name);
+      
+      // 风格评分
       const { score: styleScore, tags: styleTags } = calcStyleScore(record.meaning, record.name, style);
+      
+      // 流行度 + 长度评分
       const popularityScore = calcPopularityScore(record.popularity);
       const lengthScore = calcLengthScore(record.name, lengthPreference);
+      
+      // 避坑规则
       const avoidCheck = checkAvoidRules(record.name, record.meaning, record.popularity, avoidFlags);
 
+      // 语义搜索加分（仅作为小幅加成，不再超过发音权重）
       let semanticBonus = 0;
       if (semanticMatches.length > 0) {
         const sm = semanticMatches.find((m) => m.name.toLowerCase() === record.name.toLowerCase());
-        if (sm) semanticBonus = Math.round(sm.similarity * 30);
+        if (sm) semanticBonus = Math.round(sm.similarity * 15);  // 减小到最高+15
       }
+      
+      // ★★★ 核心修复：发音匹配作为最重权重 ★★★
+      // phoneticResult.score 直接来自 matchPronunciation 引擎（0-100），
+      // 它比 semanticBonus 更可靠地反映"和中文名读音相似度"
+      const effectivePhoneticScore = phoneticResult.score;
 
-      // 拼音发音匹配加分（提升发音贴近中文名的英文名排名）
-      let phoneticBonus = 0;
-      const recordFullPhoneticScore = phoneticMatchMap.get(record.name.toLowerCase()) || 0;
-      if (recordFullPhoneticScore > 0) {
-        // 拼音匹配分数越高，加分越多（最高+35分）
-        phoneticBonus = Math.round((recordFullPhoneticScore / 100) * 35);
-      }
-      // 如果已有首字母匹配且还有全拼音匹配，取较高值
-      const effectivePhoneticScore = Math.max(phoneticScore, phoneticBonus > 0 ? phoneticBonus : 0);
-
+      // ★★★ 综合评分公式优化：以发音匹配为主导 ★★★
+      // 权重分配：发音40% + 含义20% + 风格15% + 流行度10% + 长度10% + 语义加分5%
+      // 这样发音匹配好的名字（如 li↔Elia/Eli）必定排在前面，
+      // 不会出现"无发音匹配但语义"超高的名字排在前面的情况
       const totalScore = Math.round(
-        effectivePhoneticScore * 0.25 + meaningScore * 0.20 + styleScore * 0.15 +
-        popularityScore * 0.10 + lengthScore * 0.10 + semanticBonus + phoneticBonus * 0.5
+        effectivePhoneticScore * 0.40 + 
+        meaningScore * 0.20 + 
+        styleScore * 0.15 +
+        popularityScore * 0.10 + 
+        lengthScore * 0.10 + 
+        semanticBonus
       );
+      
       const avoidPenalty = avoidCheck.reasons.length * 10;
-      const finalScore = Math.max(0, Math.min(100, totalScore - avoidPenalty));
+      let finalScore = Math.max(0, Math.min(100, totalScore - avoidPenalty));
+
+      // 黑名单软惩罚
+      const { penalty: blacklistPenalty, reason: blacklistReason } = getBlacklistPenalty(record.name);
+      finalScore = Math.max(0, finalScore - Math.round(blacklistPenalty * 0.3));  // 软惩罚降权30%
 
       const tags: string[] = [];
-      tags.push(...phoneticTags.filter((t) => !t.includes("信息不足")));
+      tags.push(...phoneticResult.tags.filter((t) => !t.includes("信息不足")));
       tags.push(...meaningTags);
       tags.push(...styleTags);
       if (lengthScore >= 80) {
@@ -475,29 +453,65 @@ export async function generateEnglishNames(
       if (popularityScore >= 70) tags.push("较流行");
       else if (popularityScore <= 30) tags.push("小众");
       if (avoidCheck.reasons.length > 0) tags.push(...avoidCheck.reasons.map((r) => `⚠️${r}`));
+      if (blacklistReason) tags.push(`⚠️${blacklistReason}`);
 
+      // 生成推荐全名
+      const recommendedFullName = `${record.name} ${surnameEnglish}`;
       let adaptationNote = `你的${gender === "male" ? "姓氏" : "姓名"}「${surname}」`;
       if (givenName) adaptationNote += `${givenName}`;
-      adaptationNote += `，推荐「${record.name}」(${record.name[0].toUpperCase()}开头)`;
-      if (effectivePhoneticScore >= 60) adaptationNote += `，发音与中文名相近，`;
-      if (meaningScore >= 60 && needs.length > 0) adaptationNote += `含义契合「${needs.slice(0, 2).join("、")}」`;
-      if (recordFullPhoneticScore > 50) adaptationNote += `（全拼音发音匹配度${recordFullPhoneticScore}%）`;
+      adaptationNote += `，推荐「${record.name}」`;
+      if (effectivePhoneticScore >= 60) adaptationNote += `，发音与中文名相近`;
+      else if (phoneticResult.detail !== '无匹配') adaptationNote += `，${phoneticResult.detail}`;
+      if (meaningScore >= 60 && needs.length > 0) adaptationNote += `，含义契合「${needs.slice(0, 2).join("、")}」`;
       adaptationNote += `。综合评分${finalScore}分。`;
+      if (surnameSpellings.length > 0) {
+        adaptationNote += ` 姓氏「${surname}」推荐英文变体「${surnameEnglish}」`;
+      }
 
       scoredResults.push({
-        name: record.name, gender: record.gender, phonetic: record.phonetic, chinese: record.chinese,
-        origin: record.origin, popularity: record.popularity, meaning: record.meaning,
-        firstLetter: record.firstLetter, score: finalScore, phoneticScore: effectivePhoneticScore, meaningScore,
-        styleScore, popularityScore, lengthScore, tags: Array.from(new Set(tags)), adaptationNote,
+        name: record.name,
+        gender: record.gender,
+        phonetic: record.phonetic,
+        chinese: record.chinese,
+        origin: record.origin,
+        popularity: record.popularity,
+        meaning: record.meaning,
+        firstLetter: record.firstLetter,
+        score: finalScore,
+        phoneticScore: effectivePhoneticScore,
+        meaningScore,
+        styleScore,
+        popularityScore,
+        lengthScore,
+        tags: Array.from(new Set(tags)),
+        adaptationNote,
+        recommendedFullName,
+        surnameEnglish,
       });
     }
 
-    scoredResults.sort((a, b) => b.score - a.score);
+    // 排序：综合分数 + 拼音匹配度加权
+    scoredResults.sort((a, b) => {
+      // 综合分优先
+      if (b.score !== a.score) return b.score - a.score;
+      // 同分时拼音匹配度高的排前面
+      return b.phoneticScore - a.phoneticScore;
+    });
+    
     const topResults = scoredResults.slice(0, Math.max(count, 20));
 
-    return { success: true, data: topResults, totalCandidates: candidates.length };
+    return { 
+      success: true, 
+      data: topResults, 
+      totalCandidates: candidates.length 
+    };
   } catch (error) {
     console.error("[ename-generator] 生成英文名失败:", error);
-    return { success: false, data: [], totalCandidates: 0, message: `生成失败: ${error instanceof Error ? error.message : "未知错误"}` };
+    return { 
+      success: false, 
+      data: [], 
+      totalCandidates: 0, 
+      message: `生成失败: ${error instanceof Error ? error.message : "未知错误"}` 
+    };
   }
 }

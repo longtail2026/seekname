@@ -26,6 +26,8 @@ interface EnameScoredResult {
   lengthScore: number;
   tags: string[];
   adaptationNote: string;
+  recommendedFullName?: string;
+  surnameEnglish?: string;
 }
 
 // ===== 常量 =====
@@ -1014,6 +1016,43 @@ function DetailModal({
                 <Globe className="w-3 h-3 inline mr-1" />
                 来源：{record.origin}
               </p>
+            )}
+          </div>
+
+          {/* 发音匹配度 & 推荐全名 */}
+          <div className="space-y-2">
+            {typeof record.phoneticScore === 'number' && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#2D1B0E] font-medium">发音匹配度</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-2 bg-[#F0E8E0] rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${record.phoneticScore}%`,
+                        background: record.phoneticScore >= 80 
+                          ? 'linear-gradient(90deg, #10B981, #34D399)' 
+                          : record.phoneticScore >= 50 
+                          ? 'linear-gradient(90deg, #F59E0B, #FBBF24)'
+                          : 'linear-gradient(90deg, #9CA3AF, #D1D5DB)'
+                      }}
+                    />
+                  </div>
+                  <span className={`text-xs font-bold min-w-[3rem] text-right ${
+                    record.phoneticScore >= 80 ? 'text-emerald-600' 
+                    : record.phoneticScore >= 50 ? 'text-amber-600'
+                    : 'text-gray-400'
+                  }`}>
+                    {record.phoneticScore}分
+                  </span>
+                </div>
+              </div>
+            )}
+            {record.recommendedFullName && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#2D1B0E] font-medium">推荐全名</span>
+                <span className="text-sm font-bold text-[#8B7355]">{record.recommendedFullName}</span>
+              </div>
             )}
           </div>
 
