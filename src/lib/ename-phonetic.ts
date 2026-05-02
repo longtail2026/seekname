@@ -1,13 +1,23 @@
 /**
- * 英文名拼音发音匹配引擎 v4.1
+ * 英文名拼音发音匹配引擎 v5.5 — 万能匹配法优化版
  * 
- * 核心策略：对多音节中文名，每个音节必须都有良好匹配，不允许"一个音节完美匹配另一个音节完全消失"的情况。
+ * 核心思路：只抓"声母 + 核心韵母"，不纠结完整拼音，用英文音标去贴中文发音
  * 
- * V4.1 关键修复：
- * - 移除 ≤2字符的韵母子串匹配（如"ia"→Diana的假匹配）
- * - 韵母匹配要求最小3字符
- * - 针对多音节名，每个音节都必须有>=0.3的匹配得分
- * - 单音节名加强首字母匹配的惩罚
+ * 黄金规则：
+ *   1. 只匹配"首字"：中文名一般只需要第一个字发音接近即可
+ *   2. 抓"声母"优先：英文最看重开头辅音，和中文拼音声母一致就已经很像
+ *   3. 弱化声调、忽略平翘舌/前后鼻音
+ * 
+ * 3步实操法：
+ *   第1步：提取首字拼音
+ *   第2步：用声母锁定候选英文名
+ *   第3步：用韵母精准贴近
+ * 
+ * V5.5 核心变更：
+ *   - 万能匹配法作为主要评分路径（取代复杂的多音节匹配）
+ *   - 首字声母匹配优先级提升
+ *   - 扩展声母→推荐名列表（涵盖用户指南所有示例）
+ *   - 韵母精筛增强（匹配更多韵母→英文音素模式）
  */
 
 // ========== 拼音→英文常见拼写映射表 ==========
@@ -517,7 +527,7 @@ function getEnglishSubstrings(pinyinSyllable: string): string[] {
   // 完整拼音
   variants.push(key);
   
-  return [...new Set(variants)];
+  return Array.from(new Set(variants));
 }
 
 export interface PhoneticMatchResult {
@@ -793,8 +803,372 @@ export function getChineseNamePinyin(chineseName: string): { givenName: string; 
   };
 }
 
+// ===================================================================
+// ★★★ 万能匹配法 V5.5 — 首字声母优先 + 3步实操法 ★★★
+// 核心思路：只抓"声母 + 核心韵母"，不纠结完整拼音
+// 规则：
+//   1. 只匹配首字拼音
+//   2. 抓声母优先（英文最看重开头辅音）
+//   3. 弱化声调、忽略平翘舌/前后鼻音
+// ===================================================================
+
+/** 声母→英文首字母近似映射（平翘舌简化） */
+const INITIAL_TO_EN_LETTERS: Record<string, string[]> = {
+  'b': ['B'],
+  'p': ['P'],
+  'm': ['M'],
+  'f': ['F'],
+  'd': ['D', 'T'],
+  't': ['T', 'D'],
+  'n': ['N'],
+  'l': ['L', 'R'],
+  'g': ['G', 'K'],
+  'k': ['K', 'C', 'G'],
+  'h': ['H', 'F'],
+  'j': ['J', 'G', 'Z'],
+  'q': ['Q', 'K', 'C', 'Ch'],
+  'x': ['X', 'S', 'Sh', 'C'],
+  'zh': ['J', 'Z', 'G'],   // 简化为 J
+  'ch': ['Ch', 'C', 'Q', 'K'], // 简化为 Q/C
+  'sh': ['S', 'X', 'Sh'],  // 简化为 S/X
+  'r': ['R'],
+  'z': ['Z', 'C'],
+  'c': ['C', 'K'],
+  's': ['S', 'C'],
+  'y': ['Y', 'J', 'E'],
+  'w': ['W', 'V', 'U'],
+  '': ['A', 'E', 'I', 'O', 'U'], // 零声母
+};
+
 /**
- * 排序函数 - 按发音匹配度排序英文名列表
+ * ★★★ V5.5 声母→推荐英文名（全面覆盖用户指南所有示例）★★★
+ * 
+ * 严格按照用户提供的"常见声母匹配"表 + 示例扩展
+ */
+const INITIAL_SUGGESTED_NAMES: Record<string, string[]> = {
+  // B系列（用户手册：Ben, Bob, Brian, Bella, Bonnie）
+  'b': ['Ben', 'Bob', 'Brian', 'Bella', 'Bonnie', 'Bianca', 'Brandon', 'Brooke', 'Benjamin', 'Blake'],
+  // C/K 统一处理（用户手册：Kevin, Kelly, Kate, Ken, Clara）
+  'c': ['Kevin', 'Kelly', 'Kate', 'Ken', 'Clara', 'Cindy', 'Catherine', 'Carl', 'Chris', 'Crystal'],
+  'k': ['Kevin', 'Kelly', 'Kate', 'Ken', 'Clara', 'Kyle', 'Katherine', 'Kristen', 'Kai', 'Keith'],
+  // CH系列（用户手册：Charles, Chloe, Charlotte, Cherry）
+  'ch': ['Charles', 'Chloe', 'Charlotte', 'Cherry', 'Chad', 'Charlie', 'Chelsea', 'Chris', 'Christina', 'Crystal'],
+  // D系列（用户手册：David, Daniel, Diana, Dora, Daisy）
+  'd': ['David', 'Daniel', 'Diana', 'Dora', 'Daisy', 'Diane', 'Dylan', 'Derek', 'Doris', 'Donna'],
+  // F系列（用户手册：Frank, Fiona, Flora, Fanny, Felix）
+  'f': ['Frank', 'Fiona', 'Flora', 'Fanny', 'Felix', 'Fred', 'Faye', 'Faith', 'Foster', 'Fern'],
+  // G系列（用户手册：Gary, Grace, Gloria, Gabriel, George）
+  'g': ['Gary', 'Grace', 'Gloria', 'Gabriel', 'George', 'Gina', 'Gwen', 'Gavin', 'Gemma', 'Greg'],
+  // H系列（用户手册：Henry, Helen, Hannah, Harry, Hugo）
+  'h': ['Henry', 'Helen', 'Hannah', 'Harry', 'Hugo', 'Hank', 'Holly', 'Harvey', 'Heidi', 'Hope'],
+  // J系列（用户手册：Jason, Jack, Jessica, Julia, James, Jerry, Jay, Jane, Jenny）
+  'j': ['Jason', 'Jack', 'Jessica', 'Julia', 'James', 'Jerry', 'Jay', 'Jane', 'Jenny', 'John', 'Jill', 'Jean', 'Jade', 'Jasmine', 'Jake'],
+  // L系列（用户手册：Leo, Linda, Lucy, Larry, Lily, Lisa, Leon, Lynn, Louis）
+  'l': ['Leo', 'Linda', 'Lucy', 'Larry', 'Lily', 'Lisa', 'Leon', 'Lynn', 'Louis', 'Liam', 'Luke', 'Laura', 'Lydia', 'Logan', 'Luna'],
+  // M系列（用户手册：Mike, Mary, Megan, Max, Martin, Mina, Mindy, Minnie）
+  'm': ['Mike', 'Mary', 'Megan', 'Max', 'Martin', 'Mina', 'Mindy', 'Minnie', 'Matt', 'Mia', 'Maya', 'Mason', 'Molly', 'Madison'],
+  // N系列（用户手册：Nick, Nancy, Nina, Nora, Anna, Neil, Nicole）
+  'n': ['Nick', 'Nancy', 'Nina', 'Nora', 'Anna', 'Neil', 'Nicole', 'Nate', 'Nadia', 'Nina', 'Nelson', 'Natalie', 'Noah'],
+  // P系列（用户手册：Paul, Peter, Peggy, Penny, Philip）
+  'p': ['Paul', 'Peter', 'Peggy', 'Penny', 'Philip', 'Parker', 'Patricia', 'Pamela', 'Perry', 'Phoebe'],
+  // Q系列（用户手册：John, Jon, Johnny, Queen, Quinn, Ken）
+  'q': ['John', 'Jon', 'Johnny', 'Queen', 'Quinn', 'Ken', 'Quincy', 'Quentin', 'Quinn', 'Joni'],
+  // R系列（用户手册：Ryan, Ray, Rita, Rose, Roy, Rex, Rachel, Robert）
+  'r': ['Ryan', 'Ray', 'Rita', 'Rose', 'Roy', 'Rex', 'Rachel', 'Robert', 'Richard', 'Rebecca', 'Ruby', 'Riley', 'Roger', 'Ron'],
+  // S系列（用户手册：Sam, Sarah, Sophia, Susan, Simon, Sally）
+  's': ['Sam', 'Sarah', 'Sophia', 'Susan', 'Simon', 'Sally', 'Steven', 'Sandra', 'Samantha', 'Sean', 'Seth', 'Scarlett', 'Stella'],
+  // SH系列（用户手册：Sharon, Sherry, Sarah, Shawn, Shane, Shelly）
+  'sh': ['Sharon', 'Sherry', 'Sarah', 'Shawn', 'Shane', 'Shelly', 'Shirley', 'Sheila', 'Shannon', 'Shiloh'],
+  // T系列（用户手册：Tom, Tony, Tina, Terry, Tiffany, Teresa, Tim）
+  't': ['Tom', 'Tony', 'Tina', 'Terry', 'Tiffany', 'Teresa', 'Tim', 'Taylor', 'Tracy', 'Tyler', 'Tammy', 'Ted', 'Tara'],
+  // W系列（用户手册：William, Wendy, Wanda, Wayne, Will, Walter）
+  'w': ['William', 'Wendy', 'Wanda', 'Wayne', 'Will', 'Walter', 'Whitney', 'Wesley', 'Winona', 'Warren'],
+  // X系列（用户手册：Sam, Sarah, Sophia, Simon, Sally, Xavier, Xena）
+  'x': ['Sam', 'Sarah', 'Sophia', 'Simon', 'Sally', 'Xavier', 'Xena', 'Sharon', 'Sherry', 'Xander'],
+  // Y系列（用户手册：Yoyo, Yvonne, York, Yale, Yvette）
+  'y': ['Yoyo', 'Yvonne', 'York', 'Yale', 'Yvette', 'Yves', 'Yuki', 'Yara', 'Yosef', 'Yasmin'],
+  // Z系列（用户手册：Zach, Zoe, Zara, Zion, Zelda）
+  'z': ['Zach', 'Zoe', 'Zara', 'Zion', 'Zelda', 'Zack', 'Zane', 'Zola', 'Zuri', 'Zander'],
+  // ZH系列（用户手册：Jason, Jack, James, Jerry, Jay, Jane, Jenny, Jessica）
+  'zh': ['Jason', 'Jack', 'James', 'Jerry', 'Jay', 'Jane', 'Jenny', 'Jessica', 'Julia', 'Jade', 'Jasmine', 'John'],
+};
+
+/**
+ * ★★★ V5.5 韵母→英文名中常见音素映射（全面覆盖用户指南）★★★
+ * 
+ * 用户指南韵母匹配表：
+ * -ang/eng：Angus, Anne, Andrew
+ * -an/en：Ann, Ben, Ivan
+ * -ao：Leo, Owen, Joel
+ * -ai：Ivy, Amy, Ryan
+ * -i/y：Kitty, Cindy, Jerry
+ * -o：Leo, Zoe, Bob
+ * -u/ü：Lucy, Judy, Hugo
+ */
+const FINAL_TO_EN_SUBSTRINGS: Record<string, string[]> = {
+  'ang': ['an', 'ang', 'ong', 'on', 'anne', 'ann'],
+  'eng': ['en', 'eng', 'on', 'an', 'anne'],
+  'an': ['an', 'en', 'ann', 'anne', 'an', 'on'],
+  'en': ['en', 'an', 'enn', 'en', 'ine'],
+  'ao': ['o', 'ou', 'ow', 'ao', 'el', 'en'],   // Leo → "eo", Owen → "ow", Joel → "el"
+  'ai': ['i', 'y', 'ai', 'ay', 'ei', 'ie', 'ye'], // Ivy → "ivy", Amy → "amy", Ryan → "yan"
+  'i': ['i', 'y', 'ie', 'ee', 'ey', 'e', 'it'],   // Kitty → "itty", Cindy → "indy", Jerry → "erry"
+  'y': ['i', 'y', 'ie', 'ee', 'ey', 'e'],
+  'o': ['o', 'ou', 'ow', 'oe', 'a', 'ob'],     // Leo → "eo/le-o", Zoe → "oe/zo-e", Bob → "ob"
+  'u': ['u', 'oo', 'ou', 'ew', 'ue', 'udy', 'go'], // Lucy → "ucy", Judy → "udy", Hugo → "ugo"
+  'ü': ['u', 'oo', 'ew', 'u', 'y'],
+  'in': ['in', 'en', 'inn', 'ine', 'een', 'ing'],
+  'ing': ['in', 'ing', 'en', 'eng', 'ine'],
+  'ia': ['ia', 'ya', 'a', 'sha'],
+  'ie': ['ie', 'ye', 'i', 'e'],
+  'iu': ['ew', 'u', 'io', 'iu'],
+  'ian': ['ian', 'yan', 'an', 'en', 'ien'],
+  'iang': ['iang', 'yang', 'ang', 'ong'],
+  'ong': ['ong', 'ong', 'on', 'ang', 'ung'],
+  'un': ['un', 'on', 'an', 'en', 'oon'],
+  'ui': ['ui', 'we', 'way', 'i', 'wee'],
+  'ou': ['o', 'ou', 'ow', 'oo'],
+  'ei': ['ay', 'ei', 'ey', 'a'],
+  'ua': ['ua', 'wa', 'a'],
+  'uo': ['o', 'uo', 'oa'],
+};
+
+/**
+ * 从拼音中提取声母
+ * 中文拼音声母：
+ *   zh, ch, sh（双字母）
+ *   b,p,m,f,d,t,n,l,g,k,h,j,q,x,r,z,c,s,y,w（单字母）
+ *   无则为零声母 ''
+ */
+export function extractInitial(pinyin: string): string {
+  const s = pinyin.toLowerCase().trim();
+  if (s.startsWith('zh')) return 'zh';
+  if (s.startsWith('ch')) return 'ch';
+  if (s.startsWith('sh')) return 'sh';
+  // 单字母声母
+  const singleInitials = ['b','p','m','f','d','t','n','l','g','k','h','j','q','x','r','z','c','s','y','w'];
+  for (const init of singleInitials) {
+    if (s.startsWith(init)) return init;
+  }
+  return ''; // 零声母
+}
+
+/**
+ * 从拼音中提取韵母（声母之后的部分）
+ */
+export function extractFinal(pinyin: string): string {
+  const initial = extractInitial(pinyin);
+  return pinyin.toLowerCase().trim().slice(initial.length);
+}
+
+/**
+ * ★★★ V5.5 万能匹配法核心 — 首字声母优先匹配 ★★★
+ * 
+ * 输入：中文名字的拼音（如 "zhang wei"）
+ * 输出：对每个英文名的首字声母匹配得分
+ * 
+ * 3步实操法：
+ *   第1步：提取首字拼音
+ *   第2步：用声母锁定候选英文名
+ *   第3步：用韵母精准贴近
+ * 
+ * 匹配逻辑：
+ *   1. 只取首字拼音
+ *   2. 提取声母，映射到英文首字母候选
+ *   3. 如果英文名首字母在候选集中 → 声母匹配得分 0.7+
+ *   4. 额外用韵母部分精筛
+ *   5. 提供一组推荐的英文名
+ */
+export function quickInitialMatch(
+  chineseNamePinyin: string,
+  englishName: string
+): { score: number; initial: string; matchedInitial: boolean; detail: string } {
+  // 1. 取首字拼音（空格分隔的第一个）
+  const firstSyllable = chineseNamePinyin.trim().split(/\s+/)[0];
+  if (!firstSyllable) {
+    return { score: 0, initial: '', matchedInitial: false, detail: '无拼音输入' };
+  }
+  
+  // 2. 提取声母
+  const initial = extractInitial(firstSyllable);
+  const final = extractFinal(firstSyllable);
+  const enName = englishName.trim().toLowerCase();
+  const enFirstLetter = enName[0]?.toUpperCase() || '';
+  
+  // 3. 声母→英文首字母映射
+  const candidateLetters = INITIAL_TO_EN_LETTERS[initial] || [];
+  
+  // 4. 检查英文名首字母是否匹配声母
+  const letterMatched = candidateLetters.includes(enFirstLetter);
+  
+  if (!letterMatched) {
+    // 零声母特殊处理：英文名以元音开头即可
+    if (initial === '' && ['A','E','I','O','U'].includes(enFirstLetter)) {
+      // 进一步检查元音是否匹配
+      const detail = `零声母，英文名以元音${enFirstLetter}开头，拼音"${firstSyllable}"`;
+      return { score: 0.55, initial, matchedInitial: true, detail };
+    }
+    // ★★★ V5.5 新增：检查英文名前两字母是否近似声母映射的某个候选 ★★★
+    // 例如声母k的映射包含"C"、"K"，如果en首字母是"C"但不在映射中，
+    // 检查前两个字母如"Ch"是否匹配ch的映射
+    // 但ch是独立的声母，这里不做扩展，避免误匹配
+    
+    return { score: 0, initial, matchedInitial: false, detail: `首字母${enFirstLetter}不匹配声母${initial}的候选[${candidateLetters.join(',')}]` };
+  }
+  
+  // 5. 声母匹配成功，计算韵母加分
+  let bonus = 0;
+  let finalDetail = '';
+  
+  if (final) {
+    const finalSubs = FINAL_TO_EN_SUBSTRINGS[final] || [];
+    // 检查英文名中是否包含韵母的近似音素
+    for (const sub of finalSubs) {
+      if (enName.includes(sub.toLowerCase())) {
+        bonus = 0.25;
+        finalDetail = `，韵母"${final}"音素"${sub}"在名中`;
+        break;
+      }
+    }
+    // 额外的：检查英文名是否包含韵母的完整拼音
+    if (bonus === 0 && final.length >= 2 && enName.includes(final)) {
+      bonus = 0.2;
+      finalDetail = `，韵母"${final}"在名中`;
+    }
+    // 额外：检查英文名前两个字母与拼音首两个字母
+    if (bonus === 0 && firstSyllable.length >= 2) {
+      const p2 = firstSyllable.substring(0, 2);
+      if (enName.startsWith(p2)) {
+        bonus = 0.15;
+        finalDetail = `，前两字母"${p2}"匹配`;
+      }
+    }
+    
+    // ★★★ V5.5 新增：韵母结尾匹配检查（英文名结尾是否包含韵母音素）★★★
+    if (bonus === 0 && final.length >= 2) {
+      // 检查英文名结尾与韵母音素
+      for (const sub of finalSubs) {
+        const subLower = sub.toLowerCase();
+        if (subLower.length >= 2 && enName.endsWith(subLower)) {
+          bonus = 0.15;
+          finalDetail = `，韵母"${final}"音素"${sub}"在名尾`;
+          break;
+        }
+      }
+    }
+  }
+  
+  // 基础分：声母匹配 = 0.7
+  const baseScore = 0.7;
+  const finalScore = Math.min(1.0, baseScore + bonus);
+  
+  const detail = `首字"${firstSyllable}"声母${initial}匹配英文首字母${enFirstLetter}${finalDetail}（得分${Math.round(finalScore * 100)}）`;
+  
+  return { score: finalScore, initial, matchedInitial: true, detail };
+}
+
+/**
+ * ★★★ V5.5 根据声母推荐英文名列表（快速候选）★★★
+ * 
+ * 严格按照用户指南的3步法：
+ *   第1步：提取首字拼音
+ *   第2步：用声母锁定候选
+ *   第3步：用韵母精准贴近（排序）
+ */
+export function getSuggestedNamesByInitial(chineseNamePinyin: string): string[] {
+  const firstSyllable = chineseNamePinyin.trim().split(/\s+/)[0];
+  if (!firstSyllable) return [];
+  
+  const initial = extractInitial(firstSyllable);
+  const final = extractFinal(firstSyllable);
+  
+  const candidates = INITIAL_SUGGESTED_NAMES[initial] || [];
+  
+  // 如果韵母信息可用，精排：韵母匹配的排前面
+  if (final && candidates.length > 0) {
+    const finalSubs = FINAL_TO_EN_SUBSTRINGS[final] || [];
+    const sorted = [...candidates].sort((a, b) => {
+      const aMatch = finalSubs.some(sub => a.toLowerCase().includes(sub.toLowerCase())) ? 1 : 0;
+      const bMatch = finalSubs.some(sub => b.toLowerCase().includes(sub.toLowerCase())) ? 1 : 0;
+      return bMatch - aMatch;
+    });
+    return sorted;
+  }
+  
+  return candidates;
+}
+
+/**
+ * ★★★ V5.5 万能匹配法 — 核心评分路径 ★★★
+ * 
+ * 与 V5.0 相比，V5.5 的核心变更：
+ *   1. 首字声母匹配作为主路径（不再与原有逻辑取max，而是优先使用）
+ *   2. 只有当首字声母完全无匹配时才回退到原有逻辑
+ *   3. 首字声母有匹配但低分时，给予合理的基础分
+ *   4. 推荐的英文名列表优先展示（声母推荐列表 + 韵母精排）
+ */
+export function universalMatch(
+  chineseNamePinyin: string, 
+  englishName: string
+): PhoneticMatchResult {
+  // ★★★ V5.5 优先走"首字声母匹配"路径 ★★★
+  // 这是万能匹配法的核心：只抓声母，快速锁定
+  const quickResult = quickInitialMatch(chineseNamePinyin, englishName);
+  
+  if (quickResult.matchedInitial && quickResult.score >= 0.7) {
+    // ★★★ 首字声母 + 韵母部分匹配，直接使用万能匹配得分 ★★★
+    // 例如：zhang → J开头，韵母ang匹配 → score=0.95
+    return {
+      score: Math.round(quickResult.score * 100) / 100,
+      matchedLevel: 1,
+      detail: `[万能匹配] ${quickResult.detail}`,
+    };
+  }
+  
+  if (quickResult.matchedInitial && quickResult.score >= 0.5) {
+    // ★★★ 仅有声母匹配，韵母未加分，给予合理低分 ★★★
+    // 例如：zhang → J开头，韵母不匹配 → score=0.7
+    return {
+      score: Math.round(quickResult.score * 100) / 100,
+      matchedLevel: 2,
+      detail: `[万能匹配] ${quickResult.detail}`,
+    };
+  }
+  
+  if (quickResult.matchedInitial && quickResult.score > 0) {
+    // ★★★ 仅有弱声母匹配 ★★★
+    return {
+      score: Math.round(quickResult.score * 100) / 100,
+      matchedLevel: 3,
+      detail: `[万能匹配] ${quickResult.detail}`,
+    };
+  }
+  
+  // ★★★ V5.5 当首字声母完全无匹配时，快速检查声母推荐列表 ★★★
+  // 有些英文名首字母不符合映射但整体发音近似（如 Ch 开头但声母是 K）
+  const suggested = getSuggestedNamesByInitial(chineseNamePinyin);
+  if (suggested.length > 0 && suggested.some(s => s.toLowerCase() === englishName.toLowerCase())) {
+    return {
+      score: 0.65,
+      matchedLevel: 2,
+      detail: `[万能匹配] 英文名在声母推荐列表中（首字拼音首音节${chineseNamePinyin.split(/\s+/)[0]}声母推荐）`,
+    };
+  }
+  
+  // ★★★ V5.5 最后回退到原有 matchPronunciation 逻辑 ★★★
+  // 这在多音节名中仍然有用（如"wen di" 匹配 "Wendy"，首字wen匹配Wendy的前三个字母）
+  const original = matchPronunciation(chineseNamePinyin, englishName);
+  
+  if (original.score >= 0.3) {
+    return original;
+  }
+  
+  // 完全无匹配
+  return { score: 0, matchedLevel: 0, detail: '无匹配' };
+}
+
+/**
+ * 排序函数 - 按发音匹配度排序英文名列表（使用万能匹配）
  */
 export function sortByPronunciation(
   chineseNamePinyin: string,
@@ -802,7 +1176,7 @@ export function sortByPronunciation(
 ): Array<{ name: string; score: number; detail: string }> {
   return englishNames
     .map(item => {
-      const result = matchPronunciation(chineseNamePinyin, item.name);
+      const result = universalMatch(chineseNamePinyin, item.name);
       return { name: item.name, score: result.score, detail: result.detail };
     })
     .sort((a, b) => b.score - a.score);
@@ -829,7 +1203,7 @@ export function searchByPhoneticMatch(
 ): Array<{ name: string; meaning?: string; gender?: string; phoneticScore: number; phoneticDetail: string }> {
   const results = englishNames
     .map(item => {
-      const matchResult = matchPronunciation(chineseNamePinyin, item.name);
+      const matchResult = universalMatch(chineseNamePinyin, item.name);
       return {
         name: item.name,
         meaning: item.meaning,

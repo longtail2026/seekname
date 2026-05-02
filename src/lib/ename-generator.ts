@@ -14,6 +14,9 @@ import {
   getChineseNamePinyin, 
   searchByPhoneticMatch, 
   matchPronunciation,
+  universalMatch,
+  quickInitialMatch,
+  getSuggestedNamesByInitial,
   type PhoneticMatchResult 
 } from "./ename-phonetic";
 import { getRecommendedSurnameSpellings, getSurnamePinyin } from "./ename-surname-map";
@@ -74,7 +77,17 @@ export interface EnameScoredResult {
 // ===== 评分器 =====
 
 /**
- * 发音评分：使用拼音发音匹配引擎
+ * ★★★ V5.0 双轨发音评分：万能匹配法 + 原有逻辑 ★★★
+ * 
+ * 使用 universalMatch（首字声母优先的万能匹配法）评分，
+ * 同时保留原有 matchPronunciation 作为备用。
+ * 
+ * 评分映射：
+ *   universalMatch >= 0.9 → 95分（首字声母+韵母完美匹配）
+ *   universalMatch >= 0.7 → 80分（首字声母匹配，韵母部分匹配）
+ *   universalMatch >= 0.5 → 60分（首字声母匹配，韵母弱匹配）
+ *   universalMatch >= 0.3 → 40分（仅有声母开头匹配）
+ *   < 0.3 → 降级为原 matchPronunciation 评分
  */
 function calcPhoneticScore(
   name: string,
@@ -86,31 +99,40 @@ function calcPhoneticScore(
     return { score: 20, detail: "无法计算发音匹配", tags: [] };
   }
   
-  const result = matchPronunciation(givenNamePinyin, name);
+  // ★★★ V5.0 使用万能匹配法（首字声母优先）★★★
+  const result = universalMatch(givenNamePinyin, name);
   
-  // ★★★ V4.2 更严格的评分映射 ★★★
-  // V4以前：0.5→60（太松，Diana得60进入结果集）
-  // V4.2：提高硬性门槛，确保排在前面的名字发音确实接近
-  // 0.9+ 完美匹配（所有音节都良好匹配）
-  // 0.7+ 良好匹配（过半音节良好匹配，其余至少fair）
-  // 0.5+ 部分匹配（多音节有零分时，或单音节一般匹配）
-  // 0.3+ 弱匹配（不太可能发音接近）
-  // <0.3 很差或无匹配
+  // 快速首字声母匹配（用于标记用途）
+  const quickResult = quickInitialMatch(givenNamePinyin, name);
+  
+  // V5.0 评分映射 — 首字声母匹配有更高的基础分
   if (result.score >= 0.9) {
     tags.push("发音完美贴合中文名");
     return { score: 95, detail: result.detail, tags };
   } else if (result.score >= 0.7) {
-    tags.push("发音近似中文名");
-    return { score: 75, detail: result.detail, tags };
+    if (quickResult.matchedInitial) {
+      tags.push("首字声母匹配，发音近似中文名");
+    } else {
+      tags.push("发音近似中文名");
+    }
+    return { score: 80, detail: result.detail, tags };
   } else if (result.score >= 0.5) {
     tags.push("发音部分匹配中文名");
-    return { score: 50, detail: result.detail, tags };
+    return { score: 60, detail: result.detail, tags };
   } else if (result.score >= 0.3) {
+    if (quickResult.matchedInitial) {
+      tags.push("首字声母弱相关");
+      return { score: 45, detail: result.detail, tags };
+    }
     tags.push("发音弱相关");
     return { score: 30, detail: result.detail, tags };
-  } else if (result.score >= 0.15) {
-    tags.push("发音勉强相关");
-    return { score: 15, detail: result.detail, tags };
+  }
+  
+  // ★★★ V5.0 回退方案：如果万能匹配也没结果，使用建议名列表 ★★★
+  const suggested = getSuggestedNamesByInitial(givenNamePinyin);
+  if (suggested.length > 0 && suggested.some(s => s.toLowerCase() === name.toLowerCase())) {
+    tags.push("来自声母推荐列表");
+    return { score: 65, detail: `英文名"${name}"在声母推荐列表中`, tags };
   }
   
   return { score: 0, detail: result.detail, tags };
