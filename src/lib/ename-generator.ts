@@ -76,6 +76,8 @@ export interface EnameScoredResult {
   surnameChina?: string;
   /** 海外交流姓氏拼写（粤拼/通用拼写，如 Chang, Lee, Wong） */
   surnameOverseas?: string;
+  /** ★★★ V5.6 匹配需求分类：标识该名字主要满足哪类需求，用于前端分组展示 ★★★ */
+  matchCategory?: string;
 }
 
 // ===== 评分器 =====
@@ -535,6 +537,62 @@ export async function generateEnglishNames(
         adaptationNote += ` 姓氏「${surname}」推荐英文变体「${surnameEnglish}」`;
       }
 
+      // ★★★ V5.7 匹配需求分类：按用户勾选的每项需求逐一评估，为名字找到最匹配的需求类别 ★★★
+      // 这样前端才能按需求分组展示【每行对应一个需求，每行3个】
+      let matchCategory = "综合推荐";
+      
+      if (needs.length > 0) {
+        // 评估每个需求对当前名字的匹配分数
+        const needScores: { need: string; score: number }[] = [];
+        
+        for (const need of needs) {
+          let score = 0;
+          switch (need) {
+            case "谐音贴近中文名":
+              score = effectivePhoneticScore;
+              break;
+            case "含义美好":
+              score = meaningScore;
+              break;
+            case "平安":
+              score = meaningScore;
+              break;
+            case "健康":
+              score = meaningScore;
+              break;
+            case "聪明":
+              score = meaningScore;
+              break;
+            case "富贵":
+              score = meaningScore;
+              break;
+            case "商务正式":
+              score = Math.round(meaningScore * 0.6 + styleScore * 0.4);
+              break;
+            case "简约好记":
+              score = lengthScore;
+              break;
+            case "文艺小众":
+              // 小众判断：匹配含义+非热门
+              score = Math.round(meaningScore * 0.5 + (record.popularity !== "★★★" ? 30 : 0) * 0.5);
+              break;
+            case "可爱灵动":
+              score = Math.round(meaningScore * 0.7 + styleScore * 0.3);
+              break;
+            default:
+              // 自定义需求：综合评分
+              score = totalScore;
+          }
+          needScores.push({ need, score });
+        }
+        
+        // 找最佳匹配需求（最高分的那一个），至少30分才认定有匹配
+        needScores.sort((a, b) => b.score - a.score);
+        if (needScores[0].score >= 30) {
+          matchCategory = needScores[0].need;
+        }
+      }
+
       scoredResults.push({
         name: record.name,
         gender: record.gender,
@@ -556,6 +614,7 @@ export async function generateEnglishNames(
         surnameEnglish,
         surnameChina,
         surnameOverseas,
+        matchCategory,
       });
     }
 

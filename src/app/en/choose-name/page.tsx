@@ -28,6 +28,8 @@ interface EnameScoredResult {
   adaptationNote: string;
   recommendedFullName?: string;
   surnameEnglish?: string;
+  /** ★★★ V5.6 匹配需求分类：用于前端分组展示 ★★★ */
+  matchCategory?: string;
 }
 
 // ===== 常量 =====
@@ -176,19 +178,25 @@ export default function EnglishNamePage() {
     setError("");
     setGenerated(false);
 
+    // 组装需求数组
+    const needsArr = [
+      ...needs,
+      ...(customNeed.trim() ? [customNeed.trim()] : []),
+    ];
+
     try {
       const res = await fetch("/api/en/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gender,
-          surname: surname.trim(),
-          fullName: fullName.trim() || undefined,
-          needs: [...needs, ...(customNeed.trim() ? [customNeed.trim()] : [])],
-          style: style || undefined,
+          surname,
+          fullName,
+          needs: needsArr,
+          style: style === "不限风格" ? "" : style,
           avoidFlags,
-          lengthPreference: lengthPreference || undefined,
-          count: 10,
+          lengthPreference,
+          count: 27,
         }),
       });
       const data = await res.json();
@@ -654,7 +662,7 @@ export default function EnglishNamePage() {
             </div>
           )}
 
-          {/* 结果卡片列表 */}
+          {/* 结果卡片列表 — ★★★ V5.6 按需求分类分组，每类最多3个，展示3行×3列 ★★★ */}
           {generated && !loading && (
             <>
               {filteredResults.length === 0 ? (
@@ -668,23 +676,99 @@ export default function EnglishNamePage() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {filteredResults.map((record, i) => (
-                    <ResultCard
-                      key={`${record.name}-${i}`}
-                      record={record}
-                      rank={i + 1}
-                      isFavorite={favorites.includes(record.name)}
-                      onToggleFavorite={toggleFavorite}
-                      onCopy={handleCopy}
-                      copiedName={copiedName}
-                      onSpeak={handleSpeak}
-                      speakingName={speakingName}
-                      onDetail={setDetailName}
-                      onShare={handleShare}
-                    />
-                  ))}
-                </div>
+                (() => {
+                  // 获取最终生效的需求列表（包括自定义需求）
+                  const activeNeeds = [
+                    ...needs,
+                    ...(customNeed.trim() ? [customNeed.trim()] : []),
+                  ];
+
+                  // 按 matchCategory 分组
+                  const grouped = new Map<string, EnameScoredResult[]>();
+                  for (const r of filteredResults) {
+                    const cat = r.matchCategory || "综合推荐";
+                    if (!grouped.has(cat)) grouped.set(cat, []);
+                    grouped.get(cat)!.push(r);
+                  }
+                  // 按用户勾选需求顺序排列分组，未匹配到具体需求的归为"综合推荐"
+                  const categoryRows: { category: string; items: EnameScoredResult[] }[] = [];
+                  const usedCategories = new Set<string>();
+                  
+                  // 1) 优先按用户勾选的需求顺序排列，每类取 top 3
+                  for (const need of activeNeeds) {
+                    const items = grouped.get(need);
+                    if (items && items.length > 0) {
+                      categoryRows.push({ category: need, items: items.slice(0, 3) });
+                      usedCategories.add(need);
+                    }
+                  }
+                  
+                  // 2) 如果还有余量（不足3行），补充"综合推荐"类别
+                  if (categoryRows.length < 3) {
+                    const generalItems = grouped.get("综合推荐");
+                    if (generalItems && generalItems.length > 0) {
+                      categoryRows.push({ category: "综合推荐", items: generalItems.slice(0, 3) });
+                      usedCategories.add("综合推荐");
+                    }
+                  }
+                  
+                  // 3) 如果还不够3行，补充其他未展示的分类
+                  if (categoryRows.length < 3) {
+                    for (const [cat, items] of grouped) {
+                      if (!usedCategories.has(cat) && items.length > 0) {
+                        categoryRows.push({ category: cat, items: items.slice(0, 3) });
+                        usedCategories.add(cat);
+                        if (categoryRows.length >= 3) break;
+                      }
+                    }
+                  }
+                  
+                  // 最多展示3个分类（3行），总计最多9个
+                  const displayRows = categoryRows.slice(0, 3);
+                  const totalDisplayed = displayRows.reduce((sum, row) => sum + row.items.length, 0);
+
+                  return (
+                    <div className="space-y-6">
+                      {displayRows.map((row, rowIdx) => (
+                        <div key={rowIdx}>
+                          {/* 分类标题 */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-1 h-4 rounded-full bg-[#E86A17]"></div>
+                            <h3 className="text-sm font-bold text-[#4A3428]">
+                              {row.category}
+                            </h3>
+                            <span className="text-[10px] text-gray-400">
+                              推荐 {row.items.length} 个
+                            </span>
+                          </div>
+                          {/* 该分类的3个候选名 */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {row.items.map((record, i) => (
+                              <ResultCard
+                                key={`${record.name}-${rowIdx}-${i}`}
+                                record={record}
+                                rank={rowIdx * 3 + i + 1}
+                                isFavorite={favorites.includes(record.name)}
+                                onToggleFavorite={toggleFavorite}
+                                onCopy={handleCopy}
+                                copiedName={copiedName}
+                                onSpeak={handleSpeak}
+                                speakingName={speakingName}
+                                onDetail={setDetailName}
+                                onShare={handleShare}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      {filteredResults.length > totalDisplayed && (
+                        <p className="text-center text-[11px] text-gray-400 mt-2">
+                          共 {filteredResults.length} 个候选名，仅展示 {totalDisplayed} 个最佳推荐
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </>
           )}
@@ -793,7 +877,7 @@ function ResultCard({
       </div>
 
       <div className="p-4">
-        {/* 第一行：名字 + 评分 */}
+          {/* 第一行：名字 + 姓氏英文 + 评分 */}
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
             <div
@@ -803,8 +887,11 @@ function ResultCard({
               {record.name[0]}
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-bold text-[#2D1B0E] text-base">{record.name}</span>
+                {record.surnameEnglish && (
+                  <span className="text-xs text-[#7A6B5E] font-normal">{record.surnameEnglish}</span>
+                )}
                 <span className="text-[10px] px-1 py-0.5 rounded font-medium" style={{ background: gc.bg, color: gc.text }}>
                   {gc.icon}
                 </span>
