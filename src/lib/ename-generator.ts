@@ -1,46 +1,39 @@
 /**
- * 英文起名引擎 v2.0
+ * 英文起名引擎 v3.0
  * 
- * 全新算法架构：
- * 1. 按【中文名拼音发音】匹配英文名（ename-phonetic）
- * 2. 按【姓氏】匹配英文姓氏变体（ename-surname-map）
- * 3. 组合输出：英文名（发音匹配）+ 英文姓氏变体 + 中文名
- * 4. 黑名单过滤 + 多维度评分排序
+ * === 架构变更说明 ===
+ * ★ 移除语义向量搜索（OVHCloud BGE-M3 + pgvector）
+ *   原因：中文名和英文名无法做含义上的语义匹配，向量搜索无实际意义
+ * ★ 纯发音匹配架构：
+ *   1. 姓氏发音匹配 → 150个中英文姓氏映射表（ename-surname-map）
+ *   2. 名字发音匹配 → 2200+英文名库（ename-phonetic）+ ename-dict
+ *      - 单字名：单音节拼音匹配单音节英文名
+ *      - 二字名：整体双音节匹配双音节英文名
+ * ★ DeepSeek AI 降级：
+ *   当搜索不到发音接近的英文名时，调用 DeepSeek 生成
+ *   提示词模板："请为男生/女生,姓名XXX，起一个发音接近的英文名"
  */
 
-import { getAllRecords, searchNames, type EnameRecord } from "./ename-dict";
-import { semanticSearchEname, type EnameSemanticMatch } from "./semantic-ename-search";
+import { getAllRecords, type EnameRecord } from "./ename-dict";
 import { 
   getChineseNamePinyin, 
-  searchByPhoneticMatch, 
-  matchPronunciation,
-  universalMatch,
-  quickInitialMatch,
-  getSuggestedNamesByInitial,
+  searchByPhoneticMatch,
   calcSurnameEnglishMatchScore,
-  type PhoneticMatchResult 
 } from "./ename-phonetic";
-import { getRecommendedSurnameSpellings, getSurnamePinyin, getSurnameChinaOverseas } from "./ename-surname-map";
+import { getRecommendedSurnameSpellings, getSurnameChinaOverseas } from "./ename-surname-map";
 import { isHardBlocked, getBlacklistPenalty } from "./ename-blacklist";
+import { generateEnglishNameBatchByDeepSeek } from "./deepseek-client";
 
 // ===== 类型定义 =====
 
 export interface EnameGenerateRequest {
-  /** 必填：性别 male / female */
   gender: "male" | "female";
-  /** 必填：中文姓氏 */
   surname: string;
-  /** 可选：中文全名 */
   fullName?: string;
-  /** 可选：核心起名需求 */
   needs?: string[];
-  /** 可选：风格偏好 */
   style?: string;
-  /** 可选：避坑要求 */
   avoidFlags?: string[];
-  /** 可选：名字长度偏好 */
   lengthPreference?: "short" | "medium" | "long";
-  /** 可选：返回数量 */
   count?: number;
 }
 
@@ -53,54 +46,28 @@ export interface EnameScoredResult {
   popularity: string;
   meaning: string;
   firstLetter: string;
-  /** 综合评分（0-100） */
   score: number;
-  /** 发音匹配分数（0-100） */
   phoneticScore: number;
-  /** 含义匹配分数（0-100） */
   meaningScore: number;
-  /** 风格匹配分数（0-100） */
   styleScore: number;
-  /** 流行度分数（0-100） */
   popularityScore: number;
-  /** 长度分数（0-100） */
   lengthScore: number;
-  /** 标签 */
   tags: string[];
-  /** 个性化推荐说明 */
   adaptationNote: string;
-  /** 推荐全名（英文名 + 英文姓氏变体） */
   recommendedFullName?: string;
-  /** 姓氏英文变体 */
   surnameEnglish?: string;
-  /** 中国大陆证件姓氏拼写（标准拼音，如 Zhang, Li, Wang） */
   surnameChina?: string;
-  /** 海外交流姓氏拼写（粤拼/通用拼写，如 Chang, Lee, Wong） */
   surnameOverseas?: string;
-  /** ★★★ V5.6 匹配需求分类：标识该名字主要满足哪类需求，用于前端分组展示 ★★★ */
-  matchCategory?: string;
-  /** ★★★ V6.3 姓氏英文发音匹配分数（0-100）★★★ */
-  surnameEnglishMatchScore: number;
-  /** ★★★ V6.3 匹配到的姓氏英文表达 ★★★ */
-  surnameEnglishMatchedExpr: string;
-  /** ★★★ V6.3 姓氏英文匹配详情 ★★★ */
-  surnameEnglishMatchDetail: string;
+  /** 来源：'db' 来自英文名数据库 / 'ai' 来自 DeepSeek AI 生成 */
+  source: "db" | "ai";
 }
 
 // ===== 评分器 =====
 
 /**
- * ★★★ V5.0 双轨发音评分：万能匹配法 + 原有逻辑 ★★★
- * 
- * 使用 universalMatch（首字声母优先的万能匹配法）评分，
- * 同时保留原有 matchPronunciation 作为备用。
- * 
- * 评分映射：
- *   universalMatch >= 0.9 → 95分（首字声母+韵母完美匹配）
- *   universalMatch >= 0.7 → 80分（首字声母匹配，韵母部分匹配）
- *   universalMatch >= 0.5 → 60分（首字声母匹配，韵母弱匹配）
- *   universalMatch >= 0.3 → 40分（仅有声母开头匹配）
- *   < 0.3 → 降级为原 matchPronunciation 评分
+ * 纯发音匹配评分
+ * 核心：只根据中文名拼音和英文名的发音匹配度评分
+ * 不再使用语义/含义搜索
  */
 function calcPhoneticScore(
   name: string,
@@ -112,159 +79,28 @@ function calcPhoneticScore(
     return { score: 20, detail: "无法计算发音匹配", tags: [] };
   }
   
-  // ★★★ V5.0 使用万能匹配法（首字声母优先）★★★
-  const result = universalMatch(givenNamePinyin, name);
+  // 使用拼音引擎搜索发音匹配的英文名
+  // 模拟搜索：对单个名字做发音匹配评估
+  const results = searchByPhoneticMatch(givenNamePinyin, [{ name, meaning: "", gender: "" }], 1);
   
-  // 快速首字声母匹配（用于标记用途）
-  const quickResult = quickInitialMatch(givenNamePinyin, name);
-  
-  // V5.0 评分映射 — 首字声母匹配有更高的基础分
-  if (result.score >= 0.9) {
-    tags.push("发音完美贴合中文名");
-    return { score: 95, detail: result.detail, tags };
-  } else if (result.score >= 0.7) {
-    if (quickResult.matchedInitial) {
-      tags.push("首字声母匹配，发音近似中文名");
-    } else {
+  if (results.length > 0) {
+    const matched = results[0];
+    const score = matched.phoneticScore;
+    
+    if (score >= 85) {
+      tags.push("发音完美贴合中文名");
+    } else if (score >= 60) {
       tags.push("发音近似中文名");
+    } else if (score >= 40) {
+      tags.push("发音部分匹配中文名");
+    } else {
+      tags.push("发音弱相关");
     }
-    return { score: 80, detail: result.detail, tags };
-  } else if (result.score >= 0.5) {
-    tags.push("发音部分匹配中文名");
-    return { score: 60, detail: result.detail, tags };
-  } else if (result.score >= 0.3) {
-    if (quickResult.matchedInitial) {
-      tags.push("首字声母弱相关");
-      return { score: 45, detail: result.detail, tags };
-    }
-    tags.push("发音弱相关");
-    return { score: 30, detail: result.detail, tags };
+    
+    return { score, detail: matched.phoneticDetail || "", tags };
   }
   
-  // ★★★ V5.0 回退方案：如果万能匹配也没结果，使用建议名列表 ★★★
-  const suggested = getSuggestedNamesByInitial(givenNamePinyin);
-  if (suggested.length > 0 && suggested.some(s => s.toLowerCase() === name.toLowerCase())) {
-    tags.push("来自声母推荐列表");
-    return { score: 65, detail: `英文名"${name}"在声母推荐列表中`, tags };
-  }
-  
-  return { score: 0, detail: result.detail, tags };
-}
-
-/**
- * 含义评分 - 匹配用户需求
- */
-function calcMeaningScore(meaning: string, needs: string[], name?: string): { score: number; tags: string[] } {
-  const tags: string[] = [];
-  if (!needs || needs.length === 0 || !meaning) {
-    return { score: 50, tags: ["含义信息不足，中评"] };
-  }
-
-  const meaningLower = meaning.toLowerCase();
-  let matchCount = 0;
-  const matchedNeeds: string[] = [];
-  const nameStr = name || "";
-
-  for (const need of needs) {
-    let matched = false;
-    switch (need) {
-      case "谐音贴近中文名":
-        matched = ["name", "sound", "phonetic", "derived from", "源自"].some(k => meaningLower.includes(k));
-        break;
-      case "含义美好":
-        matched = ["blessing", "hope", "light", "peace", "health", "wise", "strength", "fortunate",
-          "幸福", "平安", "健康", "美好", "希望", "光明", "智慧"].some(k => meaningLower.includes(k));
-        break;
-      case "平安":
-        matched = ["peace", "safe", "calm", "serene", "tranquil", "平安", "安宁"].some(k => meaningLower.includes(k));
-        break;
-      case "健康":
-        matched = ["health", "strong", "vigor", "vital", "well", "健康", "强壮"].some(k => meaningLower.includes(k));
-        break;
-      case "聪明":
-        matched = ["wise", "wisdom", "intelligent", "bright", "clever", "smart", "聪明", "智慧"].some(k => meaningLower.includes(k));
-        break;
-      case "富贵":
-        matched = ["wealth", "rich", "fortune", "prosper", "noble", "富贵", "财富"].some(k => meaningLower.includes(k));
-        break;
-      case "商务正式":
-        matched = ["noble", "leader", "ruler", "king", "power", "strong", "dignity", "商务", "正式"].some(k => meaningLower.includes(k));
-        break;
-      case "简约好记":
-        matched = nameStr.length >= 3 && nameStr.length <= 5;
-        break;
-      case "文艺小众":
-        matched = ["poet", "muse", "lyric", "grace", "elegant", "art", "文艺", "优雅", "诗意"].some(k => meaningLower.includes(k));
-        break;
-      case "可爱灵动":
-        matched = ["sweet", "joy", "happy", "love", "play", "bright", "merry", "可爱", "快乐", "甜蜜"].some(k => meaningLower.includes(k));
-        break;
-      default:
-        matched = meaningLower.includes(need.toLowerCase());
-    }
-
-    if (matched) {
-      matchCount++;
-      matchedNeeds.push(need);
-    }
-  }
-
-  if (matchCount === 0) {
-    return { score: 30, tags: ["含义匹配度较低"] };
-  }
-
-  const score = Math.min(100, 30 + matchCount * 25);
-  const uniqueNeeds = Array.from(new Set(matchedNeeds));
-  tags.push(`含义匹配「${uniqueNeeds.join("、")}」`);
-
-  return { score, tags };
-}
-
-/**
- * 风格评分
- */
-function calcStyleScore(meaning: string, name: string, style?: string): { score: number; tags: string[] } {
-  const tags: string[] = [];
-  const meaningLower = (meaning || "").toLowerCase();
-
-  if (!style) return { score: 50, tags: [] };
-
-  let keywordCheck: (m: string, n: string) => boolean;
-
-  switch (style) {
-    case "现代简约":
-      keywordCheck = (m, n) => n.length <= 5 && !m.includes("古") &&
-        (["modern", "simple", "clean", "clear", "bright"].some(k => m.includes(k)));
-      break;
-    case "古典文艺":
-      keywordCheck = (m, _n) =>
-        ["classic", "ancient", "poet", "muse", "grace", "elegant", "classical", "old", "traditional", "希腊", "罗马", "圣经", "拉丁"].some(k => m.includes(k));
-      break;
-    case "商务精英":
-      keywordCheck = (m, _n) =>
-        ["ruler", "king", "leader", "power", "dignity", "noble", "strong", "authority", "executive", "enterprise"].some(k => m.includes(k));
-      break;
-    case "校园清新":
-      keywordCheck = (m, _n) =>
-        ["youth", "fresh", "pure", "gentle", "sweet", "spring", "flower", "nature", "natural", "garden", "meadow"].some(k => m.includes(k));
-      break;
-    case "可爱软萌":
-      keywordCheck = (m, _n) =>
-        ["sweet", "love", "joy", "cute", "little", "happy", "delight", "dear", "baby", "tender", "soft", "warm"].some(k => m.includes(k));
-      break;
-    case "小众独特":
-      keywordCheck = (m, _n) =>
-        ["unique", "rare", "uncommon", "unusual", "distinctive", "rarely", "seldom", "ancient", "mythical"].some(k => m.includes(k));
-      break;
-    default:
-      keywordCheck = () => false;
-  }
-
-  const matched = keywordCheck(meaningLower, name.toLowerCase());
-  const score = matched ? 80 : 40;
-  if (matched) tags.push(`风格匹配「${style}」`);
-
-  return { score, tags };
+  return { score: 0, detail: "无匹配", tags: [] };
 }
 
 /**
@@ -292,41 +128,6 @@ function calcLengthScore(name: string, preference?: "short" | "medium" | "long")
   }
 }
 
-/**
- * 避坑规则检查
- */
-function checkAvoidRules(name: string, meaning: string, popularity: string, avoidFlags?: string[]): { passed: boolean; reasons: string[] } {
-  const reasons: string[] = [];
-  if (!avoidFlags || avoidFlags.length === 0) return { passed: true, reasons };
-
-  const meaningLower = (meaning || "").toLowerCase();
-
-  // 黑名单检查
-  const blacklistCheck = getBlacklistPenalty(name);
-  if (blacklistCheck.reason) {
-    reasons.push(`黑名单：${blacklistCheck.reason}`);
-  }
-
-  for (const flag of avoidFlags) {
-    switch (flag) {
-      case "不要太常见的爆款名":
-        if (popularity === "★★★") reasons.push("此名流行度高，属于常见爆款名");
-        break;
-      case "不要生僻难读的":
-        if (name.length > 8) reasons.push("名字过长（超过8字母），可能难读");
-        break;
-      case "不要有负面谐音/含义":
-        const negativeWords = ["death", "evil", "dark", "demon", "devil", "sorrow", "pain", "fear", "danger", "poison", "war", "blood", "凶", "死"];
-        for (const word of negativeWords) {
-          if (meaningLower.includes(word)) { reasons.push(`含义包含负面词汇「${word}」`); break; }
-        }
-        break;
-    }
-  }
-
-  return { passed: reasons.length === 0, reasons };
-}
-
 // ===== 综合起名引擎 =====
 
 export async function generateEnglishNames(
@@ -347,39 +148,12 @@ export async function generateEnglishNames(
     const nameForPhonetic = fullName || surname;
     const pinyinInfo = getChineseNamePinyin(nameForPhonetic);
     
-    // ★★★ V6.1 修正：只使用名字拼音进行搜索匹配，排除姓氏 ★★★
-    // 原因：姓氏（如"li"）的发音（L→L,E,I）会匹配大量不相关的英文名
-    // 例如"李茂勇"的全名拼音"li mao yong"→搜索到Early(E匹配yong)、Johnson(J匹配yong)
-    // 这些结果对名字"茂勇"的发音匹配毫无意义
-    const hasPhoneticNeed = needs.includes("谐音贴近中文名");
-    
-    // V6.1：始终只使用名字拼音进行搜索
-    // 名字是发音匹配的核心，姓氏不应干扰名字的英文名选择
+    // ★★★ V3.0 核心：只使用名字拼音进行发音搜索，排除姓氏 ★★★
     const searchPinyin = pinyinInfo.givenName || pinyinInfo.fullPinyin;
-    
-    // 语义搜索（包含中文名拼音发音信息）
-    let semanticMatches: EnameSemanticMatch[] = [];
-    try {
-      // 语义搜索 query 必须包含中文名的拼音发音信息
-      let semanticQuery = `适合${genderCn}的英文名字`;
-      if (pinyinInfo.givenName) {
-        semanticQuery += `，发音近似"${pinyinInfo.givenName}"，拼音为"${pinyinInfo.givenName}"`;
-      }
-      if (needs.length > 0) semanticQuery += `，含义${needs.join("、")}`;
-      if (style) semanticQuery += `，${style}风格`;
-      
-      semanticMatches = await semanticSearchEname(semanticQuery, { 
-        limit: 60, 
-        threshold: 0.40,
-        gender 
-      });
-    } catch (error) {
-      console.error("[ename-generator] 语义搜索失败（不影响主流程）:", error);
-    }
 
-    // ===== 发音匹配搜索 =====
-    // 使用拼音引擎搜索发音匹配的英文名
+    // ===== 发音匹配搜索（唯一匹配方式） =====
     let phoneticMatchedNames: Array<{ name: string; meaning?: string; gender?: string; phoneticScore: number; phoneticDetail: string }> = [];
+    
     if (pinyinInfo.givenName) {
       try {
         const namesForMatch = candidates.map(r => ({ 
@@ -388,17 +162,17 @@ export async function generateEnglishNames(
           gender: r.gender 
         }));
         
-        // ★★★ V6.1 修正：始终只使用名字拼音进行发音搜索，不使用全名拼音 ★★★
-        // 姓氏（如"li"）的发音（L→L,E,I）会匹配大量不相关的英文名
-        // 只有名字拼音才能真正反映用户希望英文名发音接近的内容
-        // 对于二字名（如"mao yong"），searchByPhoneticMatch内部会做双音节综合匹配
+        // ★★★ V3.0 纯发音匹配 ★★★
+        // 单字名：作为单音节匹配
+        // 二字名：作为整体双音节匹配
+        // searchByPhoneticMatch 内部已处理好单/双音节逻辑
         phoneticMatchedNames = searchByPhoneticMatch(
           searchPinyin, 
           namesForMatch, 
-          100
+          100  // 拉取足够多的候选
         );
       } catch (error) {
-        console.error("[ename-generator] 拼音发音匹配失败（不影响主流程）:", error);
+        console.error("[ename-generator] 拼音发音匹配失败:", error);
       }
     }
 
@@ -414,40 +188,16 @@ export async function generateEnglishNames(
       surnameSpellings[0] : 
       surname.charAt(0).toUpperCase();
 
-    // 候选池：优先从语义匹配和拼音匹配中取，不足时补充热门名
-    let namePool: EnameRecord[];
-    const semanticNameSet = new Set(semanticMatches.map((m) => m.name));
-    const phoneticNameSet = new Set(phoneticMatchedNames.map((m) => m.name));
-    
-    // 同时出现在语义和拼音匹配中的优先
-    const priorityNames = new Set<string>();
-    for (const n of semanticNameSet) {
-      if (phoneticNameSet.has(n)) priorityNames.add(n);
-    }
-
-    const priorityRecords = candidates.filter(r => priorityNames.has(r.name));
-    const semanticOnly = candidates.filter(r => semanticNameSet.has(r.name) && !priorityNames.has(r.name));
-    const phoneticOnly = candidates.filter(r => phoneticNameSet.has(r.name) && !priorityNames.has(r.name) && !semanticNameSet.has(r.name));
-    
-    // 补充最流行的候选名
-    const usedNames = new Set([...priorityNames, ...semanticNameSet, ...phoneticNameSet]);
-    const remaining = candidates.filter(r => !usedNames.has(r.name));
-    const supplementCount = Math.max(0, 200 - (priorityRecords.length + semanticOnly.length + phoneticOnly.length));
-    const supplemented = remaining
-      .sort((a, b) => (b.popularity?.length || 0) - (a.popularity?.length || 0))
-      .slice(0, supplementCount);
-
-    namePool = [...priorityRecords, ...semanticOnly, ...phoneticOnly, ...supplemented];
-
     // 分割全名
     let givenName = "";
     if (fullName && fullName.length > 0) {
       givenName = fullName.startsWith(surname) ? fullName.slice(surname.length) : fullName;
     }
 
-    const scoredResults: EnameScoredResult[] = [];
+    // ===== 数据库候选名评分 =====
+    const scoredDbResults: EnameScoredResult[] = [];
 
-    for (const record of namePool) {
+    for (const record of candidates) {
       // 硬黑名单拦截
       if (isHardBlocked(record.name)) {
         continue;
@@ -456,73 +206,46 @@ export async function generateEnglishNames(
       // 发音评分（使用拼音匹配引擎）
       const phoneticResult = calcPhoneticScore(record.name, pinyinInfo.givenName);
       
-      // 含义匹配评分
-      const { score: meaningScore, tags: meaningTags } = calcMeaningScore(record.meaning, needs, record.name);
-      
-      // 风格评分
-      const { score: styleScore, tags: styleTags } = calcStyleScore(record.meaning, record.name, style);
-      
+      // 只保留有发音匹配的（phoneticScore > 0）
+      if (phoneticResult.score === 0) {
+        continue;
+      }
+
       // 流行度 + 长度评分
       const popularityScore = calcPopularityScore(record.popularity);
       const lengthScore = calcLengthScore(record.name, lengthPreference);
       
-      // 避坑规则
-      const avoidCheck = checkAvoidRules(record.name, record.meaning, record.popularity, avoidFlags);
-
-      // 语义搜索加分（仅作为小幅加成，不再超过发音权重）
-      let semanticBonus = 0;
-      if (semanticMatches.length > 0) {
-        const sm = semanticMatches.find((m) => m.name.toLowerCase() === record.name.toLowerCase());
-        if (sm) semanticBonus = Math.round(sm.similarity * 15);  // 减小到最高+15
-      }
-      
-      // ★★★ 核心修复：发音匹配作为最重权重 ★★★
-      // phoneticResult.score 直接来自 matchPronunciation 引擎（0-100），
-      // 它比 semanticBonus 更可靠地反映"和中文名读音相似度"
-      const effectivePhoneticScore = phoneticResult.score;
-
-      // ★★★ V4.2 核心优化：当用户选择"谐音贴近中文名"时，发音匹配结果必须过硬 ★★★
-      // 硬性过滤：如果勾选了"谐音贴近中文名"，phoneticScore < 60 的名字直接砍掉
-      // V4.1 之前是60（太松，但那时评分映射太松，Diana/71分能通过）
-      // V4.2 评分映射收紧后，60分及以上的结果是真正的合理匹配
-      const hasPhoneticNeed = needs.includes("谐音贴近中文名");
-      const isPhoneticPass = !hasPhoneticNeed || effectivePhoneticScore >= 60;
-      
-      // ★★★ V6.3 姓氏英文发音匹配加分 ★★★
+      // 姓氏英文发音匹配加分
       const surnameEngMatch = calcSurnameEnglishMatchScore(record.name, surname);
-      // 姓氏匹配加分：满分100对应+10分加分，线性映射
       const surnameBonus = Math.round(surnameEngMatch.score * 0.10);
 
-      // ★★★ 综合评分公式优化：以发音匹配为主导 ★★★
-      // 权重分配：发音40% + 含义20% + 风格15% + 流行度10% + 长度10% + 语义加分5% + 姓氏英文加分
-      // 这样发音匹配好的名字（如 li↔Elia/Eli）必定排在前面，
-      // 不会出现"无发音匹配但语义"超高的名字排在前面的情况
+      // ★★★ V3.0 纯发音匹配综合评分公式 ★★★
+      // 权重分配：发音80% + 姓氏发音匹配10% + 流行度5% + 长度5%
+      // 去掉了含义(meaningScore)、风格(styleScore)、语义加分(semanticBonus)
+      // 因为对于英文起名，发音匹配是唯一有意义的标准
       let totalScore = Math.round(
-        effectivePhoneticScore * 0.40 + 
-        meaningScore * 0.20 + 
-        styleScore * 0.15 +
-        popularityScore * 0.10 + 
-        lengthScore * 0.10 + 
-        semanticBonus +
-        surnameBonus
+        phoneticResult.score * 0.80 + 
+        popularityScore * 0.05 + 
+        lengthScore * 0.05 + 
+        surnameBonus * 10  // surnameBonus已经是0-10范围
       );
-      
-      // 发音硬性过滤：不符合发音标准的名字直接打零分
-      if (!isPhoneticPass) {
-        totalScore = 0;
+
+      // 发音硬性门槛：低于40分直接排除
+      if (phoneticResult.score < 40) {
+        continue;
       }
-      
+
+      // 避坑规则检查
+      const avoidCheck = checkAvoidRules(record.name, record.popularity, avoidFlags);
       const avoidPenalty = avoidCheck.reasons.length * 10;
       let finalScore = Math.max(0, Math.min(100, totalScore - avoidPenalty));
 
       // 黑名单软惩罚
       const { penalty: blacklistPenalty, reason: blacklistReason } = getBlacklistPenalty(record.name);
-      finalScore = Math.max(0, finalScore - Math.round(blacklistPenalty * 0.3));  // 软惩罚降权30%
+      finalScore = Math.max(0, finalScore - Math.round(blacklistPenalty * 0.3));
 
       const tags: string[] = [];
-      tags.push(...phoneticResult.tags.filter((t) => !t.includes("信息不足")));
-      tags.push(...meaningTags);
-      tags.push(...styleTags);
+      tags.push(...phoneticResult.tags);
       if (lengthScore >= 80) {
         const lenDesc = lengthPreference === "short" ? "短名" : lengthPreference === "long" ? "长名" : "适名";
         tags.push(`长度偏好「${lenDesc}」`);
@@ -531,6 +254,7 @@ export async function generateEnglishNames(
       else if (popularityScore <= 30) tags.push("小众");
       if (avoidCheck.reasons.length > 0) tags.push(...avoidCheck.reasons.map((r) => `⚠️${r}`));
       if (blacklistReason) tags.push(`⚠️${blacklistReason}`);
+      tags.push("📚 英文名库");  // 标记来源
 
       // 姓氏中外拼写
       const { china: surnameChina, overseas: surnameOverseas } = getSurnameChinaOverseas(surname);
@@ -540,71 +264,12 @@ export async function generateEnglishNames(
       let adaptationNote = `你的${gender === "male" ? "姓氏" : "姓名"}「${surname}」`;
       if (givenName) adaptationNote += `${givenName}`;
       adaptationNote += `，推荐「${record.name}」`;
-      if (effectivePhoneticScore >= 60) adaptationNote += `，发音与中文名相近`;
-      else if (phoneticResult.detail !== '无匹配') adaptationNote += `，${phoneticResult.detail}`;
-      if (meaningScore >= 60 && needs.length > 0) adaptationNote += `，含义契合「${needs.slice(0, 2).join("、")}」`;
-      adaptationNote += `。综合评分${finalScore}分。`;
+      if (phoneticResult.score >= 60) adaptationNote += `，发音与中文名相近`;
       if (surnameSpellings.length > 0) {
-        adaptationNote += ` 姓氏「${surname}」推荐英文变体「${surnameEnglish}」`;
+        adaptationNote += `。姓氏「${surname}」推荐英文变体「${surnameEnglish}」`;
       }
 
-      // ★★★ V5.7 匹配需求分类：按用户勾选的每项需求逐一评估，为名字找到最匹配的需求类别 ★★★
-      // 这样前端才能按需求分组展示【每行对应一个需求，每行3个】
-      let matchCategory = "综合推荐";
-      
-      if (needs.length > 0) {
-        // 评估每个需求对当前名字的匹配分数
-        const needScores: { need: string; score: number }[] = [];
-        
-        for (const need of needs) {
-          let score = 0;
-          switch (need) {
-            case "谐音贴近中文名":
-              score = effectivePhoneticScore;
-              break;
-            case "含义美好":
-              score = meaningScore;
-              break;
-            case "平安":
-              score = meaningScore;
-              break;
-            case "健康":
-              score = meaningScore;
-              break;
-            case "聪明":
-              score = meaningScore;
-              break;
-            case "富贵":
-              score = meaningScore;
-              break;
-            case "商务正式":
-              score = Math.round(meaningScore * 0.6 + styleScore * 0.4);
-              break;
-            case "简约好记":
-              score = lengthScore;
-              break;
-            case "文艺小众":
-              // 小众判断：匹配含义+非热门
-              score = Math.round(meaningScore * 0.5 + (record.popularity !== "★★★" ? 30 : 0) * 0.5);
-              break;
-            case "可爱灵动":
-              score = Math.round(meaningScore * 0.7 + styleScore * 0.3);
-              break;
-            default:
-              // 自定义需求：综合评分
-              score = totalScore;
-          }
-          needScores.push({ need, score });
-        }
-        
-        // 找最佳匹配需求（最高分的那一个），至少30分才认定有匹配
-        needScores.sort((a, b) => b.score - a.score);
-        if (needScores[0].score >= 30) {
-          matchCategory = needScores[0].need;
-        }
-      }
-
-      scoredResults.push({
+      scoredDbResults.push({
         name: record.name,
         gender: record.gender,
         phonetic: record.phonetic,
@@ -614,9 +279,9 @@ export async function generateEnglishNames(
         meaning: record.meaning,
         firstLetter: record.firstLetter,
         score: finalScore,
-        phoneticScore: effectivePhoneticScore,
-        meaningScore,
-        styleScore,
+        phoneticScore: phoneticResult.score,
+        meaningScore: 0,
+        styleScore: 0,
         popularityScore,
         lengthScore,
         tags: Array.from(new Set(tags)),
@@ -625,40 +290,86 @@ export async function generateEnglishNames(
         surnameEnglish,
         surnameChina,
         surnameOverseas,
-        matchCategory,
-        surnameEnglishMatchScore: surnameEngMatch.score,
-        surnameEnglishMatchedExpr: surnameEngMatch.matchedExpression,
-        surnameEnglishMatchDetail: surnameEngMatch.detail,
+        source: "db",
       });
     }
 
-    // ★★★ V4.2 新增：过滤零分结果 ★★★
-    // 原因：发音匹配为0的名字不应该出现在结果集中
-    // 例如"xiao yan"匹配"Diana"→得分0（因为xiao为零分音节，totalScore被设为0）
-    // 这些名字根本不发音接近，展示出来只会让用户困惑
-    const meaningfulResults = scoredResults.filter(r => r.score > 0);
-    
-    // 如果过滤后结果太少，最多允许保留一些 phoneticscore>0 但综合分不高的
-    const filteredResults = meaningfulResults.length >= count 
-      ? meaningfulResults 
-      : meaningfulResults.length > 0 
-        ? meaningfulResults 
-        : scoredResults.filter(r => r.phoneticScore > 0);
-    
-    // 排序：综合分数 + 拼音匹配度加权
-    filteredResults.sort((a, b) => {
-      // 综合分优先
+    // 排序：综合分优先，同分时拼音匹配度高的排前面
+    scoredDbResults.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      // 同分时拼音匹配度高的排前面
       return b.phoneticScore - a.phoneticScore;
     });
+
+    // ===== DeepSeek AI 降级机制 =====
+    // 当数据库发音匹配结果不足 count 个时，调用 DeepSeek 补充
+    let aiGeneratedResults: EnameScoredResult[] = [];
+    const dbResultCount = scoredDbResults.length;
     
-    const topResults = filteredResults.slice(0, Math.max(count, 20));
+    if (dbResultCount < count && pinyinInfo.givenName) {
+      const aiNeeded = Math.max(count - dbResultCount, 3);  // 至少取3个
+      const fullNameStr = fullName || `${surname}${pinyinInfo.givenName || ""}`;
+      
+      console.log(`[ename-generator] 数据库发音匹配不足(${dbResultCount}), 调用 DeepSeek AI 生成 ${aiNeeded} 个`);
+      
+      try {
+        const aiNames = await generateEnglishNameBatchByDeepSeek(
+          gender,
+          pinyinInfo.givenName,
+          fullNameStr,
+          aiNeeded
+        );
+        
+        aiGeneratedResults = aiNames.map((item, index) => {
+          const score = Math.max(80 - index * 5, 70);  // AI 生成的名字给 70-80 分基础分
+          
+          return {
+            name: item.name,
+            gender: gender === "male" ? "男性" : "女性",
+            phonetic: "",
+            chinese: item.name,
+            origin: "AI生成",
+            popularity: "无",
+            meaning: item.meaning || `发音接近中文名「${fullNameStr}」`,
+            firstLetter: item.name[0]?.toUpperCase() || "",
+            score,
+            phoneticScore: 80 - index * 5,  // AI 生成名字假设高发音匹配
+            meaningScore: 0,
+            styleScore: 0,
+            popularityScore: 50,
+            lengthScore: 50,
+            tags: ["🤖 AI 智能推荐", `发音接近「${pinyinInfo.givenName}」`],
+            adaptationNote: `中文名「${fullNameStr}」，AI 推荐「${item.name}」`,
+            recommendedFullName: `${item.name} ${surnameEnglish}`,
+            surnameEnglish,
+            surnameChina: getSurnameChinaOverseas(surname).china,
+            surnameOverseas: getSurnameChinaOverseas(surname).overseas,
+            source: "ai",
+          };
+        });
+        
+        console.log(`[ename-generator] DeepSeek AI 生成了 ${aiGeneratedResults.length} 个额外候选`);
+      } catch (error) {
+        console.error("[ename-generator] DeepSeek AI 生成失败:", error);
+      }
+    }
+
+    // ===== 合并结果：数据库结果优先 + AI 结果补充 =====
+    const mergedResults = [...scoredDbResults, ...aiGeneratedResults];
+    
+    // 最终排序
+    mergedResults.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      // 同分时数据库结果优先
+      if (a.source !== b.source) return a.source === "db" ? -1 : 1;
+      return b.phoneticScore - a.phoneticScore;
+    });
+
+    const topResults = mergedResults.slice(0, Math.max(count, 20));
 
     return { 
       success: true, 
       data: topResults, 
-      totalCandidates: candidates.length 
+      totalCandidates: scoredDbResults.length + aiGeneratedResults.length 
     };
   } catch (error) {
     console.error("[ename-generator] 生成英文名失败:", error);
@@ -669,4 +380,25 @@ export async function generateEnglishNames(
       message: `生成失败: ${error instanceof Error ? error.message : "未知错误"}` 
     };
   }
+}
+
+/**
+ * 避坑规则检查
+ */
+function checkAvoidRules(name: string, popularity: string, avoidFlags?: string[]): { passed: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!avoidFlags || avoidFlags.length === 0) return { passed: true, reasons };
+
+  for (const flag of avoidFlags) {
+    switch (flag) {
+      case "不要太常见的爆款名":
+        if (popularity === "★★★") reasons.push("此名流行度高，属于常见爆款名");
+        break;
+      case "不要生僻难读的":
+        if (name.length > 8) reasons.push("名字过长（超过8字母），可能难读");
+        break;
+    }
+  }
+
+  return { passed: reasons.length === 0, reasons };
 }

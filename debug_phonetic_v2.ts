@@ -56,5 +56,5 @@ const testCases: Array<{ name: string; surname: string }> = [
 for (const tc of testCases) {
   const result = calcSurnameEnglishMatchScore(tc.name, tc.surname);
   const matchIcon = result.score > 0 ? '✅' : '❌';
-  console.log(`${matchIcon} 姓氏"${tc.surname.padEnd(6)}" 英文名"${tc.name.padEnd(12)}" → ${result.score.toString().padStart(3)}分 ${result.detail}`);
+  console.log(`${matchIcon} 姓氏"${tc.surname.padEnd(6)}" 英文名"${tc.name.padEnd(12)}" \u2192 ${result.score.toString().padStart(3)}分 ${result.detail}`);
 }

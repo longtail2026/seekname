@@ -28,8 +28,10 @@ interface EnameScoredResult {
   adaptationNote: string;
   recommendedFullName?: string;
   surnameEnglish?: string;
-  /** ★★★ V5.6 匹配需求分类：用于前端分组展示 ★★★ */
-  matchCategory?: string;
+  surnameChina?: string;
+  surnameOverseas?: string;
+  /** 来源：'db' 英文名数据库 / 'ai' DeepSeek AI 生成 */
+  source?: "db" | "ai";
 }
 
 // ===== 常量 =====
@@ -69,11 +71,11 @@ const LENGTH_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "score", label: "AI综合评分" },
+  { value: "score", label: "综合评分" },
   { value: "phonetic", label: "谐音匹配度" },
-  { value: "meaning", label: "含义贴合度" },
   { value: "popularity", label: "流行度" },
   { value: "length", label: "字母长度" },
+  { value: "source", label: "来源（库/AI）" },
 ];
 
 // ===== 工具函数 =====
@@ -225,9 +227,9 @@ export default function EnglishNamePage() {
     .sort((a, b) => {
       switch (sortBy) {
         case "phonetic": return b.phoneticScore - a.phoneticScore;
-        case "meaning": return b.meaningScore - a.meaningScore;
         case "popularity": return (b.popularity?.length || 0) - (a.popularity?.length || 0);
         case "length": return a.name.length - b.name.length;
+        case "source": return (a.source === "db" ? 0 : 1) - (b.source === "db" ? 0 : 1);
         default: return b.score - a.score;
       }
     });
@@ -683,44 +685,30 @@ export default function EnglishNamePage() {
                     ...(customNeed.trim() ? [customNeed.trim()] : []),
                   ];
 
-                  // 按 matchCategory 分组
-                  const grouped = new Map<string, EnameScoredResult[]>();
-                  for (const r of filteredResults) {
-                    const cat = r.matchCategory || "综合推荐";
-                    if (!grouped.has(cat)) grouped.set(cat, []);
-                    grouped.get(cat)!.push(r);
-                  }
-                  // 按用户勾选需求顺序排列分组，未匹配到具体需求的归为"综合推荐"
+                  // ★★★ V3.0 按来源和评分分组 ★★★
+                  // 1st row: 发音完美匹配（来自英文名库，phoneticScore >= 70）
+                  // 2nd row: 发音近似匹配（来自英文名库，phoneticScore < 70）
+                  // 3rd row: AI 智能推荐（来自 DeepSeek AI）
+                  const phoneticMatched = filteredResults
+                    .filter(r => r.source === "db" && r.phoneticScore >= 70)
+                    .slice(0, 3);
+                  const phoneticPartial = filteredResults
+                    .filter(r => r.source === "db" && r.phoneticScore < 70)
+                    .slice(0, 3);
+                  const aiGenerated = filteredResults
+                    .filter(r => r.source === "ai")
+                    .slice(0, 3);
+                  
                   const categoryRows: { category: string; items: EnameScoredResult[] }[] = [];
-                  const usedCategories = new Set<string>();
                   
-                  // 1) 优先按用户勾选的需求顺序排列，每类取 top 3
-                  for (const need of activeNeeds) {
-                    const items = grouped.get(need);
-                    if (items && items.length > 0) {
-                      categoryRows.push({ category: need, items: items.slice(0, 3) });
-                      usedCategories.add(need);
-                    }
+                  if (phoneticMatched.length > 0) {
+                    categoryRows.push({ category: "🔊 发音完美贴合", items: phoneticMatched });
                   }
-                  
-                  // 2) 如果还有余量（不足3行），补充"综合推荐"类别
-                  if (categoryRows.length < 3) {
-                    const generalItems = grouped.get("综合推荐");
-                    if (generalItems && generalItems.length > 0) {
-                      categoryRows.push({ category: "综合推荐", items: generalItems.slice(0, 3) });
-                      usedCategories.add("综合推荐");
-                    }
+                  if (phoneticPartial.length > 0) {
+                    categoryRows.push({ category: "🔉 发音近似匹配", items: phoneticPartial });
                   }
-                  
-                  // 3) 如果还不够3行，补充其他未展示的分类
-                  if (categoryRows.length < 3) {
-                    for (const [cat, items] of grouped) {
-                      if (!usedCategories.has(cat) && items.length > 0) {
-                        categoryRows.push({ category: cat, items: items.slice(0, 3) });
-                        usedCategories.add(cat);
-                        if (categoryRows.length >= 3) break;
-                      }
-                    }
+                  if (aiGenerated.length > 0) {
+                    categoryRows.push({ category: "🤖 AI 智能推荐", items: aiGenerated });
                   }
                   
                   // 最多展示3个分类（3行），总计最多9个

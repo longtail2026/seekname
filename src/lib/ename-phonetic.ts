@@ -1327,6 +1327,13 @@ export function searchByPhoneticMatch(
  * 例如中文姓"张"→英文表达"Cheung"，候选名"Cheung"或"Leo Cheung"都应加分。
  * 如果匹配不到，则回退到原有逻辑（不额外加分）。
  * 
+ * 增强场景：
+ *   场景1：英文名是姓氏英文表达本身（如 surname=张, ename=Cheung）→ 满分
+ *   场景2：英文名很短（≤4字母），与姓氏英文表达中任一个完全匹配 → 满分
+ *   场景3：英文名包含姓氏英文表达（如 surname=张, ename=Cheung Kei, ename=Leo Cheung）→ 高分
+ *   场景4：复合姓氏（如欧阳→Au-Yeung），检查各组成部分（Au、Yeung）→ 中高分
+ *   场景5：匹配不到→回退检查姓氏拼音与英文名的发音相似度（如surname=张三, 拼音zhang→与英文名开头的"Jan"比较）
+ * 
  * @param ename      候选英文名
  * @param surname    中文姓氏
  * @returns score, matchedExpression, detail
@@ -1339,65 +1346,194 @@ export function calcSurnameEnglishMatchScore(
     return { score: 0, matchedExpression: "", detail: "缺少姓氏或英文名" };
   }
 
+  const enameLower = ename.toLowerCase().trim();
+  const enameWords = enameLower.split(/\s+/);
+
   // 获取姓氏的最常见英文表达列表
   const expressions = getSurnameEnglishExpressions(surname);
-  if (expressions.length === 0) {
-    return { score: 0, matchedExpression: "", detail: `姓氏"${surname}"不在姓氏英文映射表中` };
-  }
 
-  const enameLower = ename.toLowerCase();
-
-  // 1. 完全匹配：英文名与某个姓氏英文表达完全相同
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    if (enameLower === exprLower) {
-      return {
-        score: 100,
-        matchedExpression: expr,
-        detail: `英文名"${ename}"与姓氏"${surname}"的英文表达"${expr}"完全匹配`
-      };
+  // ===== 场景A：姓氏在映射表中 =====
+  if (expressions.length > 0) {
+    // 对每个英文表达展开：如果是复合姓氏（含连字符 "Au-Yeung"），拆分为各部分
+    const allParts: { part: string; full: string }[] = [];
+    for (const expr of expressions) {
+      const exprLower = expr.toLowerCase();
+      allParts.push({ part: exprLower, full: expr });
+      // 连字符拆分：如 "Au-Yeung" → ["au", "yeung"]
+      if (exprLower.includes('-')) {
+        for (const sub of exprLower.split('-')) {
+          if (sub.length >= 2) {
+            allParts.push({ part: sub, full: expr });
+          }
+        }
+      }
     }
-  }
 
-  // 2. 开头匹配：英文名以姓氏英文表达开头（如 "Cheung" 开头的名字）
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    if (enameLower.startsWith(exprLower)) {
-      const matchRatio = expr.length / ename.length;
-      if (matchRatio >= 0.4) {
+    // 1. 完全匹配：英文名整体与某个姓氏英文表达完全相同
+    //    场景1：surname=张, ename=Cheung
+    for (const { part, full } of allParts) {
+      // 检查整个英文名（单个词）是否完全匹配
+      if (enameLower === part) {
         return {
-          score: 80,
-          matchedExpression: expr,
-          detail: `英文名"${ename}"以姓氏"${surname}"的英文表达"${expr}"开头（匹配度${Math.round(matchRatio * 100)}%）`
+          score: 100,
+          matchedExpression: full,
+          detail: `英文名"${ename}"与姓氏"${surname}"的英文表达"${full}"完全匹配`
+        };
+      }
+      // 检查英文名的每个词是否有完全匹配（场景2：ename较短≤4且完全匹配）
+      for (const word of enameWords) {
+        if (word === part && word.length <= 4) {
+          return {
+            score: 100,
+            matchedExpression: full,
+            detail: `英文名"${ename}"中的词"${word}"与姓氏"${surname}"英文表达"${full}"完全匹配`
+          };
+        }
+      }
+    }
+
+    // 2. 开头匹配：英文名以姓氏英文表达开头
+    //    场景3a：surname=张, ename=Cheung Kei（Cheung开头+空格）
+    for (const { part, full } of allParts) {
+      if (enameLower.startsWith(part)) {
+        // 确保是完整单词匹配（后面跟空格或结束）
+        if (part.length === enameLower.length || enameLower[part.length] === ' ') {
+          return {
+            score: 85,
+            matchedExpression: full,
+            detail: `英文名"${ename}"以姓氏"${surname}"的英文表达"${full}"开头`
+          };
+        }
+        // 部分开头匹配
+        const matchRatio = part.length / enameLower.length;
+        if (matchRatio >= 0.4) {
+          return {
+            score: 75,
+            matchedExpression: full,
+            detail: `英文名"${ename}"以姓氏"${surname}"的英文表达"${full}"开头（匹配度${Math.round(matchRatio * 100)}%）`
+          };
+        }
+      }
+    }
+
+    // 3. 包含匹配：英文名中包含姓氏英文表达
+    //    场景3b：surname=张, ename=Leo Cheung（后面出现Cheung）
+    //    场景4：复合姓氏欧阳→Au-Yeung，ename含"Au"或"Yeung"
+    for (const { part, full } of allParts) {
+      if (part.length >= 3 && enameLower.includes(part)) {
+        // 检查是否是完整词匹配
+        const isWordMatch = enameWords.includes(part) ||
+          enameWords.some(w => w.startsWith(part) && w.length <= part.length + 2);
+        if (isWordMatch) {
+          return {
+            score: 70,
+            matchedExpression: full,
+            detail: `英文名"${ename}"包含姓氏"${surname}"的英文表达"${full}"（部分"${part}"）`
+          };
+        }
+        // 子串包含（非完整词）
+        return {
+          score: 55,
+          matchedExpression: full,
+          detail: `英文名"${ename}"包含姓氏"${surname}"的英文表达"${full}"中的"${part}"`
+        };
+      }
+    }
+
+    // 4. 结尾匹配：英文名以姓氏英文表达结尾
+    for (const { part, full } of allParts) {
+      if (part.length >= 3 && enameLower.endsWith(part)) {
+        return {
+          score: 65,
+          matchedExpression: full,
+          detail: `英文名"${ename}"以姓氏"${surname}"的英文表达"${full}"中的"${part}"结尾`
+        };
+      }
+    }
+
+    // 5. 首字母相同
+    const enameFirstChar = ename.charAt(0).toLowerCase();
+    for (const { full } of allParts) {
+      const fullFirstChar = full.charAt(0).toLowerCase();
+      if (fullFirstChar === enameFirstChar) {
+        return {
+          score: 30,
+          matchedExpression: full,
+          detail: `英文名首字母"${enameFirstChar.toUpperCase()}"与姓氏"${surname}"英文表达"${full}"首字母一致`
         };
       }
     }
   }
 
-  // 3. 包含匹配：姓氏英文表达包含在英文名中（如英文名含 "Lee"）
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    if (enameLower.includes(exprLower) && exprLower.length >= 3) {
-      return {
-        score: 60,
-        matchedExpression: expr,
-        detail: `英文名"${ename}"包含姓氏"${surname}"的英文表达"${expr}"`
-      };
-    }
+  // ===== 场景B：映射表中无匹配 → 回退到姓氏拼音匹配 =====
+  // 用 surnames 的拼音（如 "zhang"）与英文名进行声母匹配
+  // 使用 universalMatch 或基础的拼音发音匹配逻辑
+  const surnamePinyin = surname.toLowerCase();
+  // 如果姓氏本身就是拼音（如 "Li", "Zhang"），尝试做简单拼音发音匹配
+  const pinyinScore = calcSurnamePinyinMatchFallback(surnamePinyin, enameLower);
+  if (pinyinScore.score >= 50) {
+    return {
+      score: pinyinScore.score,
+      matchedExpression: pinyinScore.matchedExpr,
+      detail: `姓氏"${surname}"拼音发音与英文名部分匹配：${pinyinScore.detail}`
+    };
   }
 
-  // 4. 首字母相同
-  const enameFirstChar = ename.charAt(0).toLowerCase();
-  for (const expr of expressions) {
-    const exprFirstChar = expr.charAt(0).toLowerCase();
-    if (exprFirstChar === enameFirstChar) {
-      return {
-        score: 30,
-        matchedExpression: expr,
-        detail: `英文名首字母"${enameFirstChar.toUpperCase()}"与姓氏"${surname}"英文表达"${expr}"首字母一致`
-      };
-    }
+  if (expressions.length === 0) {
+    return { score: 0, matchedExpression: "", detail: `姓氏"${surname}"不在姓氏英文映射表中，且拼音发音也未匹配` };
   }
 
-  return { score: 0, matchedExpression: "", detail: `未匹配到姓氏"${surname}"的英文表达` };
+  return { score: 0, matchedExpression: "", detail: `未匹配到姓氏"${surname}"的英文表达或拼音发音` };
+}
+
+/**
+ * 姓氏拼音回退匹配
+ * 当姓氏不在映射表中时，尝试将姓氏拼音与英文名进行声母/韵母近似匹配
+ * 例如：surname拼音 = "zhang" → 英文名 "Jan" 的 J 与 zh 声母有近似关系
+ */
+function calcSurnamePinyinMatchFallback(
+  surnamePinyin: string,
+  enameLower: string
+): { score: number; matchedExpr: string; detail: string } {
+  const firstSyllable = surnamePinyin.trim();
+  if (!firstSyllable) return { score: 0, matchedExpr: "", detail: "" };
+
+  const initial = extractInitial(firstSyllable);
+  const final_part = extractFinal(firstSyllable);
+  const candidateLetters = INITIAL_TO_EN_LETTERS[initial] || [];
+  const enFirstLetter = enameLower.charAt(0).toUpperCase();
+
+  // 声母匹配
+  if (candidateLetters.includes(enFirstLetter)) {
+    // 基础分50 + 韵母匹配加分
+    let bonus = 0;
+    if (final_part) {
+      const finalSubs = FINAL_TO_EN_SUBSTRINGS[final_part] || [];
+      for (const sub of finalSubs) {
+        if (sub.length >= 2 && enameLower.includes(sub.toLowerCase())) {
+          bonus = 30;
+          break;
+        }
+      }
+      if (bonus === 0 && final_part.length >= 2 && enameLower.includes(final_part)) {
+        bonus = 20;
+      }
+    }
+    return {
+      score: 50 + bonus,
+      matchedExpr: surnamePinyin,
+      detail: `拼音"${surnamePinyin}"声母${initial}匹配英文首字母${enFirstLetter}`
+    };
+  }
+
+  // 首首字母匹配（最弱匹配）
+  if (surnamePinyin.charAt(0) === enameLower.charAt(0)) {
+    return {
+      score: 20,
+      matchedExpr: surnamePinyin,
+      detail: `拼音"${surnamePinyin}"首字母与英文名首字母相同`
+    };
+  }
+
+  return { score: 0, matchedExpr: "", detail: "" };
 }

@@ -176,11 +176,156 @@ export const SURNAME_ENGLISH_MAP: Record<string, string[]> = {
 };
 
 /**
+ * ★★★ 拼音→汉字反向查找表 ★★★
+ * 
+ * 用于当 surname 参数传入的是拼音（如 "Li", "Zhang"）时，
+ * 能够反向查找到对应的汉字，再获取英文表达。
+ * 注意：同一个拼音可能对应多个汉字（如 he→何/贺，yan→阎/严），
+ * 使用 Map 存储多值。
+ */
+export const SURNAME_PINYIN_TO_CHINESE_MAP = new Map<string, string[]>([
+  ['chen', ['陈']],
+  ['lin', ['林']],
+  ['huang', ['黄']],
+  ['zhang', ['张', '章']],
+  ['li', ['李', '黎', '栗']],
+  ['wang', ['王', '汪']],
+  ['wu', ['吴', '武', '伍']],
+  ['liu', ['刘', '柳']],
+  ['cai', ['蔡']],
+  ['yang', ['杨']],
+  ['zhou', ['周']],
+  ['xu', ['徐', '许']],
+  ['sun', ['孙']],
+  ['zhu', ['朱']],
+  ['ma', ['马']],
+  ['guo', ['郭']],
+  ['he', ['何', '贺']],
+  ['liang', ['梁']],
+  ['song', ['宋']],
+  ['zheng', ['郑']],
+  ['xie', ['谢']],
+  ['han', ['韩']],
+  ['tang', ['唐', '汤']],
+  ['feng', ['冯']],
+  ['yu', ['于', '余', '俞']],
+  ['dong', ['董']],
+  ['xiao', ['萧', '邵']],
+  ['cheng', ['程', '郑']],
+  ['cao', ['曹']],
+  ['yuan', ['袁']],
+  ['deng', ['邓']],
+  ['fu', ['傅']],
+  ['shen', ['沈']],
+  ['zeng', ['曾']],
+  ['peng', ['彭']],
+  ['lv', ['吕']],
+  ['su', ['苏']],
+  ['lu', ['卢', '陆']],
+  ['jiang', ['蒋', '姜', '江']],
+  ['du', ['杜']],
+  ['dai', ['戴']],
+  ['wei', ['魏', '韦']],
+  ['zhong', ['钟']],
+  ['qiu', ['邱']],
+  ['tan', ['谭']],
+  ['jia', ['贾']],
+  ['zou', ['邹']],
+  ['shi', ['石', '史', '施']],
+  ['xiong', ['熊']],
+  ['meng', ['孟', '蒙']],
+  ['qin', ['秦']],
+  ['bai', ['白']],
+  ['yan', ['阎', '严']],
+  ['xue', ['薛']],
+  ['hou', ['侯']],
+  ['lei', ['雷']],
+  ['long', ['龙']],
+  ['duan', ['段']],
+  ['hao', ['郝']],
+  ['kong', ['孔']],
+  ['mao', ['毛']],
+  ['chang', ['常']],
+  ['wan', ['万', '温']],
+  ['gu', ['顾']],
+  ['lai', ['赖', '黎']],
+  ['kang', ['康']],
+  ['yin', ['尹']],
+  ['qian', ['钱']],
+  ['hong', ['洪', '熊']],
+  ['gong', ['龚']],
+  ['tao', ['陶']],
+  ['cui', ['崔']],
+  ['fan', ['范']],
+  ['qiao', ['乔']],
+  ['tian', ['田']],
+  ['zhan', ['占']],
+  ['ou', ['欧']],
+  ['you', ['尤', '邱']],
+  ['jin', ['金']],
+  ['pan', ['潘']],
+  ['fang', ['方']],
+  ['ke', ['柯']],
+  ['gao', ['高']],
+  ['hua', ['华']],
+  ['xia', ['夏']],
+  ['hu', ['胡']],
+  ['wen', ['温']],
+  ['yao', ['姚']],
+  ['zhuang', ['庄']],
+  ['ge', ['葛']],
+  ['pang', ['庞']],
+  ['xing', ['邢']],
+  ['di', ['邸']],
+  ['ji', ['季']],
+  ['tu', ['涂']],
+  ['huo', ['霍']],
+  ['bao', ['鲍']],
+  ['bi', ['毕']],
+  ['gan', ['甘']],
+  ['pei', ['裴']],
+  ['ouyang', ['欧阳']],
+  ['murong', ['慕容']],
+  ['situ', ['司徒']],
+  ['zhuge', ['诸葛']],
+  ['weichi', ['尉迟']],
+  ['xiahou', ['夏侯']],
+  ['huangpu', ['皇甫']],
+  ['linghu', ['令狐']],
+  ['duanmu', ['端木']],
+  ['yangshe', ['羊舌']],
+  ['gongyang', ['公羊']],
+  ['zhuanxu', ['颛顼']],
+  ['taishi', ['太史']],
+  ['chunyu', ['淳于']],
+]);
+
+/**
  * ★★★ V6.3 获取姓氏的最常见英文表达 ★★★
  * 用于"姓氏独立发音匹配"功能
+ * 
+ * 支持两种输入：
+ * - 汉字：如 "李" → ["Lee"]
+ * - 拼音：如 "Li" → ["Lee"]
  */
 export function getSurnameEnglishExpressions(chineseSurname: string): string[] {
-  return SURNAME_ENGLISH_MAP[chineseSurname] || [];
+  // 1. 直接查汉字映射
+  const directResult = SURNAME_ENGLISH_MAP[chineseSurname];
+  if (directResult) return directResult;
+
+  // 2. 尝试拼音→汉字反向查找（拼音不区分大小写）
+  const pinyinLower = chineseSurname.toLowerCase();
+  const chineseChars = SURNAME_PINYIN_TO_CHINESE_MAP.get(pinyinLower);
+  if (chineseChars && chineseChars.length > 0) {
+    // 返回第一个匹配到的汉字的英文表达
+    for (const chineseChar of chineseChars) {
+      const pinyinResult = SURNAME_ENGLISH_MAP[chineseChar];
+      if (pinyinResult) return pinyinResult;
+    }
+  }
+
+  // 3. 未找到
+  return [];
 }
 
 /**
