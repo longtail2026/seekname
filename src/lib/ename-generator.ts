@@ -19,7 +19,7 @@ import {
   getSuggestedNamesByInitial,
   type PhoneticMatchResult 
 } from "./ename-phonetic";
-import { getRecommendedSurnameSpellings, getSurnamePinyin } from "./ename-surname-map";
+import { getRecommendedSurnameSpellings, getSurnamePinyin, getSurnameChinaOverseas } from "./ename-surname-map";
 import { isHardBlocked, getBlacklistPenalty } from "./ename-blacklist";
 
 // ===== 类型定义 =====
@@ -72,6 +72,10 @@ export interface EnameScoredResult {
   recommendedFullName?: string;
   /** 姓氏英文变体 */
   surnameEnglish?: string;
+  /** 中国大陆证件姓氏拼写（标准拼音，如 Zhang, Li, Wang） */
+  surnameChina?: string;
+  /** 海外交流姓氏拼写（粤拼/通用拼写，如 Chang, Lee, Wong） */
+  surnameOverseas?: string;
 }
 
 // ===== 评分器 =====
@@ -515,6 +519,9 @@ export async function generateEnglishNames(
       if (avoidCheck.reasons.length > 0) tags.push(...avoidCheck.reasons.map((r) => `⚠️${r}`));
       if (blacklistReason) tags.push(`⚠️${blacklistReason}`);
 
+      // 姓氏中外拼写
+      const { china: surnameChina, overseas: surnameOverseas } = getSurnameChinaOverseas(surname);
+
       // 生成推荐全名
       const recommendedFullName = `${record.name} ${surnameEnglish}`;
       let adaptationNote = `你的${gender === "male" ? "姓氏" : "姓名"}「${surname}」`;
@@ -547,6 +554,8 @@ export async function generateEnglishNames(
         adaptationNote,
         recommendedFullName,
         surnameEnglish,
+        surnameChina,
+        surnameOverseas,
       });
     }
 

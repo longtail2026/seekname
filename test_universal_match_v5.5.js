@@ -28,7 +28,7 @@ const testCases = [
   { chinese: 'ming', en: 'Martin', expected: true, desc: '明→Martin' },
   { chinese: 'jie', en: 'Jay', expected: true, desc: '杰→Jay' },
   { chinese: 'jie', en: 'Jack', expected: true, desc: '杰→Jack' },
-  { chinese: 'kie', en: 'Jason', expected: true, desc: '杰→Jason' },
+  { chinese: 'jie', en: 'Jason', expected: true, desc: '杰→Jason' },
   { chinese: 'kai', en: 'Ken', expected: true, desc: '凯→Ken' },
   { chinese: 'kai', en: 'Kevin', expected: true, desc: '凯→Kevin' },
   { chinese: 'kai', en: 'Kyle', expected: true, desc: '凯→Kyle' },

@@ -699,4 +699,48 @@ export function getRecommendedSurnameSpellings(chineseSurname: string, maxCount:
     .map(v => v.spelling);
 }
 
+/**
+ * 中国大陆证件 vs 海外交流 姓氏英文拼写
+ * 
+ * 中国大陆证件：使用标准汉语拼音（护照、签证、学校、公司正式文件）
+ * 海外交流：使用粤拼/威妥玛/通用拼写（老外易读，日常社交）
+ * 
+ * @returns { china: string, overseas: string }
+ *   china  - 中国大陆官方拼音
+ *   overseas - 海外推荐拼写（优先选粤拼/通用拼写，若无则回退到拼音）
+ */
+export function getSurnameChinaOverseas(chineseSurname: string): { china: string; overseas: string } {
+  const entry = SURNAME_VARIANT_MAP[chineseSurname];
+
+  if (!entry) {
+    // 未收录的姓氏，中外交通用统一写法
+    return {
+      china: chineseSurname,
+      overseas: chineseSurname,
+    };
+  }
+
+  // 中国大陆证件 → 标准拼音（type === 'pinyin' 的第一个变体）
+  const pinyinVariants = entry.variants.filter(v => v.type === 'pinyin');
+  const chinaSpelling = pinyinVariants.length > 0
+    ? pinyinVariants[0].spelling
+    : entry.pinyin.charAt(0).toUpperCase() + entry.pinyin.slice(1);
+
+  // 海外交流 → 优先选粤拼 / 通用拼写 / 简化音译
+  // 排序规则：非拼音变体，按 formality + recognizability 降序
+  const overseasCandidates = entry.variants
+    .filter(v => v.type !== 'pinyin' && !v.easilyMangled)
+    .sort((a, b) => (b.formality + b.recognizability * 0.5) - (a.formality + a.recognizability * 0.5));
+
+  let overseasSpelling: string;
+  if (overseasCandidates.length > 0) {
+    overseasSpelling = overseasCandidates[0].spelling;
+  } else {
+    // 若无合适的海外拼写，回退到拼音
+    overseasSpelling = chinaSpelling;
+  }
+
+  return { china: chinaSpelling, overseas: overseasSpelling };
+}
+
 export { SURNAME_VARIANT_MAP };

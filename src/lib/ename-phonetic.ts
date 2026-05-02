@@ -1099,6 +1099,43 @@ export function getSuggestedNamesByInitial(chineseNamePinyin: string): string[] 
 }
 
 /**
+ * ★★★ 避坑：谐音雷黑名单 ★★★
+ * 
+ * 用户指南避坑提醒：
+ * - "诗 Shi" 不要叫 She
+ * - "达 Da" 不要叫 Dumb
+ * - 等特定拼音→英文组合
+ * 
+ * key = 中文拼音（小写），value = 不应匹配的英文名列表
+ */
+const PHONETIC_PITFALLS: Record<string, string[]> = {
+  'shi': ['She', 'Shit', 'Sheet', 'Sheep'],
+  'shih': ['She', 'Shit', 'Sheet', 'Sheep'],
+  'da': ['Dumb', 'Dump', 'Dick', 'Dunce'],
+  'si': ['Sick', 'Sith', 'Sissy'],
+  'cao': ['Cow', 'Cough'],
+  'bi': ['Bee', 'Beep', 'Bitch'],
+  'pi': ['Pee', 'Piss', 'Pig'],
+  'su': ['Sue', 'Suede', 'Suck'],
+  'ma': ['Mad', 'Mud', 'Mom'],
+  'ba': ['Bad', 'Bomb', 'Bum'],
+  'pa': ['Papa', 'Papa'],
+  'fan': ['Fawn', 'Fang', 'Fanny'],
+  'wan': ['Wan', 'Wonky', 'Wanker'],
+};
+
+/**
+ * 检查是否踩中谐音雷
+ */
+function checkPhoneticPitfall(pinyin: string, englishName: string): boolean {
+  const firstSyllable = pinyin.trim().split(/\s+/)[0].toLowerCase();
+  const enName = englishName.trim().toLowerCase();
+  const blockedNames = PHONETIC_PITFALLS[firstSyllable];
+  if (!blockedNames) return false;
+  return blockedNames.some(name => name.toLowerCase() === enName);
+}
+
+/**
  * ★★★ V5.5 万能匹配法 — 核心评分路径 ★★★
  * 
  * 与 V5.0 相比，V5.5 的核心变更：
@@ -1106,65 +1143,124 @@ export function getSuggestedNamesByInitial(chineseNamePinyin: string): string[] 
  *   2. 只有当首字声母完全无匹配时才回退到原有逻辑
  *   3. 首字声母有匹配但低分时，给予合理的基础分
  *   4. 推荐的英文名列表优先展示（声母推荐列表 + 韵母精排）
+ *   5. 对全名（多音节）尝试所有音节声母匹配，取最高分
+ *   6. 添加谐音雷黑名单检查（如"诗 Shi"不匹配"She"）
  */
 export function universalMatch(
   chineseNamePinyin: string, 
   englishName: string
 ): PhoneticMatchResult {
-  // ★★★ V5.5 优先走"首字声母匹配"路径 ★★★
-  // 这是万能匹配法的核心：只抓声母，快速锁定
-  const quickResult = quickInitialMatch(chineseNamePinyin, englishName);
-  
-  if (quickResult.matchedInitial && quickResult.score >= 0.7) {
-    // ★★★ 首字声母 + 韵母部分匹配，直接使用万能匹配得分 ★★★
-    // 例如：zhang → J开头，韵母ang匹配 → score=0.95
-    return {
-      score: Math.round(quickResult.score * 100) / 100,
-      matchedLevel: 1,
-      detail: `[万能匹配] ${quickResult.detail}`,
+  // ★★★ 避坑检查：谐音雷 ★★★
+  if (checkPhoneticPitfall(chineseNamePinyin, englishName)) {
+    return { 
+      score: 0, 
+      matchedLevel: 0, 
+      detail: `[避坑] 拼音"${chineseNamePinyin.split(/\s+/)[0]}"与英文名"${englishName}"存在谐音雷，已排除` 
     };
   }
   
-  if (quickResult.matchedInitial && quickResult.score >= 0.5) {
-    // ★★★ 仅有声母匹配，韵母未加分，给予合理低分 ★★★
-    // 例如：zhang → J开头，韵母不匹配 → score=0.7
+  // ★★★ 对全名尝试所有音节声母匹配，取最高分 ★★★
+  const syllables = chineseNamePinyin.trim().split(/\s+/);
+  let bestScore = 0;
+  let bestDetail = '无匹配';
+  let bestLevel = 0;
+  let anyMatchFromSyllables = false;
+  
+  for (const syllable of syllables) {
+    if (!syllable) continue;
+    const syllableResult = canSyllableMatch(syllable, englishName);
+    if (syllableResult.score > bestScore) {
+      bestScore = syllableResult.score;
+      bestDetail = syllableResult.detail;
+      bestLevel = syllableResult.level;
+      anyMatchFromSyllables = true;
+    }
+  }
+  
+  if (anyMatchFromSyllables && bestScore >= 0.5) {
     return {
-      score: Math.round(quickResult.score * 100) / 100,
-      matchedLevel: 2,
-      detail: `[万能匹配] ${quickResult.detail}`,
+      score: Math.round(bestScore * 100) / 100,
+      matchedLevel: bestLevel,
+      detail: `[万能匹配] ${bestDetail}`,
     };
   }
   
-  if (quickResult.matchedInitial && quickResult.score > 0) {
-    // ★★★ 仅有弱声母匹配 ★★★
-    return {
-      score: Math.round(quickResult.score * 100) / 100,
-      matchedLevel: 3,
-      detail: `[万能匹配] ${quickResult.detail}`,
-    };
-  }
-  
-  // ★★★ V5.5 当首字声母完全无匹配时，快速检查声母推荐列表 ★★★
-  // 有些英文名首字母不符合映射但整体发音近似（如 Ch 开头但声母是 K）
+  // 如果所有音节都没有声母匹配，检查声母推荐列表
   const suggested = getSuggestedNamesByInitial(chineseNamePinyin);
   if (suggested.length > 0 && suggested.some(s => s.toLowerCase() === englishName.toLowerCase())) {
     return {
       score: 0.65,
       matchedLevel: 2,
-      detail: `[万能匹配] 英文名在声母推荐列表中（首字拼音首音节${chineseNamePinyin.split(/\s+/)[0]}声母推荐）`,
+      detail: `[万能匹配] 英文名在声母推荐列表中`,
     };
   }
   
-  // ★★★ V5.5 最后回退到原有 matchPronunciation 逻辑 ★★★
-  // 这在多音节名中仍然有用（如"wen di" 匹配 "Wendy"，首字wen匹配Wendy的前三个字母）
+  // 回退到原有的 matchPronunciation 逻辑
   const original = matchPronunciation(chineseNamePinyin, englishName);
-  
   if (original.score >= 0.3) {
     return original;
   }
   
   // 完全无匹配
   return { score: 0, matchedLevel: 0, detail: '无匹配' };
+}
+
+/**
+ * 检查单个拼音音节是否能匹配英文名（首字声母匹配核心逻辑）
+ * 用于全名匹配时逐音节尝试
+ */
+function canSyllableMatch(
+  syllable: string, 
+  englishName: string
+): { score: number; detail: string; level: number } {
+  const initial = extractInitial(syllable);
+  const final = extractFinal(syllable);
+  const enName = englishName.trim().toLowerCase();
+  const enFirstLetter = enName[0]?.toUpperCase() || '';
+  
+  const candidateLetters = INITIAL_TO_EN_LETTERS[initial] || [];
+  const letterMatched = candidateLetters.includes(enFirstLetter);
+  
+  if (!letterMatched) {
+    return { score: 0, detail: `声母${initial}不匹配${enFirstLetter}`, level: 0 };
+  }
+  
+  // 声母匹配成功，计算韵母加分
+  let bonus = 0;
+  let finalDetail = '';
+  
+  if (final) {
+    const finalSubs = FINAL_TO_EN_SUBSTRINGS[final] || [];
+    // 检查英文名中是否包含韵母的近似音素
+    for (const sub of finalSubs) {
+      if (enName.includes(sub.toLowerCase())) {
+        bonus = 0.25;
+        finalDetail = `，韵母"${final}"音素"${sub}"在名中`;
+        break;
+      }
+    }
+    // 额外的完整拼音检查
+    if (bonus === 0 && final.length >= 2 && enName.includes(final)) {
+      bonus = 0.2;
+      finalDetail = `，韵母"${final}"在名中`;
+    }
+    // 检查前两个字母
+    if (bonus === 0 && syllable.length >= 2) {
+      const p2 = syllable.substring(0, 2);
+      if (enName.startsWith(p2)) {
+        bonus = 0.15;
+        finalDetail = `，前两字母"${p2}"匹配`;
+      }
+    }
+  }
+  
+  const baseScore = 0.7;
+  const finalScore = Math.min(1.0, baseScore + bonus);
+  const level = bonus >= 0.25 ? 1 : 2;
+  
+  const detail = `首字"${syllable}"声母${initial}匹配英文首字母${enFirstLetter}${finalDetail}（得分${Math.round(finalScore * 100)}）`;
+  
+  return { score: finalScore, detail, level };
 }
 
 /**
