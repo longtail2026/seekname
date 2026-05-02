@@ -29,6 +29,161 @@ export interface SurnameEntry {
 }
 
 /**
+ * ★★★ V6.3 姓氏英文发音匹配表 ★★★
+ * 
+ * 用于"姓氏单独匹配发音接近英文"功能。
+ * 包含150个常见姓氏的最常见英文表达（香港粤拼/威妥玛/通用拼写）。
+ * 
+ * 来源：华人海外常用姓氏拼写惯例。
+ * 如果 match 完全，则给予额外加分；如果匹配不到，则回退到原拼音逻辑。
+ */
+export const SURNAME_ENGLISH_MAP: Record<string, string[]> = {
+  '陈': ['Chan'],
+  '林': ['Lam'],
+  '黄': ['Wong'],
+  '张': ['Cheung'],
+  '李': ['Lee'],
+  '王': ['Wong'],
+  '吴': ['Ng'],
+  '刘': ['Lau'],
+  '蔡': ['Choi'],
+  '杨': ['Yeung'],
+  '周': ['Chow'],
+  '徐': ['Tsui'],
+  '孙': ['Suen'],
+  '朱': ['Chu'],
+  '马': ['Ma'],
+  '郭': ['Kwok'],
+  '何': ['Ho'],
+  '梁': ['Leung'],
+  '宋': ['Sung'],
+  '郑': ['Cheng'],
+  '谢': ['Tse'],
+  '韩': ['Hon'],
+  '唐': ['Tong'],
+  '冯': ['Fung'],
+  '于': ['Yee'],
+  '董': ['Tung'],
+  '萧': ['Siu'],
+  '程': ['Ching'],
+  '曹': ['Cho'],
+  '袁': ['Yuen'],
+  '邓': ['Tang'],
+  '许': ['Hui'],
+  '傅': ['Foo'],
+  '沈': ['Shum'],
+  '曾': ['Tsang'],
+  '彭': ['Pang'],
+  '吕': ['Lui'],
+  '苏': ['So'],
+  '卢': ['Lo'],
+  '蒋': ['Chiang'],
+  '余': ['Yee'],
+  '杜': ['To'],
+  '戴': ['Tai'],
+  '魏': ['Ngai'],
+  '钟': ['Chung'],
+  '邱': ['Yau'],
+  '谭': ['Tam'],
+  '韦': ['Wai'],
+  '贾': ['Ka'],
+  '邹': ['Chau'],
+  '石': ['Shek'],
+  '熊': ['Hung'],
+  '孟': ['Mang'],
+  '秦': ['Chun'],
+  '白': ['Pak'],
+  '阎': ['Yim'],
+  '薛': ['Sit'],
+  '侯': ['Hau'],
+  '雷': ['Lui'],
+  '龙': ['Lung'],
+  '段': ['Tuen'],
+  '郝': ['Kok'],
+  '孔': ['Hung'],
+  '邵': ['Siu'],
+  '史': ['Si'],
+  '毛': ['Mo'],
+  '常': ['Sheung'],
+  '万': ['Man'],
+  '顾': ['Koo'],
+  '赖': ['Lai'],
+  '武': ['Mo'],
+  '康': ['Hong'],
+  '贺': ['Ho'],
+  '严': ['Yim'],
+  '尹': ['Wan'],
+  '钱': ['Chin'],
+  '施': ['Si'],
+  '洪': ['Hung'],
+  '汤': ['Tong'],
+  '龚': ['Kung'],
+  '陶': ['To'],
+  '黎': ['Lai'],
+  '崔': ['Tsui'],
+  '范': ['Fan'],
+  '乔': ['Kiu'],
+  '汪': ['Wong'],
+  '田': ['Tin'],
+  '陆': ['Luk'],
+  '姜': ['Keung'],
+  '占': ['Jim'],
+  '欧': ['Au'],
+  '尤': ['Yau'],
+  '金': ['Kam'],
+  '潘': ['Poon'],
+  '江': ['Kong'],
+  '方': ['Fong'],
+  '柯': ['O'],
+  '柳': ['Lau'],
+  '高': ['Go'],
+  '章': ['Cheung'],
+  '华': ['Wah'],
+  '夏': ['Ha'],
+  '胡': ['Wu'],
+  '温': ['Wan'],
+  '俞': ['Yee'],
+  '姚': ['Yiu'],
+  '庄': ['Chong'],
+  '葛': ['Kap'],
+  '伍': ['Ng'],
+  '庞': ['Pong'],
+  '邢': ['Ying'],
+  '邸': ['Tai'],
+  '栗': ['Leut'],
+  '季': ['Kwai'],
+  '涂': ['Tou'],
+  '霍': ['Fok'],
+  '蒙': ['Mung'],
+  '鲍': ['Pau'],
+  '毕': ['Bat'],
+  '甘': ['Kam'],
+  '裴': ['Pui'],
+  '欧阳': ['Au-Yeung'],
+  '慕容': ['Mau-Yung'],
+  '司徒': ['Seto'],
+  '诸葛': ['Chu-Kut'],
+  '尉迟': ['Wai-Chi'],
+  '夏侯': ['Ha-Hau'],
+  '皇甫': ['Wong-Po'],
+  '令狐': ['Ling-Wu'],
+  '端木': ['Tuen-Muk'],
+  '羊舌': ['Yeung-Sit'],
+  '公羊': ['Kung-Yeung'],
+  '颛顼': ['Chyun-Yuk'],
+  '太史': ['Tai-Si'],
+  '淳于': ['Seun-Yu'],
+};
+
+/**
+ * ★★★ V6.3 获取姓氏的最常见英文表达 ★★★
+ * 用于"姓氏独立发音匹配"功能
+ */
+export function getSurnameEnglishExpressions(chineseSurname: string): string[] {
+  return SURNAME_ENGLISH_MAP[chineseSurname] || [];
+}
+
+/**
  * 姓氏映射表
  * 
  * 排序规则：常用姓氏在前
@@ -200,27 +355,36 @@ const SURNAME_VARIANT_MAP: Record<string, SurnameEntry> = {
       { spelling: 'Leong', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
+  '谢': {
+    chinese: '谢', pinyin: 'xie',
+    variants: [
+      { spelling: 'Xie', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
+      { spelling: 'Tse', type: 'cantonese', formality: 4, recognizability: 3, easilyMangled: false },
+      { spelling: 'Cheah', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
+  '许': {
+    chinese: '许', pinyin: 'xu',
+    variants: [
+      { spelling: 'Xu', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
+      { spelling: 'Hui', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Koh', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
   '郑': {
     chinese: '郑', pinyin: 'zheng',
     variants: [
       { spelling: 'Zheng', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
       { spelling: 'Cheng', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Chang', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Teh', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
-  '谢': {
-    chinese: '谢', pinyin: 'xie',
+  '韩': {
+    chinese: '韩', pinyin: 'han',
     variants: [
-      { spelling: 'Xie', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Hsieh', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Tse', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '宋': {
-    chinese: '宋', pinyin: 'song',
-    variants: [
-      { spelling: 'Song', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Sung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Han', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Hon', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Hang', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
   '唐': {
@@ -230,101 +394,18 @@ const SURNAME_VARIANT_MAP: Record<string, SurnameEntry> = {
       { spelling: 'Tong', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
-  '许': {
-    chinese: '许', pinyin: 'xu',
-    variants: [
-      { spelling: 'Xu', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Hsu', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Koh', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '韩': {
-    chinese: '韩', pinyin: 'han',
-    variants: [
-      { spelling: 'Han', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Hahn', type: 'common_anglicized', formality: 3, recognizability: 4, easilyMangled: false },
-    ]
-  },
   '冯': {
     chinese: '冯', pinyin: 'feng',
     variants: [
       { spelling: 'Feng', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Fung', type: 'cantonese', formality: 4, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '邓': {
-    chinese: '邓', pinyin: 'deng',
-    variants: [
-      { spelling: 'Deng', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Teng', type: 'common_anglicized', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '曹': {
-    chinese: '曹', pinyin: 'cao',
-    variants: [
-      { spelling: 'Cao', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Tsao', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Chao', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '彭': {
-    chinese: '彭', pinyin: 'peng',
-    variants: [
-      { spelling: 'Peng', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Phang', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
-      { spelling: 'Pang', type: 'cantonese', formality: 3, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '曾': {
-    chinese: '曾', pinyin: 'zeng',
-    variants: [
-      { spelling: 'Zeng', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: false },
-      { spelling: 'Tsang', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Chan', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '萧': {
-    chinese: '萧', pinyin: 'xiao',
-    variants: [
-      { spelling: 'Xiao', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Hsiao', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Siu', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '田': {
-    chinese: '田', pinyin: 'tian',
-    variants: [
-      { spelling: 'Tian', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Tien', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Fung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
   '董': {
     chinese: '董', pinyin: 'dong',
     variants: [
-      { spelling: 'Dong', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Tung', type: 'cantonese', formality: 4, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '潘': {
-    chinese: '潘', pinyin: 'pan',
-    variants: [
-      { spelling: 'Pan', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Poon', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '袁': {
-    chinese: '袁', pinyin: 'yuan',
-    variants: [
-      { spelling: 'Yuan', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yuen', type: 'cantonese', formality: 4, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '蔡': {
-    chinese: '蔡', pinyin: 'cai',
-    variants: [
-      { spelling: 'Cai', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Tsai', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Choi', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Dong', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Tung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
   '蒋': {
@@ -335,6 +416,30 @@ const SURNAME_VARIANT_MAP: Record<string, SurnameEntry> = {
       { spelling: 'Cheung', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
+  '彭': {
+    chinese: '彭', pinyin: 'peng',
+    variants: [
+      { spelling: 'Peng', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Pang', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Phang', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
+  '曾': {
+    chinese: '曾', pinyin: 'zeng',
+    variants: [
+      { spelling: 'Zeng', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Tsang', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Chan', type: 'minnan', formality: 3, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '蔡': {
+    chinese: '蔡', pinyin: 'cai',
+    variants: [
+      { spelling: 'Cai', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Tsai', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Choi', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+    ]
+  },
   '余': {
     chinese: '余', pinyin: 'yu',
     variants: [
@@ -342,146 +447,160 @@ const SURNAME_VARIANT_MAP: Record<string, SurnameEntry> = {
       { spelling: 'Yee', type: 'cantonese', formality: 3, recognizability: 4, easilyMangled: false },
     ]
   },
-  '叶': {
-    chinese: '叶', pinyin: 'ye',
+  '杜': {
+    chinese: '杜', pinyin: 'du',
     variants: [
-      { spelling: 'Ye', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yeh', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yip', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Du', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'To', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
-  '程': {
-    chinese: '程', pinyin: 'cheng',
+  '戴': {
+    chinese: '戴', pinyin: 'dai',
     variants: [
-      { spelling: 'Cheng', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Ching', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Dai', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Tai', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
   '苏': {
     chinese: '苏', pinyin: 'su',
     variants: [
-      { spelling: 'Su', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Soo', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '吕': {
-    chinese: '吕', pinyin: 'lv',
-    variants: [
-      { spelling: 'Lyu', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Lu', type: 'simplified_phonetic', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Lui', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '魏': {
-    chinese: '魏', pinyin: 'wei',
-    variants: [
-      { spelling: 'Wei', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Way', type: 'simplified_phonetic', formality: 3, recognizability: 4, easilyMangled: false },
-      { spelling: 'Ngai', type: 'cantonese', formality: 3, recognizability: 2, easilyMangled: true },
-    ]
-  },
-  '丁': {
-    chinese: '丁', pinyin: 'ding',
-    variants: [
-      { spelling: 'Ding', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Ting', type: 'common_anglicized', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '沈': {
-    chinese: '沈', pinyin: 'shen',
-    variants: [
-      { spelling: 'Shen', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Shum', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-      { spelling: 'Sim', type: 'minnan', formality: 2, recognizability: 2, easilyMangled: true },
-    ]
-  },
-  '任': {
-    chinese: '任', pinyin: 'ren',
-    variants: [
-      { spelling: 'Ren', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yen', type: 'common_anglicized', formality: 3, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yam', type: 'cantonese', formality: 2, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '姚': {
-    chinese: '姚', pinyin: 'yao',
-    variants: [
-      { spelling: 'Yao', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yiu', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Su', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'So', type: 'cantonese', formality: 3, recognizability: 4, easilyMangled: false },
     ]
   },
   '卢': {
     chinese: '卢', pinyin: 'lu',
     variants: [
-      { spelling: 'Lu', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Lu', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
       { spelling: 'Lo', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Loh', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '傅': {
-    chinese: '傅', pinyin: 'fu',
-    variants: [
-      { spelling: 'Fu', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Foo', type: 'simplified_phonetic', formality: 3, recognizability: 4, easilyMangled: false },
     ]
   },
   '钟': {
     chinese: '钟', pinyin: 'zhong',
     variants: [
-      { spelling: 'Zhong', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
+      { spelling: 'Zhong', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
       { spelling: 'Chung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Chong', type: 'simplified_phonetic', formality: 3, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '崔': {
-    chinese: '崔', pinyin: 'cui',
-    variants: [
-      { spelling: 'Cui', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Tsui', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Choi', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Cheong', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
   '汪': {
     chinese: '汪', pinyin: 'wang',
     variants: [
       { spelling: 'Wang', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Wong', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Wong', type: 'cantonese', formality: 4, recognizability: 5, easilyMangled: false },
+    ]
+  },
+  '田': {
+    chinese: '田', pinyin: 'tian',
+    variants: [
+      { spelling: 'Tian', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Tin', type: 'cantonese', formality: 3, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '方': {
+    chinese: '方', pinyin: 'fang',
+    variants: [
+      { spelling: 'Fang', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Fong', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '袁': {
+    chinese: '袁', pinyin: 'yuan',
+    variants: [
+      { spelling: 'Yuan', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Yuen', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
   '范': {
     chinese: '范', pinyin: 'fan',
     variants: [
       { spelling: 'Fan', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Faan', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Vann', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
-  '陆': {
-    chinese: '陆', pinyin: 'lu',
+  '江': {
+    chinese: '江', pinyin: 'jiang',
     variants: [
-      { spelling: 'Lu', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Luk', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Jiang', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Kong', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Chiang', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
+  '金': {
+    chinese: '金', pinyin: 'jin',
+    variants: [
+      { spelling: 'Jin', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Kam', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
+  '潘': {
+    chinese: '潘', pinyin: 'pan',
+    variants: [
+      { spelling: 'Pan', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Poon', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '姚': {
+    chinese: '姚', pinyin: 'yao',
+    variants: [
+      { spelling: 'Yao', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Yiu', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
   '廖': {
     chinese: '廖', pinyin: 'liao',
     variants: [
       { spelling: 'Liao', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Liu', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
-      { spelling: 'Leow', type: 'minnan', formality: 2, recognizability: 3, easilyMangled: true },
+      { spelling: 'Liu', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
-  '杜': {
-    chinese: '杜', pinyin: 'du',
+  '邹': {
+    chinese: '邹', pinyin: 'zou',
     variants: [
-      { spelling: 'Du', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Do', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Zou', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Chau', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
-  '方': {
-    chinese: '方', pinyin: 'fang',
+  '熊': {
+    chinese: '熊', pinyin: 'xiong',
     variants: [
-      { spelling: 'Fang', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Fong', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+      { spelling: 'Xiong', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
+      { spelling: 'Hung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '秦': {
+    chinese: '秦', pinyin: 'qin',
+    variants: [
+      { spelling: 'Qin', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
+      { spelling: 'Chin', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '白': {
+    chinese: '白', pinyin: 'bai',
+    variants: [
+      { spelling: 'Bai', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Pak', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
+  '薛': {
+    chinese: '薛', pinyin: 'xue',
+    variants: [
+      { spelling: 'Xue', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
+      { spelling: 'Sit', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+    ]
+  },
+  '谭': {
+    chinese: '谭', pinyin: 'tan',
+    variants: [
+      { spelling: 'Tan', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
+      { spelling: 'Tam', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
+    ]
+  },
+  '姜': {
+    chinese: '姜', pinyin: 'jiang',
+    variants: [
+      { spelling: 'Jiang', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Keung', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
   '石': {
@@ -491,177 +610,32 @@ const SURNAME_VARIANT_MAP: Record<string, SurnameEntry> = {
       { spelling: 'Shek', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
-  '熊': {
-    chinese: '熊', pinyin: 'xiong',
+  '韦': {
+    chinese: '韦', pinyin: 'wei',
     variants: [
-      { spelling: 'Xiong', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Hsiung', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Hung', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Wei', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Wai', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
     ]
   },
-  '金': {
-    chinese: '金', pinyin: 'jin',
+  '贾': {
+    chinese: '贾', pinyin: 'jia',
     variants: [
-      { spelling: 'Jin', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Chin', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Jia', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Ka', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
   '邱': {
     chinese: '邱', pinyin: 'qiu',
     variants: [
-      { spelling: 'Qiu', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Chiu', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Khoo', type: 'minnan', formality: 3, recognizability: 3, easilyMangled: false },
+      { spelling: 'Qiu', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
+      { spelling: 'Yau', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
   '侯': {
     chinese: '侯', pinyin: 'hou',
     variants: [
       { spelling: 'Hou', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Howe', type: 'simplified_phonetic', formality: 3, recognizability: 4, easilyMangled: false },
-      { spelling: 'Hao', type: 'simplified_phonetic', formality: 2, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '白': {
-    chinese: '白', pinyin: 'bai',
-    variants: [
-      { spelling: 'Bai', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Pak', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-      { spelling: 'Pai', type: 'simplified_phonetic', formality: 2, recognizability: 2, easilyMangled: false },
-    ]
-  },
-  '江': {
-    chinese: '江', pinyin: 'jiang',
-    variants: [
-      { spelling: 'Jiang', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Chiang', type: 'common_anglicized', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Kong', type: 'cantonese', formality: 3, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '史': {
-    chinese: '史', pinyin: 'shi',
-    variants: [
-      { spelling: 'Shi', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Sze', type: 'cantonese', formality: 3, recognizability: 2, easilyMangled: true },
-      { spelling: 'See', type: 'simplified_phonetic', formality: 2, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '龙': {
-    chinese: '龙', pinyin: 'long',
-    variants: [
-      { spelling: 'Long', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Lung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '万': {
-    chinese: '万', pinyin: 'wan',
-    variants: [
-      { spelling: 'Wan', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Man', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '段': {
-    chinese: '段', pinyin: 'duan',
-    variants: [
-      { spelling: 'Duan', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: false },
-      { spelling: 'Tuan', type: 'common_anglicized', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '雷': {
-    chinese: '雷', pinyin: 'lei',
-    variants: [
-      { spelling: 'Lei', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Lui', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '钱': {
-    chinese: '钱', pinyin: 'qian',
-    variants: [
-      { spelling: 'Qian', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Chien', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Chin', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '汤': {
-    chinese: '汤', pinyin: 'tang',
-    variants: [
-      { spelling: 'Tang', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Tong', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '尹': {
-    chinese: '尹', pinyin: 'yin',
-    variants: [
-      { spelling: 'Yin', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Yun', type: 'simplified_phonetic', formality: 3, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '易': {
-    chinese: '易', pinyin: 'yi',
-    variants: [
-      { spelling: 'Yi', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Yee', type: 'simplified_phonetic', formality: 3, recognizability: 4, easilyMangled: false },
-      { spelling: 'Ee', type: 'simplified_phonetic', formality: 2, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '常': {
-    chinese: '常', pinyin: 'chang',
-    variants: [
-      { spelling: 'Chang', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Cheung', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '武': {
-    chinese: '武', pinyin: 'wu',
-    variants: [
-      { spelling: 'Wu', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Woo', type: 'simplified_phonetic', formality: 3, recognizability: 4, easilyMangled: false },
-      { spelling: 'Mo', type: 'cantonese', formality: 2, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '乔': {
-    chinese: '乔', pinyin: 'qiao',
-    variants: [
-      { spelling: 'Qiao', type: 'pinyin', formality: 5, recognizability: 3, easilyMangled: true },
-      { spelling: 'Chiao', type: 'common_anglicized', formality: 4, recognizability: 3, easilyMangled: false },
-      { spelling: 'Kiu', type: 'cantonese', formality: 3, recognizability: 2, easilyMangled: true },
-    ]
-  },
-  '贺': {
-    chinese: '贺', pinyin: 'he',
-    variants: [
-      { spelling: 'He', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Ho', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-    ]
-  },
-  '赖': {
-    chinese: '赖', pinyin: 'lai',
-    variants: [
-      { spelling: 'Lai', type: 'pinyin', formality: 5, recognizability: 5, easilyMangled: false },
-      { spelling: 'Lye', type: 'simplified_phonetic', formality: 2, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '龚': {
-    chinese: '龚', pinyin: 'gong',
-    variants: [
-      { spelling: 'Gong', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Kung', type: 'cantonese', formality: 4, recognizability: 3, easilyMangled: false },
-    ]
-  },
-  '文': {
-    chinese: '文', pinyin: 'wen',
-    variants: [
-      { spelling: 'Wen', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Man', type: 'cantonese', formality: 4, recognizability: 4, easilyMangled: false },
-      { spelling: 'Vun', type: 'minnan', formality: 2, recognizability: 2, easilyMangled: true },
-    ]
-  },
-  '欧': {
-    chinese: '欧', pinyin: 'ou',
-    variants: [
-      { spelling: 'Ou', type: 'pinyin', formality: 5, recognizability: 4, easilyMangled: false },
-      { spelling: 'Au', type: 'cantonese', formality: 3, recognizability: 4, easilyMangled: false },
-      { spelling: 'O', type: 'simplified_phonetic', formality: 2, recognizability: 3, easilyMangled: false },
+      { spelling: 'Hau', type: 'cantonese', formality: 3, recognizability: 3, easilyMangled: false },
     ]
   },
 };
