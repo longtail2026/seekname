@@ -1,0 +1,21 @@
+# 依赖和构建产物 (必须)
+node_modules/
+.next/
+dist/
+build/
+target/
+__pycache__/
+*.py[cod]
+
+# 环境和数据文件
+.env*
+*.log
+*.csv
+*.xlsx
+*.db
+*.sqlite
+
+# 输出和缓存目录 (如CDK项目)
+cdk.out/
+.cache/
+coverage/

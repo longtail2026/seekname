@@ -17,6 +17,7 @@ import {
   universalMatch,
   quickInitialMatch,
   getSuggestedNamesByInitial,
+  calcSurnameEnglishMatchScore,
   type PhoneticMatchResult 
 } from "./ename-phonetic";
 import { getRecommendedSurnameSpellings, getSurnamePinyin, getSurnameChinaOverseas } from "./ename-surname-map";
@@ -78,6 +79,12 @@ export interface EnameScoredResult {
   surnameOverseas?: string;
   /** ★★★ V5.6 匹配需求分类：标识该名字主要满足哪类需求，用于前端分组展示 ★★★ */
   matchCategory?: string;
+  /** ★★★ V6.3 姓氏英文发音匹配分数（0-100）★★★ */
+  surnameEnglishMatchScore: number;
+  /** ★★★ V6.3 匹配到的姓氏英文表达 ★★★ */
+  surnameEnglishMatchedExpr: string;
+  /** ★★★ V6.3 姓氏英文匹配详情 ★★★ */
+  surnameEnglishMatchDetail: string;
 }
 
 // ===== 评分器 =====
@@ -340,15 +347,15 @@ export async function generateEnglishNames(
     const nameForPhonetic = fullName || surname;
     const pinyinInfo = getChineseNamePinyin(nameForPhonetic);
     
-    // ★★★ V4增强：当用户勾选"谐音贴近中文名"时，同时使用全名拼音（姓氏+名字）进行匹配 ★★★
-    // 因为英文名通常以姓氏+名字形式展示，全名发音匹配更准确
+    // ★★★ V6.1 修正：只使用名字拼音进行搜索匹配，排除姓氏 ★★★
+    // 原因：姓氏（如"li"）的发音（L→L,E,I）会匹配大量不相关的英文名
+    // 例如"李茂勇"的全名拼音"li mao yong"→搜索到Early(E匹配yong)、Johnson(J匹配yong)
+    // 这些结果对名字"茂勇"的发音匹配毫无意义
     const hasPhoneticNeed = needs.includes("谐音贴近中文名");
     
-    // 如果提供了全名且勾选了谐音选项，同时用全名拼音和名字拼音做匹配
-    let fullNamePinyinInfo = pinyinInfo;
-    if (fullName && hasPhoneticNeed) {
-      fullNamePinyinInfo = getChineseNamePinyin(fullName);
-    }
+    // V6.1：始终只使用名字拼音进行搜索
+    // 名字是发音匹配的核心，姓氏不应干扰名字的英文名选择
+    const searchPinyin = pinyinInfo.givenName || pinyinInfo.fullPinyin;
     
     // 语义搜索（包含中文名拼音发音信息）
     let semanticMatches: EnameSemanticMatch[] = [];
@@ -381,12 +388,10 @@ export async function generateEnglishNames(
           gender: r.gender 
         }));
         
-        // ★★★ V4增强：使用全名拼音（姓氏+名字）进行匹配搜索 ★★★
-        // 对于"张国光"→"zhang guo guang"，全名匹配可以找到 Gordon (gor≈guo, don≈guang)
-        const searchPinyin = hasPhoneticNeed && fullNamePinyinInfo.fullPinyin 
-          ? fullNamePinyinInfo.fullPinyin 
-          : pinyinInfo.givenName;
-          
+        // ★★★ V6.1 修正：始终只使用名字拼音进行发音搜索，不使用全名拼音 ★★★
+        // 姓氏（如"li"）的发音（L→L,E,I）会匹配大量不相关的英文名
+        // 只有名字拼音才能真正反映用户希望英文名发音接近的内容
+        // 对于二字名（如"mao yong"），searchByPhoneticMatch内部会做双音节综合匹配
         phoneticMatchedNames = searchByPhoneticMatch(
           searchPinyin, 
           namesForMatch, 
@@ -483,8 +488,13 @@ export async function generateEnglishNames(
       const hasPhoneticNeed = needs.includes("谐音贴近中文名");
       const isPhoneticPass = !hasPhoneticNeed || effectivePhoneticScore >= 60;
       
+      // ★★★ V6.3 姓氏英文发音匹配加分 ★★★
+      const surnameEngMatch = calcSurnameEnglishMatchScore(record.name, surname);
+      // 姓氏匹配加分：满分100对应+10分加分，线性映射
+      const surnameBonus = Math.round(surnameEngMatch.score * 0.10);
+
       // ★★★ 综合评分公式优化：以发音匹配为主导 ★★★
-      // 权重分配：发音40% + 含义20% + 风格15% + 流行度10% + 长度10% + 语义加分5%
+      // 权重分配：发音40% + 含义20% + 风格15% + 流行度10% + 长度10% + 语义加分5% + 姓氏英文加分
       // 这样发音匹配好的名字（如 li↔Elia/Eli）必定排在前面，
       // 不会出现"无发音匹配但语义"超高的名字排在前面的情况
       let totalScore = Math.round(
@@ -493,7 +503,8 @@ export async function generateEnglishNames(
         styleScore * 0.15 +
         popularityScore * 0.10 + 
         lengthScore * 0.10 + 
-        semanticBonus
+        semanticBonus +
+        surnameBonus
       );
       
       // 发音硬性过滤：不符合发音标准的名字直接打零分
@@ -615,6 +626,9 @@ export async function generateEnglishNames(
         surnameChina,
         surnameOverseas,
         matchCategory,
+        surnameEnglishMatchScore: surnameEngMatch.score,
+        surnameEnglishMatchedExpr: surnameEngMatch.matchedExpression,
+        surnameEnglishMatchDetail: surnameEngMatch.detail,
       });
     }
 
