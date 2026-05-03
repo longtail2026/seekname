@@ -1,5 +1,5 @@
 /**
- * 英文起名引擎 v4.1
+ * 英文起名引擎 v4.2
  * 
  * === 架构变更 ===
  * ★ 删除风格偏好所有选项、风格评分
@@ -11,6 +11,12 @@
  *   评分规则：核心需求80% + 长度偏好20%
  *   核心需求内细分：每个选中的需求等权均匀分配80%权重
  *   DB候选≤10个 + AI候选=10个 = 总候选≤20个参与评分
+ * 
+ * === V4.2 变更 ===
+ * ★ 姓氏英文表达优化：当姓氏在 SURNAME_ENGLISH_MAP 中有映射时，
+ *   推荐全名使用海外表达（如"张→Cheung"而非"Zhang"）
+ * ★ surnameOverseas 也优先使用 SURNAME_ENGLISH_MAP 中的表达
+ * ★ 修复"Gordon Cheung" 排名低于 "Gordon Zhang" 的问题
  */
 
 import { getAllRecords, type EnameRecord } from "./ename-dict";
@@ -307,6 +313,50 @@ function buildAIPrompt(
 
 // ===== 综合起名引擎 =====
 
+/**
+ * 获取姓氏的推荐英文表达（优先使用SURNAME_ENGLISH_MAP中的海外表达）
+ * 
+ * V4.2：优先使用 SURNAME_ENGLISH_MAP（如"张→Cheung"），
+ * 回退到 getRecommendedSurnameSpellings（如"张→Zhang"）
+ */
+function getSurnameEnglish(surname: string): string {
+  // 1. 优先使用 SURNAME_ENGLISH_MAP 中的海外表达
+  const expressions = getSurnameEnglishExpressions(surname);
+  if (expressions.length > 0) {
+    return expressions[0];
+  }
+  
+  // 2. 回退到 getRecommendedSurnameSpellings
+  const spellings = getRecommendedSurnameSpellings(surname);
+  if (spellings.length > 0) {
+    return spellings[0];
+  }
+  
+  // 3. 最终回退：姓氏首字母大写
+  return surname.charAt(0).toUpperCase();
+}
+
+/**
+ * 获取姓氏的大陆/海外拼写（海外优先使用SURNAME_ENGLISH_MAP）
+ * 
+ * V4.2：surnameOverseas 优先使用 SURNAME_ENGLISH_MAP 中的表达
+ * （如"张"的 overseas 从原来的"Chang"改为"Cheung"）
+ */
+function getEnhancedSurnameChinaOverseas(surname: string): { china: string; overseas: string } {
+  const base = getSurnameChinaOverseas(surname);
+  
+  // 覆盖 overseas：优先使用 SURNAME_ENGLISH_MAP 中的表达
+  const expressions = getSurnameEnglishExpressions(surname);
+  if (expressions.length > 0) {
+    return {
+      china: base.china,
+      overseas: expressions[0],
+    };
+  }
+  
+  return base;
+}
+
 export async function generateEnglishNames(
   request: EnameGenerateRequest
 ): Promise<{ success: boolean; data: EnameScoredResult[]; totalCandidates: number; message?: string }> {
@@ -425,11 +475,12 @@ export async function generateEnglishNames(
       surnameMatchMap.set(sm.name.toLowerCase(), sm.score);
     }
 
-    // ===== 姓氏英文变体 =====
-    const surnameSpellings = getRecommendedSurnameSpellings(surname);
-    const surnameEnglish = surnameSpellings.length > 0 ? 
-      surnameSpellings[0] : 
-      surname.charAt(0).toUpperCase();
+    // ===== ★★★ V4.2 姓氏英文表达优化 ★★★ =====
+    // 优先使用 SURNAME_ENGLISH_MAP 中的海外表达（如"张→Cheung"而非"Zhang"）
+    const surnameEnglish = getSurnameEnglish(surname);
+    
+    // 姓氏大陆/海外拼写（overseas 优先使用 SURNAME_ENGLISH_MAP）
+    const { china: surnameChina, overseas: surnameOverseas } = getEnhancedSurnameChinaOverseas(surname);
 
     // ===== 3. 数据库候选名综合评分 =====
     let scoredDbResults: EnameScoredResult[] = [];
@@ -506,19 +557,14 @@ export async function generateEnglishNames(
       if (blacklistReason) tags.push(`⚠️${blacklistReason}`);
       tags.push("📚 英文名库");
 
-      // 姓氏中外拼写
-      const { china: surnameChina, overseas: surnameOverseas } = getSurnameChinaOverseas(surname);
-
-      // 生成推荐全名
+      // 生成推荐全名 ★★★ V4.2 使用海外表达（如"Cheung"）★★★
       const recommendedFullName = `${record.name} ${surnameEnglish}`;
       let adaptationNote = `你的${gender === "male" ? "姓氏" : "姓名"}「${surname}」`;
       if (givenName) adaptationNote += `${givenName}`;
       adaptationNote += `，推荐「${record.name}」`;
       if (phoneticResult.score >= 60) adaptationNote += `，发音与中文名相近`;
       if (surnameMatchResult.score >= 60) adaptationNote += `，且与姓氏英文表达「${surnameMatchResult.matchedExpression}」发音匹配`;
-      if (surnameSpellings.length > 0) {
-        adaptationNote += `。姓氏「${surname}」推荐英文变体「${surnameEnglish}」`;
-      }
+      adaptationNote += `。姓氏「${surname}」推荐英文变体「${surnameEnglish}」`;
 
       scoredDbResults.push({
         name: record.name,
@@ -647,8 +693,8 @@ export async function generateEnglishNames(
           adaptationNote: `中文名「${fullNameStr}」，AI 推荐「${item.name}」`,
           recommendedFullName: `${item.name} ${surnameEnglish}`,
           surnameEnglish,
-          surnameChina: getSurnameChinaOverseas(surname).china,
-          surnameOverseas: getSurnameChinaOverseas(surname).overseas,
+          surnameChina,
+          surnameOverseas,
           source: "ai",
         };
       });
