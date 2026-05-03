@@ -183,6 +183,8 @@ export async function generateEnglishNamesByPrompt(
     });
 
     if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[deepseek] API 请求失败: ${response.status} ${errText.substring(0, 200)}`);
       return [];
     }
 
@@ -191,19 +193,32 @@ export async function generateEnglishNamesByPrompt(
     };
 
     const content = data.choices?.[0]?.message?.content || "";
+    if (!content) {
+      console.warn("[deepseek] API 返回了空内容, data:", JSON.stringify(data).substring(0, 200));
+      return [];
+    }
+
+    console.log(`[deepseek] API 返回内容前200字符: ${content.substring(0, 200)}`);
+
     let jsonStr = content;
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) jsonStr = jsonMatch[0];
 
     const parsed = JSON.parse(jsonStr) as Array<{ name: string; meaning?: string }>;
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      console.warn("[deepseek] 解析结果不是数组:", typeof parsed);
+      return [];
+    }
 
-    return parsed
+    const result = parsed
       .filter((item) => item.name)
       .map((item) => ({
         name: item.name.trim(),
         meaning: item.meaning?.trim() || "",
       }));
+
+    console.log(`[deepseek] 成功解析 ${result.length} 个候选名`);
+    return result;
 
   } catch (error) {
     console.error("[deepseek] 自定义提示词生成失败:", error);

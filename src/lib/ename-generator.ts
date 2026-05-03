@@ -195,7 +195,9 @@ function calcLengthScore(name: string, preference?: "short" | "medium" | "long")
  */
 function calcSurnameMatchScore(
   candidateName: string,
-  surname: string
+  surname: string,
+  surnameEnglish?: string,
+  surnameChina?: string
 ): { score: number; matchedExpression: string; detail: string } {
   if (!surname || !candidateName) {
     return { score: 0, matchedExpression: "", detail: "缺少姓氏或英文名" };
@@ -210,40 +212,82 @@ function calcSurnameMatchScore(
     return pinyinFallback;
   }
 
-  // ★★★ V6.4 姓氏在150映射表中 → 直接给最高分 ★★★
-  // 因为姓氏（如"张"→"Cheung"）有标准的英文拼写表达，推荐全名会使用它（如"Gordon Cheung"），
-  // 所以无论候选名如何，姓氏匹配本身就应得最高分。
-  // 这解决了"张→Cheung"没有被升权的问题。
-  let bestScore = 100;
+  // ★★★ V6.5 姓氏在150映射表中 → 根据候选名是否匹配海外表达给分 ★★★
+  // 规则：
+  // - candidateName 恰好等于姓氏海外表达（如"Cheung"匹配"张→Cheung"）：100分
+  // - candidateName 前缀匹配姓氏海外表达（如"Cheung-something"）：90-100分
+  // - 姓氏有海外表达（如"张→Cheung"），但候选名不匹配：85分（标准映射分，表示姓氏来源权威）
+  // - 姓氏只有大陆拼音（如"王→Wang"）：75分
+  // 
+  // 海外表达的最终加分在评分循环中通过 surnameBonus 额外处理，
+  // 此处只反映姓氏映射本身的质量。
+  let bestScore = 75;
   let bestExpr = expressions[0];
+  let hasOverseas = false;
 
-  // 额外检查候选名是否也恰好匹配姓氏表达（锦上添花：名字本身就像姓氏英文表达）
+  // 判断是否有非拼音的海外表达
   for (const expr of expressions) {
     const exprLower = expr.toLowerCase();
+    // 排除纯拼音表达（与surname拼音相同）
+    const pinyinExpr = surnameEnglish?.toLowerCase() || surname?.toLowerCase();
+    if (exprLower === pinyinExpr) continue;
+    if (exprLower === surname?.toLowerCase()) continue;
+    // 检查是否拼音变体（如 Zhang→Chan 是海外表达，Zhang→Zhang 是拼音）
+    // 简单判断：如果表达式包含拼音的子串
+    if (exprLower.includes(pinyinExpr) || pinyinExpr.includes(exprLower)) continue;
+    hasOverseas = true;
+    break;
+  }
 
-    // 完全匹配：候选名就是姓氏表达（如名"Cheung"匹配张→"Cheung"）
+  // 候选名与姓氏表达的精确/前缀匹配检查
+  let exactMatch = false;
+  let prefixMatch = false;
+  for (const expr of expressions) {
+    const exprLower = expr.toLowerCase();
     if (enameLower === exprLower) {
-      return {
-        score: 100,
-        matchedExpression: expr,
-        detail: `英文名"${candidateName}"与姓氏"${surname}"的英文表达"${expr}"完全匹配`,
-      };
+      exactMatch = true;
+      bestExpr = expr;
+      break;
     }
-
-    // 前缀匹配：候选名以姓氏表达开头
     if (enameLower.startsWith(exprLower) && exprLower.length >= 2) {
       const ratio = exprLower.length / enameLower.length;
       if (ratio >= 0.5) {
-        bestScore = Math.max(bestScore, 100);
+        prefixMatch = true;
         bestExpr = expr;
       }
     }
   }
 
+  if (exactMatch) {
+    bestScore = 100;
+    bestExpr = bestExpr || expressions[0];
+    return {
+      score: 100,
+      matchedExpression: bestExpr,
+      detail: `英文名"${candidateName}"与姓氏"${surname}"的英文表达"${bestExpr}"完全匹配`,
+    };
+  }
+
+  if (prefixMatch) {
+    bestScore = 95;
+    bestExpr = bestExpr || expressions[0];
+    return {
+      score: 95,
+      matchedExpression: bestExpr,
+      detail: `英文名"${candidateName}"与姓氏"${surname}"的英文表达"${bestExpr}"前缀匹配`,
+    };
+  }
+
+  // 无名匹配时的基础分：有海外表达85分，仅拼音75分
+  bestScore = hasOverseas ? 85 : 75;
+  bestExpr = expressions[0];
+
   return {
     score: bestScore,
     matchedExpression: bestExpr,
-    detail: `姓氏「${surname}」有英文表达"${bestExpr}"，姓氏映射匹配成功（100分）`,
+    detail: hasOverseas
+      ? `姓氏「${surname}」有海外表达"${bestExpr}"（85分）`
+      : `姓氏「${surname}」映射匹配，仅大陆拼音形式（75分）`,
   };
 }
 
@@ -533,10 +577,16 @@ export async function generateEnglishNames(
       const { penalty: blacklistPenalty, reason: blacklistReason } = getBlacklistPenalty(record.name);
       finalCoreScore = Math.max(0, finalCoreScore - Math.round(blacklistPenalty * 0.3));
 
-      // ★★★ 综合评分：核心需求80% + 长度偏好20% ★★★
+      // ★★★ V4.2 姓氏海外表达加分：若推荐全名使用了海外表达（如"Cheung"而非"Zhang"） ★★★
+      // surnameOverseas 优先使用 SURNAME_ENGLISH_MAP（已由getEnhancedSurnameChinaOverseas保证）
+      // 如果 surnameOverseas !== surnameChina，说明推荐全名用了海外表达，+10分
+      const surnameBonus = (surnameOverseas !== surnameChina) ? 10 : 0;
+
+      // ★★★ 综合评分：核心需求80% + 长度偏好20% + 姓氏海外表达加分 ★★★
       const finalScore = Math.round(
         finalCoreScore * 0.80 + 
-        lengthScore * 0.20
+        lengthScore * 0.20 +
+        surnameBonus
       );
 
       const tags: string[] = [];
@@ -660,10 +710,14 @@ export async function generateEnglishNames(
         coreScoreAI = Math.max(0, coreScoreAI - avoidPenaltyAI);
         coreScoreAI = Math.max(0, coreScoreAI - Math.round(bp * 0.3));
         
-        // 综合评分：核心需求80% + 长度偏好20%
+        // ★★★ V4.2 姓氏海外表达加分 ★★★
+        const surnameBonusAI = (surnameOverseas !== surnameChina) ? 10 : 0;
+
+        // 综合评分：核心需求80% + 长度偏好20% + 姓氏海外表达加分
         const finalScoreAI = Math.round(
           coreScoreAI * 0.80 + 
-          lenScore * 0.20
+          lenScore * 0.20 +
+          surnameBonusAI
         );
         
         const tags: string[] = ["🤖 AI 智能推荐"];
