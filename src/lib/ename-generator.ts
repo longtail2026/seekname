@@ -1,5 +1,5 @@
 /**
- * 英文起名引擎 v4.0
+ * 英文起名引擎 v4.1
  * 
  * === 架构变更 ===
  * ★ 删除风格偏好所有选项、风格评分
@@ -17,7 +17,6 @@ import { getAllRecords, type EnameRecord } from "./ename-dict";
 import {
   getChineseNamePinyin,
   searchByPhoneticMatch,
-  calcSurnameEnglishMatchScore,
 } from "./ename-phonetic";
 import { getSurnameEnglishExpressions, getRecommendedSurnameSpellings, getSurnameChinaOverseas } from "./ename-surname-map";
 import { isHardBlocked, getBlacklistPenalty } from "./ename-blacklist";
@@ -60,7 +59,65 @@ export interface EnameScoredResult {
   source: "db" | "ai";
 }
 
-// ===== 评分器 =====
+// ===== 音节计数工具 =====
+
+/**
+ * 估算英文名的音节数量（基于元音分组法）
+ * 用于单字名→单音节、二字名→双音节的预筛选
+ * 
+ * 规则：
+ *  - 连续的元音字母算1个音节
+ *  - 结尾的静默e不计入音节
+ *  - y在末尾/中间作为元音处理
+ */
+function estimateSyllableCount(name: string): number {
+  const lower = name.toLowerCase().replace(/[^a-z]/g, '');
+  if (lower.length === 0) return 1;
+
+  const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
+  const yVowelEnding = lower.endsWith('y') && lower.length > 2;
+  
+  let count = 0;
+  let prevIsVowel = false;
+  
+  for (let i = 0; i < lower.length; i++) {
+    const ch = lower[i];
+    const isVowel = vowels.has(ch) || 
+      (ch === 'y' && i > 0 && i < lower.length - 1) || // y in middle as vowel
+      (ch === 'y' && i === lower.length - 1); // y at end as vowel
+    
+    if (isVowel) {
+      if (!prevIsVowel) {
+        count++;
+      }
+      prevIsVowel = true;
+    } else {
+      prevIsVowel = false;
+    }
+  }
+  
+  // 处理结尾静默e（如 "name", "kate" → 减去1个音节）
+  // 但"the"、"be"等单音节短词保留
+  if (lower.endsWith('e') && count > 1 && lower.length > 3) {
+    // 检查是否是真的静默e（前面有辅音，且不是唯一元音）
+    const secondLast = lower[lower.length - 2];
+    if (!vowels.has(secondLast) && secondLast !== 'y') {
+      count--;
+    }
+  }
+  
+  return Math.max(1, count);
+}
+
+function isMonosyllabic(name: string): boolean {
+  return estimateSyllableCount(name) === 1;
+}
+
+function isDisyllabic(name: string): boolean {
+  return estimateSyllableCount(name) === 2;
+}
+
+// ===== 发音匹配评分 =====
 
 /**
  * 发音匹配评分
@@ -287,10 +344,44 @@ export async function generateEnglishNames(
     const pinyinInfo = getChineseNamePinyin(nameForPhonetic);
     const searchPinyin = pinyinInfo.givenName || pinyinInfo.fullPinyin;
 
-    // 分割全名获取名字部分
+    // 分割全名获取名字部分（去除姓氏后的部分）
     let givenName = "";
     if (fullName && fullName.length > 0) {
       givenName = fullName.startsWith(surname) ? fullName.slice(surname.length) : fullName;
+    }
+
+    // ===== ★★★ V4.1 新增：按中文字数预筛选音节匹配 ★★★ =====
+    // 单字名（如"伟"）→ 只保留单音节英文名
+    // 二字名（如"伟杰"）→ 只保留双音节英文名
+    // 未知/其他 → 不过滤
+    
+    let syllableFilterLabel = "";
+    const givenNameCharCount = givenName.replace(/\s/g, '').length;
+    
+    if (givenNameCharCount === 1) {
+      // 单字名 → 单音节匹配
+      const monosyllabicNames = candidates.filter(r => isMonosyllabic(r.name));
+      if (monosyllabicNames.length >= 10) {
+        candidates = monosyllabicNames;
+        syllableFilterLabel = "单音节";
+        console.log(`[ename-generator] 单字名，已筛选为单音节英文名候选：${candidates.length} 个`);
+      } else {
+        console.log(`[ename-generator] 单字名但单音节候选不足(${monosyllabicNames.length}个)，保留全部候选`);
+        syllableFilterLabel = "单音节(候选不足，回退全部)";
+      }
+    } else if (givenNameCharCount === 2) {
+      // 二字名 → 双音节匹配
+      const disyllabicNames = candidates.filter(r => isDisyllabic(r.name));
+      if (disyllabicNames.length >= 10) {
+        candidates = disyllabicNames;
+        syllableFilterLabel = "双音节";
+        console.log(`[ename-generator] 二字名，已筛选为双音节英文名候选：${candidates.length} 个`);
+      } else {
+        console.log(`[ename-generator] 二字名但双音节候选不足(${disyllabicNames.length}个)，保留全部候选`);
+        syllableFilterLabel = "双音节(候选不足，回退全部)";
+      }
+    } else {
+      console.log(`[ename-generator] 名字字符数=${givenNameCharCount}，不进行音节预筛选`);
     }
 
     // ===== 1. 姓氏发音匹配优先 =====
@@ -328,8 +419,8 @@ export async function generateEnglishNames(
           gender: r.gender 
         }));
         
-        // 单字名 → 单音节匹配；二字名 → 双音节匹配
-        // searchByPhoneticMatch 内部已处理好单/双音节逻辑
+        // ★★★ 此时 candidates 已经过音节预筛选（单字名→单音节，二字名→双音节）★★★
+        // searchByPhoneticMatch 内部使用 universalMatch 进行拼音发音匹配
         phoneticMatchedNames = searchByPhoneticMatch(
           searchPinyin, 
           namesForMatch, 
@@ -419,6 +510,9 @@ export async function generateEnglishNames(
       tags.push(...phoneticResult.tags);
       if (surnameScore >= 60) {
         tags.push(`姓氏「${surname}」发音匹配`);
+      }
+      if (syllableFilterLabel) {
+        tags.push(`音节匹配「${syllableFilterLabel}」`);
       }
       if (lengthScore >= 80) {
         const lenDesc = lengthPreference === "short" ? "短名" : lengthPreference === "long" ? "长名" : "适名";
