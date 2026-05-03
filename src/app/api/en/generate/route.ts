@@ -8,7 +8,7 @@ import { generateEnglishNames } from "@/lib/ename-generator";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { gender, surname, fullName, needs, style, avoidFlags, lengthPreference, count } = body;
+    const { gender, surname, fullName, needs, avoidFlags, lengthPreference, count } = body;
 
     // 参数校验
     if (!gender || !["male", "female"].includes(gender)) {
@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
       surname: surname.trim(),
       fullName: fullName?.trim(),
       needs: needs || [],
-      style: style || "",
       avoidFlags: avoidFlags || [],
       lengthPreference: lengthPreference || undefined,
       count: count || 10,

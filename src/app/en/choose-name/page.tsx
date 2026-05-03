@@ -45,16 +45,6 @@ const NEEDS_OPTIONS = [
   { value: "可爱灵动", label: "可爱灵动", desc: "给孩子/女生用" },
 ];
 
-const STYLE_OPTIONS = [
-  { value: "", label: "不限风格" },
-  { value: "现代简约", label: "现代简约" },
-  { value: "古典文艺", label: "古典文艺" },
-  { value: "商务精英", label: "商务精英" },
-  { value: "校园清新", label: "校园清新" },
-  { value: "可爱软萌", label: "可爱软萌" },
-  { value: "小众独特", label: "小众独特" },
-];
-
 const AVOID_OPTIONS = [
   { value: "不要太常见的爆款名", label: "不要太常见的爆款名" },
   { value: "不要生僻难读的", label: "不要生僻难读的" },
@@ -136,7 +126,6 @@ export default function EnglishNamePage() {
   const [fullName, setFullName] = useState("");
   const [needs, setNeeds] = useState<string[]>([]);
   const [customNeed, setCustomNeed] = useState("");
-  const [style, setStyle] = useState("");
   const [avoidFlags, setAvoidFlags] = useState<string[]>(["不要有负面谐音/含义"]);
   const [lengthPreference, setLengthPreference] = useState("");
 
@@ -195,7 +184,6 @@ export default function EnglishNamePage() {
           surname,
           fullName,
           needs: needsArr,
-          style: style === "不限风格" ? "" : style,
           avoidFlags,
           lengthPreference,
           count: 27,
@@ -214,7 +202,7 @@ export default function EnglishNamePage() {
     } finally {
       setLoading(false);
     }
-  }, [gender, surname, fullName, needs, customNeed, style, avoidFlags, lengthPreference]);
+  }, [gender, surname, fullName, needs, customNeed, avoidFlags, lengthPreference]);
 
   // 排序 & 筛选
   const filteredResults = results
@@ -448,28 +436,6 @@ export default function EnglishNamePage() {
                   </div>
                 </div>
 
-                {/* 风格偏好 */}
-                <div>
-                  <label className="block text-sm font-medium text-[#4A3428] mb-2">
-                    风格偏好
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {STYLE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setStyle(opt.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                          style === opt.value
-                            ? "bg-[#2D1B0E] text-white"
-                            : "bg-white text-[#7A6B5E] border border-[#E5DDD3] hover:border-[#D4941A]"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* 避坑要求 */}
                 <div>
                   <label className="block text-sm font-medium text-[#4A3428] mb-2">
@@ -664,7 +630,7 @@ export default function EnglishNamePage() {
             </div>
           )}
 
-          {/* 结果卡片列表 — ★★★ V5.6 按需求分类分组，每类最多3个，展示3行×3列 ★★★ */}
+          {/* 结果卡片列表 — 展示6个候选名 */}
           {generated && !loading && (
             <>
               {filteredResults.length === 0 ? (
@@ -678,85 +644,23 @@ export default function EnglishNamePage() {
                   </button>
                 </div>
               ) : (
-                (() => {
-                  // 获取最终生效的需求列表（包括自定义需求）
-                  const activeNeeds = [
-                    ...needs,
-                    ...(customNeed.trim() ? [customNeed.trim()] : []),
-                  ];
-
-                  // ★★★ V3.0 按来源和评分分组 ★★★
-                  // 1st row: 发音完美匹配（来自英文名库，phoneticScore >= 70）
-                  // 2nd row: 发音近似匹配（来自英文名库，phoneticScore < 70）
-                  // 3rd row: AI 智能推荐（来自 DeepSeek AI）
-                  const phoneticMatched = filteredResults
-                    .filter(r => r.source === "db" && r.phoneticScore >= 70)
-                    .slice(0, 3);
-                  const phoneticPartial = filteredResults
-                    .filter(r => r.source === "db" && r.phoneticScore < 70)
-                    .slice(0, 3);
-                  const aiGenerated = filteredResults
-                    .filter(r => r.source === "ai")
-                    .slice(0, 3);
-                  
-                  const categoryRows: { category: string; items: EnameScoredResult[] }[] = [];
-                  
-                  if (phoneticMatched.length > 0) {
-                    categoryRows.push({ category: "🔊 发音完美贴合", items: phoneticMatched });
-                  }
-                  if (phoneticPartial.length > 0) {
-                    categoryRows.push({ category: "🔉 发音近似匹配", items: phoneticPartial });
-                  }
-                  if (aiGenerated.length > 0) {
-                    categoryRows.push({ category: "🤖 AI 智能推荐", items: aiGenerated });
-                  }
-                  
-                  // 最多展示3个分类（3行），总计最多9个
-                  const displayRows = categoryRows.slice(0, 3);
-                  const totalDisplayed = displayRows.reduce((sum, row) => sum + row.items.length, 0);
-
-                  return (
-                    <div className="space-y-6">
-                      {displayRows.map((row, rowIdx) => (
-                        <div key={rowIdx}>
-                          {/* 分类标题 */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-1 h-4 rounded-full bg-[#E86A17]"></div>
-                            <h3 className="text-sm font-bold text-[#4A3428]">
-                              {row.category}
-                            </h3>
-                            <span className="text-[10px] text-gray-400">
-                              推荐 {row.items.length} 个
-                            </span>
-                          </div>
-                          {/* 该分类的3个候选名 */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {row.items.map((record, i) => (
-                              <ResultCard
-                                key={`${record.name}-${rowIdx}-${i}`}
-                                record={record}
-                                rank={rowIdx * 3 + i + 1}
-                                isFavorite={favorites.includes(record.name)}
-                                onToggleFavorite={toggleFavorite}
-                                onCopy={handleCopy}
-                                copiedName={copiedName}
-                                onSpeak={handleSpeak}
-                                speakingName={speakingName}
-                                onDetail={setDetailName}
-                                onShare={handleShare}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                      {filteredResults.length > totalDisplayed && (
-                        <p className="text-center text-[11px] text-gray-400 mt-2">
-                          共 {filteredResults.length} 个候选名，仅展示 {totalDisplayed} 个最佳推荐
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredResults.slice(0, 6).map((record, i) => (
+                    <ResultCard
+                      key={`${record.name}-${i}`}
+                      record={record}
+                      rank={i + 1}
+                      isFavorite={favorites.includes(record.name)}
+                      onToggleFavorite={toggleFavorite}
+                      onCopy={handleCopy}
+                      copiedName={copiedName}
+                      onSpeak={handleSpeak}
+                      speakingName={speakingName}
+                      onDetail={setDetailName}
+                      onShare={handleShare}
+                    />
+                  ))}
+                </div>
               )}
             </>
           )}

@@ -138,6 +138,82 @@ export async function generateEnglishNameByDeepSeek(
 /**
  * 批量生成多个候选英文名（用于覆盖更多可能性）
  */
+/**
+ * 通用DeepSeek提示词接口 — 接受自定义提示词，用于英文起名引擎v4.0
+ * 
+ * 由 ename-generator.ts 内部构造提示词，传入DeepSeek生成候选名。
+ * 提示词模板结构化的优点是可以在不修改客户端的条件下灵活调整提示内容。
+ * 
+ * @param customPrompt  完整的自定义提示词（由ename-generator构造）
+ * @param count         期望返回的候选名数量
+ * @returns             候选名列表 { name, meaning }
+ */
+export async function generateEnglishNamesByPrompt(
+  customPrompt: string,
+  count: number = 10
+): Promise<{ name: string; meaning: string }[]> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return [];
+  }
+
+  try {
+    const response = await fetch(DEEPSEEK_BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-v4-flash",
+        messages: [
+          {
+            role: "system",
+            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON 数组，不要任何其他文字。",
+          },
+          {
+            role: "user",
+            content: customPrompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    const content = data.choices?.[0]?.message?.content || "";
+    let jsonStr = content;
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+
+    const parsed = JSON.parse(jsonStr) as Array<{ name: string; meaning?: string }>;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item) => item.name)
+      .map((item) => ({
+        name: item.name.trim(),
+        meaning: item.meaning?.trim() || "",
+      }));
+
+  } catch (error) {
+    console.error("[deepseek] 自定义提示词生成失败:", error);
+    return [];
+  }
+}
+
+/**
+ * 原有批量生成函数（保留兼容，仍可用）
+ */
 export async function generateEnglishNameBatchByDeepSeek(
   gender: "male" | "female",
   givenName: string,
