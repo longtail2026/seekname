@@ -188,10 +188,16 @@ function calcLengthScore(name: string, preference?: "short" | "medium" | "long")
 // ===== 姓氏发音匹配评分（从150个姓氏表中匹配）=====
 
 /**
- * 检查英文名候选的发音是否与姓氏的英文映射发音匹配
- * 例如：surname=张 → 英文表达 "Cheung", "Chang", "Zhang"
- * 候选名 "Chang" 匹配 → 高分
- * 候选名 "Chandler" 以 "Chan" 开头 → 中分
+ * ★★★ V6.6 姓氏发音匹配评分：直接基于映射表权威性 ★★★
+ * 
+ * 核心设计思想：
+ * 推荐全名已使用 "Gordon Cheung"（姓氏正确映射），无需再检查候选名
+ * 是否与姓氏表达自身匹配。姓氏映射的权威性本身就值高分。
+ * 
+ * 规则：
+ * - 姓氏在 SURNAME_ENGLISH_MAP 中有映射（如"张→Cheung"）→ 100分
+ *   （因为推荐全名已用 'Gordon Cheung'，姓氏'Cheung'已完全正确）
+ * - 姓氏未在映射表中 → 回退到拼音匹配
  */
 function calcSurnameMatchScore(
   candidateName: string,
@@ -203,7 +209,6 @@ function calcSurnameMatchScore(
     return { score: 0, matchedExpression: "", detail: "缺少姓氏或英文名" };
   }
 
-  const enameLower = candidateName.trim().toLowerCase();
   const expressions = getSurnameEnglishExpressions(surname);
 
   if (expressions.length === 0) {
@@ -212,82 +217,13 @@ function calcSurnameMatchScore(
     return pinyinFallback;
   }
 
-  // ★★★ V6.5 姓氏在150映射表中 → 根据候选名是否匹配海外表达给分 ★★★
-  // 规则：
-  // - candidateName 恰好等于姓氏海外表达（如"Cheung"匹配"张→Cheung"）：100分
-  // - candidateName 前缀匹配姓氏海外表达（如"Cheung-something"）：90-100分
-  // - 姓氏有海外表达（如"张→Cheung"），但候选名不匹配：85分（标准映射分，表示姓氏来源权威）
-  // - 姓氏只有大陆拼音（如"王→Wang"）：75分
-  // 
-  // 海外表达的最终加分在评分循环中通过 surnameBonus 额外处理，
-  // 此处只反映姓氏映射本身的质量。
-  let bestScore = 75;
-  let bestExpr = expressions[0];
-  let hasOverseas = false;
-
-  // 判断是否有非拼音的海外表达
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    // 排除纯拼音表达（与surname拼音相同）
-    const pinyinExpr = surnameEnglish?.toLowerCase() || surname?.toLowerCase();
-    if (exprLower === pinyinExpr) continue;
-    if (exprLower === surname?.toLowerCase()) continue;
-    // 检查是否拼音变体（如 Zhang→Chan 是海外表达，Zhang→Zhang 是拼音）
-    // 简单判断：如果表达式包含拼音的子串
-    if (exprLower.includes(pinyinExpr) || pinyinExpr.includes(exprLower)) continue;
-    hasOverseas = true;
-    break;
-  }
-
-  // 候选名与姓氏表达的精确/前缀匹配检查
-  let exactMatch = false;
-  let prefixMatch = false;
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    if (enameLower === exprLower) {
-      exactMatch = true;
-      bestExpr = expr;
-      break;
-    }
-    if (enameLower.startsWith(exprLower) && exprLower.length >= 2) {
-      const ratio = exprLower.length / enameLower.length;
-      if (ratio >= 0.5) {
-        prefixMatch = true;
-        bestExpr = expr;
-      }
-    }
-  }
-
-  if (exactMatch) {
-    bestScore = 100;
-    bestExpr = bestExpr || expressions[0];
-    return {
-      score: 100,
-      matchedExpression: bestExpr,
-      detail: `英文名"${candidateName}"与姓氏"${surname}"的英文表达"${bestExpr}"完全匹配`,
-    };
-  }
-
-  if (prefixMatch) {
-    bestScore = 95;
-    bestExpr = bestExpr || expressions[0];
-    return {
-      score: 95,
-      matchedExpression: bestExpr,
-      detail: `英文名"${candidateName}"与姓氏"${surname}"的英文表达"${bestExpr}"前缀匹配`,
-    };
-  }
-
-  // 无名匹配时的基础分：有海外表达85分，仅拼音75分
-  bestScore = hasOverseas ? 85 : 75;
-  bestExpr = expressions[0];
-
+  // ★★★ V6.6 姓氏在 SURNAME_ENGLISH_MAP 中有映射 → 直接给100分 ★★★
+  // 因为推荐全名已使用 "Gordon Cheung" 的形式，姓氏部分"Cheung"已完全正确。
+  // 候选名"Gordon"不必与"Cheung"做匹配——"zh→ch"的拼音匹配是无意义的降权。
   return {
-    score: bestScore,
-    matchedExpression: bestExpr,
-    detail: hasOverseas
-      ? `姓氏「${surname}」有海外表达"${bestExpr}"（85分）`
-      : `姓氏「${surname}」映射匹配，仅大陆拼音形式（75分）`,
+    score: 100,
+    matchedExpression: expressions[0],
+    detail: `姓氏「${surname}」在权威英文映射表中，推荐使用"${expressions[0]}"（100分）`,
   };
 }
 
