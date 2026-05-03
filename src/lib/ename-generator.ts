@@ -204,9 +204,18 @@ function calcSurnameMatchScore(
     return pinyinFallback;
   }
 
-  // 检查英文名是否与某个姓氏英文表达完全匹配
+  // ★★★ V6.4 姓氏在150映射表中 → 直接给最高分 ★★★
+  // 因为姓氏（如"张"→"Cheung"）有标准的英文拼写表达，推荐全名会使用它（如"Gordon Cheung"），
+  // 所以无论候选名如何，姓氏匹配本身就应得最高分。
+  // 这解决了"张→Cheung"没有被升权的问题。
+  let bestScore = 100;
+  let bestExpr = expressions[0];
+
+  // 额外检查候选名是否也恰好匹配姓氏表达（锦上添花：名字本身就像姓氏英文表达）
   for (const expr of expressions) {
     const exprLower = expr.toLowerCase();
+
+    // 完全匹配：候选名就是姓氏表达（如名"Cheung"匹配张→"Cheung"）
     if (enameLower === exprLower) {
       return {
         score: 100,
@@ -214,49 +223,22 @@ function calcSurnameMatchScore(
         detail: `英文名"${candidateName}"与姓氏"${surname}"的英文表达"${expr}"完全匹配`,
       };
     }
-  }
 
-  // 检查英文名前缀是否匹配某个姓氏英文表达
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    if (enameLower.startsWith(exprLower)) {
+    // 前缀匹配：候选名以姓氏表达开头
+    if (enameLower.startsWith(exprLower) && exprLower.length >= 2) {
       const ratio = exprLower.length / enameLower.length;
       if (ratio >= 0.5) {
-        return {
-          score: 80,
-          matchedExpression: expr,
-          detail: `英文名"${candidateName}"以姓氏"${surname}"英文表达"${expr}"开头`,
-        };
+        bestScore = Math.max(bestScore, 100);
+        bestExpr = expr;
       }
     }
   }
 
-  // 检查英文名是否包含姓氏英文表达
-  for (const expr of expressions) {
-    const exprLower = expr.toLowerCase();
-    if (exprLower.length >= 3 && enameLower.includes(exprLower)) {
-      return {
-        score: 60,
-        matchedExpression: expr,
-        detail: `英文名"${candidateName}"包含姓氏"${surname}"英文表达"${expr}"`,
-      };
-    }
-  }
-
-  // 首字母匹配
-  const enameFirstChar = candidateName.charAt(0).toLowerCase();
-  for (const expr of expressions) {
-    const exprFirstChar = expr.charAt(0).toLowerCase();
-    if (exprFirstChar === enameFirstChar) {
-      return {
-        score: 30,
-        matchedExpression: expr,
-        detail: `首字母"${enameFirstChar.toUpperCase()}"与姓氏英文表达"${expr}"首字母一致`,
-      };
-    }
-  }
-
-  return { score: 0, matchedExpression: "", detail: "未匹配到姓氏英文表达" };
+  return {
+    score: bestScore,
+    matchedExpression: bestExpr,
+    detail: `姓氏「${surname}」有英文表达"${bestExpr}"，姓氏映射匹配成功（100分）`,
+  };
 }
 
 /**
