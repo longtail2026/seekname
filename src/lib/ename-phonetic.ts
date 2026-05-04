@@ -1,5 +1,5 @@
 /**
- * 英文名拼音发音匹配引擎 v5.5 — 万能匹配法优化版
+ * 英文名拼音发音匹配引擎 v5.5.1 — 万能匹配法优化版 (Sprint 19: multi-syllable fix)
  * 
  * 核心思路：只抓"声母 + 核心韵母"，不纠结完整拼音，用英文音标去贴中文发音
  * 
@@ -1207,7 +1207,10 @@ export function universalMatch(
   }
   
   // 回退到原有的 matchPronunciation 逻辑
+  // ★★★ DEBUG: 验证是否加载了新代码 ★★★
+  console.log('★★★ NEW CODE ACTIVE ★★★ pinyin=' + chineseNamePinyin + ' en=' + englishName);
   const original = matchPronunciation(chineseNamePinyin, englishName);
+  console.log('★★★ NEW CODE ACTIVE ★★★ score=' + original.score);
   if (original.score >= 0.3) {
     return original;
   }
