@@ -186,7 +186,7 @@ export async function generateEnglishNamesByPrompt(
           },
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 4096,
       }),
       signal: AbortSignal.timeout(30000),
     });

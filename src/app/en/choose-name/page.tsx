@@ -506,7 +506,7 @@ export default function EnglishNamePage() {
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        正在 AI 智能匹配...
+                        正在按要求生成...
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-2">
@@ -630,7 +630,7 @@ export default function EnglishNamePage() {
           {loading && (
             <div className="flex flex-col items-center justify-center py-16">
               <Loader2 className="w-10 h-10 text-[#E86A17] animate-spin mb-3" />
-              <p className="text-sm text-[#7A6B5E]">AI 正在从 1964 个英文名中智能匹配...</p>
+              <p className="text-sm text-[#7A6B5E]">正在按要求为你生成英文名...</p>
             </div>
           )}
 
@@ -673,8 +673,8 @@ export default function EnglishNamePage() {
           {!generated && !loading && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">🌟</div>
-              <p className="text-[#7A6B5E] text-sm">填好性别和姓氏，点击上方按钮开始</p>
-              <p className="text-[#AAA] text-xs mt-1">AI 将为你从 1964+ 个英文名中智能匹配</p>
+              <p className="text-[#7A6B5E] text-sm">填好信息，点击上方按钮开始</p>
+              <p className="text-[#AAA] text-xs mt-1">AI 将根据你填的需求智能生成英文名</p>
             </div>
           )}
         </div>
