@@ -1183,7 +1183,12 @@ export function universalMatch(
     }
   }
   
-  if (anyMatchFromSyllables && bestScore >= 0.5) {
+  // ★★★ Sprint 19 修复：多音节名必须通过 matchPronunciation 验证所有音节 ★★★
+  // 问题：二字名"guo guang"的'guo'通过'o'音素匹配所有G开头英文名得0.95分，
+  //       直接返回跳过对'guang'的检查，导致Glover/Gaylord/Gordon得分相同
+  // 修复：只有单音节名使用canSyllableMatch快速路径
+  //       多音节名必须走matchPronunciation确保所有音节都有合理匹配
+  if (syllables.length === 1 && anyMatchFromSyllables && bestScore >= 0.5) {
     return {
       score: Math.round(bestScore * 100) / 100,
       matchedLevel: bestLevel,
