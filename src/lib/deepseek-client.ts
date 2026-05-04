@@ -71,7 +71,7 @@ export async function generateEnglishNameByDeepSeek(
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
+        model: "deepseek-chat",
         messages: [
           {
             role: "system",
@@ -174,7 +174,7 @@ export async function generateEnglishNamesByPrompt(
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
+        model: "deepseek-chat",
         messages: [
           {
             role: "system",
@@ -278,7 +278,7 @@ export async function generateEnglishNameBatchByDeepSeek(
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
+        model: "deepseek-chat",
         messages: [
           {
             role: "system",
