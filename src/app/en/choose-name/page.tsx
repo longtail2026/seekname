@@ -740,22 +740,21 @@ function ResultCard({
                 </span>
               </div>
               {record.phonetic && (
-                <div className="text-[10px] text-gray-400 font-mono">{record.phonetic}</div>
+                <div className="text-xs text-gray-500 font-mono mt-0.5">{record.phonetic}</div>
               )}
             </div>
           </div>
           {/* 评分圆环 */}
-          <div className="flex-shrink-0 text-center">
+          <div className="flex-shrink-0 text-center mt-4">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
               style={{
                 background: `conic-gradient(${sc} ${record.score}%, #F0E8E0 ${record.score}%)`,
-                color: sc,
               }}
             >
-              {record.score}
+              <span style={{ color: "#E86A17" }}>{record.score}</span>
             </div>
-            <div className="text-[9px] text-[#E86A17] font-medium mt-4">{sl}</div>
+            <div className="text-[9px] text-[#E86A17] font-medium mt-0.5">{sl}</div>
           </div>
         </div>
 
@@ -916,10 +915,9 @@ function DetailModal({
                 className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
                 style={{
                   background: `conic-gradient(${scoreColor(record.score)} ${record.score}%, #F0E8E0 ${record.score}%)`,
-                  color: scoreColor(record.score),
                 }}
               >
-                {record.score}
+                <span style={{ color: "#E86A17" }}>{record.score}</span>
               </div>
               {/* 分项评分——AI Only 模式仅显示 AI 推荐优先级 */}
               {record.source === "ai" && record.phoneticScore === 0 && record.meaningScore === 0 ? (

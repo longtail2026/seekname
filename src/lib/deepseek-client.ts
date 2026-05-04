@@ -215,7 +215,7 @@ export async function generateEnglishNamesByPrompt(
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) jsonStr = jsonMatch[0];
 
-    const parsed = JSON.parse(jsonStr) as Array<{ name: string; meaning?: string; analysis?: string; recommendationReason?: string }>;
+    const parsed = JSON.parse(jsonStr) as Array<{ name: string; meaning?: string; phonetic?: string; analysis?: string; recommendationReason?: string }>;
     if (!Array.isArray(parsed)) {
       console.warn("[deepseek] 解析结果不是数组:", typeof parsed);
       return [];
@@ -226,6 +226,7 @@ export async function generateEnglishNamesByPrompt(
       .map((item) => ({
         name: item.name.trim(),
         meaning: item.meaning?.trim() || "",
+        phonetic: item.phonetic?.trim() || "",
         analysis: item.analysis?.trim() || undefined,
         recommendationReason: item.recommendationReason?.trim() || undefined,
       }));
