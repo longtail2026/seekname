@@ -32,6 +32,15 @@ function getApiConfig() {
       name: "Groq",
     };
   }
+  if (key.startsWith("sk-")) {
+    // 原生 DeepSeek API（sk- 开头，非 sk-or-v1-）
+    return {
+      url: "https://api.deepseek.com/v1/chat/completions",
+      model: "deepseek-chat",
+      timeout: 25000,
+      name: "DeepSeek",
+    };
+  }
   // 默认：SiliconFlow（国内节点）
   return {
     url: "https://api.siliconflow.cn/v1/chat/completions",

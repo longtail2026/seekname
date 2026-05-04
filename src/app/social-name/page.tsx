@@ -10,11 +10,15 @@ import { Sparkles, Loader2, ArrowLeft, Check, Copy, RefreshCw } from "lucide-rea
 
 // ─── 数据定义 ───
 
-// 1. 性别 / 风格倾向
-const GENDER_STYLES = [
+// 1a. 性别（三选一）
+const GENDER_OPTIONS = [
   { value: "男生", label: "🧑 男生", color: "#4A90D9" },
   { value: "女生", label: "👩 女生", color: "#E870A0" },
   { value: "中性", label: "💫 中性", color: "#8B7EC8" },
+];
+
+// 1b. 风格倾向（三选一）
+const STYLE_OPTIONS = [
   { value: "可爱", label: "🌸 可爱", color: "#F59E9E" },
   { value: "高级感", label: "✨ 高级感", color: "#B8865C" },
   { value: "小众冷淡", label: "❄️ 小众冷淡", color: "#7A8B99" },
@@ -69,7 +73,8 @@ const COLORS = {
 // ─── 组件 ───
 
 export default function SocialNamePage() {
-  const [genderStyle, setGenderStyle] = useState("");
+  const [gender, setGender] = useState("");
+  const [style, setStyle] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [contains, setContains] = useState("");
   const [lengthPref, setLengthPref] = useState("不限（推荐）");
@@ -102,8 +107,10 @@ export default function SocialNamePage() {
 
   // 生成结果
   const handleGenerate = async () => {
-    if (!genderStyle) return;
+    if (!gender || !style) return;
     if (keywords.length === 0) return;
+
+    const combinedStyle = `${gender} ${style}`;
 
     setLoading(true);
     setError("");
@@ -114,7 +121,7 @@ export default function SocialNamePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          genderStyle,
+          genderStyle: combinedStyle,
           keywords,
           contains: contains.trim(),
           length: lengthPref,
@@ -151,7 +158,7 @@ export default function SocialNamePage() {
     handleGenerate();
   };
 
-  const buttonEnabled = genderStyle && keywords.length > 0 && !loading;
+  const buttonEnabled = gender && style && keywords.length > 0 && !loading;
 
   return (
     <div className="min-h-screen" style={{ background: COLORS.bg }}>
@@ -203,7 +210,40 @@ export default function SocialNamePage() {
             border: `1px solid ${COLORS.border}`,
           }}
         >
-          {/* 1. 性别/风格倾向 */}
+          {/* 1. 性别 */}
+          <div>
+            <label
+              className="block text-sm font-semibold mb-2"
+              style={{ color: COLORS.text }}
+            >
+              你的性别 <span className="text-red-400">*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {GENDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGender(opt.value)}
+                  className="py-2.5 px-1 rounded-xl text-sm font-medium transition-all"
+                  style={{
+                    background:
+                      gender === opt.value
+                        ? opt.color
+                        : "rgba(245,237,224,0.5)",
+                    color: gender === opt.value ? "#FFF" : COLORS.textSecondary,
+                    border: `1px solid ${
+                      gender === opt.value ? opt.color : COLORS.border
+                    }`,
+                    cursor: "pointer",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. 风格倾向 */}
           <div>
             <label
               className="block text-sm font-semibold mb-2"
@@ -212,31 +252,31 @@ export default function SocialNamePage() {
               你的风格倾向 <span className="text-red-400">*</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {GENDER_STYLES.map((gs) => (
+              {STYLE_OPTIONS.map((opt) => (
                 <button
-                  key={gs.value}
+                  key={opt.value}
                   type="button"
-                  onClick={() => setGenderStyle(gs.value)}
+                  onClick={() => setStyle(opt.value)}
                   className="py-2.5 px-1 rounded-xl text-sm font-medium transition-all"
                   style={{
                     background:
-                      genderStyle === gs.value
-                        ? gs.color
+                      style === opt.value
+                        ? opt.color
                         : "rgba(245,237,224,0.5)",
-                    color: genderStyle === gs.value ? "#FFF" : COLORS.textSecondary,
+                    color: style === opt.value ? "#FFF" : COLORS.textSecondary,
                     border: `1px solid ${
-                      genderStyle === gs.value ? gs.color : COLORS.border
+                      style === opt.value ? opt.color : COLORS.border
                     }`,
                     cursor: "pointer",
                   }}
                 >
-                  {gs.label}
+                  {opt.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 2. 风格关键词 */}
+          {/* 3. 风格关键词 */}
           <div>
             <label
               className="block text-sm font-semibold mb-2"
@@ -285,7 +325,7 @@ export default function SocialNamePage() {
             )}
           </div>
 
-          {/* 3. 想包含的字 */}
+          {/* 4. 想包含的字 */}
           <div>
             <label
               className="block text-sm font-semibold mb-1"
@@ -313,7 +353,7 @@ export default function SocialNamePage() {
             />
           </div>
 
-          {/* 4. 字数要求 */}
+          {/* 5. 字数要求 */}
           <div>
             <label
               className="block text-sm font-semibold mb-2"
@@ -344,7 +384,7 @@ export default function SocialNamePage() {
             </div>
           </div>
 
-          {/* 5. 禁忌 */}
+          {/* 6. 禁忌 */}
           <div>
             <label
               className="block text-sm font-semibold mb-1"
