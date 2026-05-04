@@ -189,13 +189,14 @@ ${lengthText}
 请返回 JSON 数组格式，每个元素包含以下字段：
 - name: 建议的英文名（必填）
 - meaning: 名字的含义和背景说明（30-80字中文，必填）
+- phonetic: 该英文名的标准发音音标（IPA格式，如 /ˈgɔːrdən/，必填）
 - analysis: 深入分析，包括发音接近度评价、文化适配性、使用场景建议等（50-120字中文）
 - recommendationReason: 针对该用户的具体推荐理由，说明为什么这个名适合TA（30-80字中文）
 
 示例格式：
 [
-  {"name": "候选名1", "meaning": "含义说明", "analysis": "深度分析", "recommendationReason": "推荐理由"},
-  {"name": "候选名2", "meaning": "含义说明", "analysis": "深度分析", "recommendationReason": "推荐理由"}
+  {"name": "Gordon", "meaning": "含义说明", "phonetic": "/ˈgɔːrdən/", "analysis": "深度分析", "recommendationReason": "推荐理由"},
+  {"name": "Wesley", "meaning": "含义说明", "phonetic": "/ˈwɛsli/", "analysis": "深度分析", "recommendationReason": "推荐理由"}
 ]
 
 注意：只返回合法 JSON 数组，不要 markdown 代码块包裹。按推荐优先级降序排列。`;
@@ -256,7 +257,7 @@ export async function generateEnglishNames(
         return {
           name: item.name,
           gender: gender === "male" ? "男性" : "女性",
-          phonetic: "",
+          phonetic: item.phonetic || "",
           chinese: item.name,
           origin: "AI生成",
           popularity: "无",

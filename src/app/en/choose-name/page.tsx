@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Heart, Volume2, ChevronDown, ChevronUp, Sparkles,
   X, Copy, Check, Info, Loader2, Star, BookOpen,
@@ -140,7 +140,7 @@ export default function EnglishNamePage() {
   const [error, setError] = useState("");
 
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true);
   const [sortBy, setSortBy] = useState("score");
   const [filterGender, setFilterGender] = useState<string>("all");
   const [filterLetter, setFilterLetter] = useState<string>("");
@@ -150,7 +150,6 @@ export default function EnglishNamePage() {
   const [speakingName, setSpeakingName] = useState("");
 
   const resultRef = useRef<HTMLDivElement>(null);
-  const surnameInputRef = useRef<HTMLInputElement>(null);
 
   // 加载收藏
   useEffect(() => {
@@ -167,7 +166,7 @@ export default function EnglishNamePage() {
   // 生成英文名
   const handleGenerate = useCallback(async () => {
     if (!gender) { setError("请选择性别"); return; }
-    if (!surname.trim()) { setError("请输入中文姓氏"); return; }
+    if (!fullName.trim()) { setError("请输入中文姓名"); return; }
 
     setLoading(true);
     setError("");
@@ -264,35 +263,6 @@ export default function EnglishNamePage() {
     }
   };
 
-  // 获取该姓氏的首字母候选
-  const surnameLetters = (() => {
-    if (!surname.trim()) return [];
-    const map: Record<string, string[]> = {
-      "李": ["L","E","I"], "王": ["W","V","U"], "张": ["Z","J"],
-      "刘": ["L","E","I"], "陈": ["C","S"], "杨": ["Y"], "赵": ["Z"],
-      "黄": ["H","W"], "周": ["Z","J"], "吴": ["W"], "徐": ["X","S"],
-      "孙": ["S"], "马": ["M"], "胡": ["H","F"], "朱": ["Z"],
-      "郭": ["G","K"], "何": ["H"], "罗": ["L","R"], "高": ["G","K"],
-      "林": ["L"], "梁": ["L"], "郑": ["Z"], "谢": ["X","S"],
-      "宋": ["S"], "唐": ["T"], "许": ["X"], "韩": ["H"],
-      "冯": ["F","P"], "邓": ["D","T"], "曹": ["C"], "彭": ["P"],
-      "曾": ["Z","C"], "萧": ["X"], "田": ["T"], "董": ["D"],
-      "潘": ["P"], "袁": ["Y"], "蔡": ["C"], "蒋": ["J"],
-      "余": ["Y"], "叶": ["Y"], "程": ["C"], "苏": ["S"],
-      "吕": ["L"], "魏": ["W"], "丁": ["D"], "沈": ["S"],
-      "任": ["R"], "姚": ["Y"], "卢": ["L"], "傅": ["F"],
-      "钟": ["Z"], "崔": ["C"], "汪": ["W"], "范": ["F"],
-      "陆": ["L"], "廖": ["L"], "杜": ["D"], "方": ["F"],
-      "石": ["S"], "熊": ["X"], "金": ["J"], "邱": ["Q"],
-      "侯": ["H"], "白": ["B"], "江": ["J"], "史": ["S"],
-      "龙": ["L"], "万": ["W"], "段": ["D"], "雷": ["L"],
-      "钱": ["Q"], "汤": ["T"], "尹": ["Y"], "易": ["Y"],
-      "常": ["C"], "武": ["W"], "乔": ["Q"], "贺": ["H"],
-      "赖": ["L"], "龚": ["G"], "文": ["W"],
-    };
-    return map[surname.trim()] || [];
-  })();
-
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   return (
@@ -304,7 +274,7 @@ export default function EnglishNamePage() {
             AI 智能起英文名
           </h1>
           <p className="text-[#7A6B5E] text-sm">
-            贴合中文名，好读不踩坑。输入姓氏和性别，10秒生成专属英文名
+            贴合中文名，好读不踩坑。输入姓名和性别，10秒生成专属英文名
           </p>
         </div>
 
@@ -342,30 +312,24 @@ export default function EnglishNamePage() {
               </div>
             </div>
 
-            {/* 中文姓氏 */}
+            {/* 中文姓名 */}
             <div>
               <label className="block text-sm font-medium text-[#4A3428] mb-2">
-                中文姓氏 <span className="text-red-400">*</span>
+                中文姓名 <span className="text-red-400">*</span>
               </label>
               <input
-                ref={surnameInputRef}
                 type="text"
-                value={surname}
+                value={fullName}
                 onChange={(e) => {
-                  setSurname(e.target.value);
+                  setFullName(e.target.value);
+                  // 自动提取姓氏（第一个字）
+                  const val = e.target.value.trim();
+                  setSurname(val ? val[0] || "" : "");
                 }}
-                maxLength={2}
-                placeholder="例如：李、王、张..."
+                maxLength={4}
+                placeholder="例如：李瑶、王鹤棣..."
                 className="w-full py-3 px-4 rounded-xl text-sm border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none transition-all focus:border-[#E86A17] focus:ring-2 focus:ring-[#E86A17]/10"
               />
-              {surname.trim() && surnameLetters.length > 0 && (
-                <div className="mt-1.5 text-xs text-[#7A6B5E] flex items-center gap-1">
-                  <span>💡 建议首字母：</span>
-                  {surnameLetters.map((l) => (
-                    <span key={l} className="font-mono font-bold text-[#E86A17]">{l}</span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -376,28 +340,11 @@ export default function EnglishNamePage() {
               className="flex items-center gap-1.5 text-sm text-[#7A6B5E] hover:text-[#E86A17] transition-colors mx-auto"
             >
               {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {showAdvanced ? "收起高级选项" : "更多需求（可选填）"}
+              {showAdvanced ? "收起高级选项" : "展开高级选项"}
             </button>
 
             {showAdvanced && (
               <div className="mt-4 space-y-5 animate-fadeIn">
-                {/* 中文全名 */}
-                <div>
-                  <label className="block text-sm font-medium text-[#4A3428] mb-2">
-                    中文全名 <span className="text-gray-400 font-normal">（用于谐音匹配）</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => {
-                      setFullName(e.target.value);
-                    }}
-                    maxLength={4}
-                    placeholder="例如：李瑶、王鹤棣..."
-                    className="w-full py-2.5 px-4 rounded-xl text-sm border border-[#E5DDD3] bg-white text-[#2D1B0E] outline-none focus:border-[#E86A17] focus:ring-2 focus:ring-[#E86A17]/10"
-                  />
-                </div>
-
                 {/* 核心起名需求 */}
                 <div>
                   <label className="block text-sm font-medium text-[#4A3428] mb-2">
@@ -793,7 +740,7 @@ function ResultCard({
                 </span>
               </div>
               {record.phonetic && (
-                <div className="text-[10px] text-gray-400 font-mono">/{record.phonetic}/</div>
+                <div className="text-[10px] text-gray-400 font-mono">{record.phonetic}</div>
               )}
             </div>
           </div>
@@ -808,7 +755,7 @@ function ResultCard({
             >
               {record.score}
             </div>
-            <div className="text-[9px] text-gray-400 mt-0.5">{sl}</div>
+            <div className="text-[9px] text-[#E86A17] font-medium mt-4">{sl}</div>
           </div>
         </div>
 
@@ -947,7 +894,7 @@ function DetailModal({
                 </span>
               </div>
               {record.phonetic && (
-                <div className="text-sm text-gray-400 font-mono mt-0.5">/{record.phonetic}/</div>
+                <div className="text-sm text-gray-400 font-mono mt-0.5">{record.phonetic}</div>
               )}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-[#5A4334]">{record.chinese}</span>

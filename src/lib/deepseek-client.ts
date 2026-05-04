@@ -141,6 +141,8 @@ export async function generateEnglishNameByDeepSeek(
 export interface AiNameResult {
   name: string;
   meaning: string;
+  /** 英文发音音标（IPA） */
+  phonetic?: string;
   /** AI 深入分析（发音接近度、文化适配等） */
   analysis?: string;
   /** 针对该用户的个性化推荐理由 */
