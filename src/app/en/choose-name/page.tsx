@@ -882,12 +882,12 @@ function DetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(45,27,14,0.4)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl overflow-hidden"
+        className="w-full max-w-lg max-h-[85vh] rounded-2xl flex flex-col"
         style={{
           background: "rgba(255,255,255,0.98)",
           border: "1px solid #E5DDD3",
@@ -896,7 +896,7 @@ function DetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
-        <div className="relative p-6 pb-4" style={{ background: "linear-gradient(135deg, #FDF8F3 0%, #F5EDE0 100%)" }}>
+        <div className="relative p-5 pb-3 shrink-0" style={{ background: "linear-gradient(135deg, #FDF8F3 0%, #F5EDE0 100%)" }}>
           <button
             onClick={onClose}
             className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-white/50 transition-colors"
@@ -931,7 +931,7 @@ function DetailModal({
         </div>
 
         {/* 内容 */}
-        <div className="p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* 综合评分（v5.0 AI Only 简化版） */}
           <div>
             <h4 className="text-sm font-semibold text-[#2D1B0E] mb-3">综合评分</h4>
