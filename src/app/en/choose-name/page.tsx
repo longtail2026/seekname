@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Heart, Volume2, ChevronDown, ChevronUp, Sparkles,
   X, Copy, Check, Info, Loader2, Star, BookOpen,
