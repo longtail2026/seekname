@@ -14,7 +14,7 @@ const PERSONAL_SUBMENU = [
   { label: "社交网名", href: "/social-name", desc: "网名昵称" },
 ];
 const BUSINESS_SUBMENU = [
-  { label: "公司起名", href: "/company?type=company", desc: "企业名称" },
+  { label: "公司起名", href: "/company-name", desc: "企业名称" },
   { label: "品牌起名", href: "/company?type=brand", desc: "品牌命名" },
   { label: "项目起名", href: "/company?type=project", desc: "项目代号" },
   { label: "店铺起名", href: "/company?type=shop", desc: "店面招牌" },
