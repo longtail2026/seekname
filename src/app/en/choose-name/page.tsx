@@ -32,6 +32,10 @@ interface EnameScoredResult {
   surnameOverseas?: string;
   /** 来源：'db' 英文名数据库 / 'ai' DeepSeek AI 生成 */
   source?: "db" | "ai";
+  /** AI 深入分析（发音接近度、文化适配等） */
+  analysis?: string;
+  /** 针对该用户的个性化推荐理由 */
+  recommendationReason?: string;
 }
 
 // ===== 常量 =====
@@ -837,6 +841,14 @@ function ResultCard({
           </div>
         )}
 
+        {/* 推荐理由 */}
+        {record.recommendationReason && (
+          <div className="text-[10px] text-[#8B6914] leading-relaxed mb-1.5 bg-amber-50/80 px-2 py-1 rounded-lg line-clamp-2">
+            <span className="mr-1">⭐</span>
+            {record.recommendationReason}
+          </div>
+        )}
+
         {/* 含义 */}
         {record.meaning && (
           <div className="text-[10px] text-[#7A6B5E] leading-relaxed mb-2 line-clamp-2">
@@ -948,7 +960,7 @@ function DetailModal({
 
         {/* 内容 */}
         <div className="p-6 space-y-5">
-          {/* 综合评分 */}
+          {/* 综合评分（v5.0 AI Only 简化版） */}
           <div>
             <h4 className="text-sm font-semibold text-[#2D1B0E] mb-3">综合评分</h4>
             <div className="flex items-center gap-4">
@@ -962,27 +974,54 @@ function DetailModal({
               >
                 {record.score}
               </div>
-              {/* 分项评分 */}
-              <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">谐音匹配</span>
-                  <span className="font-medium" style={{ color: scoreColor(record.phoneticScore) }}>{record.phoneticScore}</span>
+              {/* 分项评分——AI Only 模式仅显示 AI 推荐优先级 */}
+              {record.source === "ai" && record.phoneticScore === 0 && record.meaningScore === 0 ? (
+                <div className="flex-1 text-xs text-gray-400">
+                  <p>AI 智能推荐评分（基于推荐优先级）</p>
+                  <p className="mt-1 text-[10px] text-gray-300">v5.0 AI Only — 由 DeepSeek AI 深度匹配生成</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">含义匹配</span>
-                  <span className="font-medium" style={{ color: scoreColor(record.meaningScore) }}>{record.meaningScore}</span>
+              ) : (
+                <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">谐音匹配</span>
+                    <span className="font-medium" style={{ color: scoreColor(record.phoneticScore) }}>{record.phoneticScore}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">含义匹配</span>
+                    <span className="font-medium" style={{ color: scoreColor(record.meaningScore) }}>{record.meaningScore}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">风格匹配</span>
+                    <span className="font-medium" style={{ color: scoreColor(record.styleScore) }}>{record.styleScore}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">流行度</span>
+                    <span className="font-medium" style={{ color: scoreColor(record.popularityScore) }}>{record.popularityScore}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">风格匹配</span>
-                  <span className="font-medium" style={{ color: scoreColor(record.styleScore) }}>{record.styleScore}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">流行度</span>
-                  <span className="font-medium" style={{ color: scoreColor(record.popularityScore) }}>{record.popularityScore}</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
+
+          {/* 推荐理由 */}
+          {record.recommendationReason && (
+            <div>
+              <h4 className="text-sm font-semibold text-[#2D1B0E] mb-2">推荐理由</h4>
+              <p className="text-sm text-[#8B6914] leading-relaxed bg-amber-50 px-3 py-2 rounded-lg">
+                ⭐ {record.recommendationReason}
+              </p>
+            </div>
+          )}
+
+          {/* AI 深度分析 */}
+          {record.analysis && (
+            <div>
+              <h4 className="text-sm font-semibold text-[#2D1B0E] mb-2">AI 深度分析</h4>
+              <p className="text-sm text-[#4A3428] leading-relaxed bg-[#F0F7FF] px-3 py-2 rounded-lg">
+                🔍 {record.analysis}
+              </p>
+            </div>
+          )}
 
           {/* 名字来源与含义 */}
           <div>

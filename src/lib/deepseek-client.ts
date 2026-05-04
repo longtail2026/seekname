@@ -136,22 +136,31 @@ export async function generateEnglishNameByDeepSeek(
 }
 
 /**
- * 批量生成多个候选英文名（用于覆盖更多可能性）
+ * AI 生成的英文名结果（含分析和推荐理由）
  */
+export interface AiNameResult {
+  name: string;
+  meaning: string;
+  /** AI 深入分析（发音接近度、文化适配等） */
+  analysis?: string;
+  /** 针对该用户的个性化推荐理由 */
+  recommendationReason?: string;
+}
+
 /**
- * 通用DeepSeek提示词接口 — 接受自定义提示词，用于英文起名引擎v4.0
+ * 通用DeepSeek提示词接口 — 接受自定义提示词，用于英文起名引擎v5.0 (AI Only)
  * 
  * 由 ename-generator.ts 内部构造提示词，传入DeepSeek生成候选名。
  * 提示词模板结构化的优点是可以在不修改客户端的条件下灵活调整提示内容。
  * 
  * @param customPrompt  完整的自定义提示词（由ename-generator构造）
  * @param count         期望返回的候选名数量
- * @returns             候选名列表 { name, meaning }
+ * @returns             候选名列表 { name, meaning, analysis, recommendationReason }
  */
 export async function generateEnglishNamesByPrompt(
   customPrompt: string,
   count: number = 10
-): Promise<{ name: string; meaning: string }[]> {
+): Promise<AiNameResult[]> {
   const apiKey = getApiKey();
   if (!apiKey) {
     return [];
@@ -204,7 +213,7 @@ export async function generateEnglishNamesByPrompt(
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) jsonStr = jsonMatch[0];
 
-    const parsed = JSON.parse(jsonStr) as Array<{ name: string; meaning?: string }>;
+    const parsed = JSON.parse(jsonStr) as Array<{ name: string; meaning?: string; analysis?: string; recommendationReason?: string }>;
     if (!Array.isArray(parsed)) {
       console.warn("[deepseek] 解析结果不是数组:", typeof parsed);
       return [];
@@ -215,6 +224,8 @@ export async function generateEnglishNamesByPrompt(
       .map((item) => ({
         name: item.name.trim(),
         meaning: item.meaning?.trim() || "",
+        analysis: item.analysis?.trim() || undefined,
+        recommendationReason: item.recommendationReason?.trim() || undefined,
       }));
 
     console.log(`[deepseek] 成功解析 ${result.length} 个候选名`);
