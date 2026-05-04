@@ -234,9 +234,26 @@ export default function EnglishNamePage() {
     saveFavorites(newFavs);
   };
 
-  // 复制
+  // 复制完整内容
   const handleCopy = (name: string) => {
-    navigator.clipboard.writeText(name);
+    const record = results.find(r => r.name === name);
+    if (!record) {
+      navigator.clipboard.writeText(name);
+      setCopiedName(name);
+      setTimeout(() => setCopiedName(""), 2000);
+      return;
+    }
+    const text = [
+      `英文名：${record.name}`,
+      record.phonetic ? `音标：${record.phonetic}` : "",
+      `评分：${record.score}分`,
+      `含义：${record.meaning || ""}`,
+      record.recommendationReason ? `推荐理由：${record.recommendationReason}` : "",
+      record.analysis ? `深度分析：${record.analysis}` : "",
+      "",
+      `—— 来自 SeekName AI 起名`,
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(text);
     setCopiedName(name);
     setTimeout(() => setCopiedName(""), 2000);
   };
@@ -854,9 +871,18 @@ function DetailModal({
 }) {
   const gc = genderStyle(record.gender);
 
+  // ESC 键关闭
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 overflow-y-auto"
       style={{ background: "rgba(45,27,14,0.4)" }}
       onClick={onClose}
     >
@@ -923,7 +949,6 @@ function DetailModal({
               {record.source === "ai" && record.phoneticScore === 0 && record.meaningScore === 0 ? (
                 <div className="flex-1 text-xs text-gray-400">
                   <p>AI 智能推荐评分（基于推荐优先级）</p>
-                  <p className="mt-1 text-[10px] text-gray-300">v5.0 AI Only — 由 DeepSeek AI 深度匹配生成</p>
                 </div>
               ) : (
                 <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
@@ -984,7 +1009,7 @@ function DetailModal({
 
           {/* 发音匹配度 & 推荐全名 */}
           <div className="space-y-2">
-            {typeof record.phoneticScore === 'number' && (
+            {record.source !== "ai" && typeof record.phoneticScore === 'number' && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-[#2D1B0E] font-medium">发音匹配度</span>
                 <div className="flex items-center gap-2">

@@ -239,11 +239,11 @@ export async function generateEnglishNames(
       // ===== 4. 将 AI 结果转换为前端格式 =====
       // ★★★ AI 已按推荐优先级排序，保持原顺序 ★★★
       aiResults = aiNames.map((item: AiNameResult, index: number) => {
-        // 评分：按 AI 优先级降序（第1名100分，之后递减）
-        const priorityScore = Math.max(60, 100 - index * 8 + surnameBonus);
+        // 评分：按 AI 优先级降序（第1名100分，之后递减，最高不超过100）
+        const priorityScore = Math.min(100, Math.max(60, 100 - index * 8 + surnameBonus));
 
         // 基础标签
-        const tags: string[] = ["🤖 AI 智能推荐"];
+        const tags: string[] = ["✨ AI 推荐"];
 
         // 生成推荐全名
         const recommendedFullName = `${item.name} ${surnameEnglish}`;
@@ -301,9 +301,9 @@ export async function generateEnglishNames(
     const FINAL_COUNT = 6;
     const topResults = aiResults.slice(0, FINAL_COUNT);
 
-    // 按 AI 优先级顺序更新评分（确保前端按 score 排序时保持正确顺序）
+    // 按 AI 优先级顺序更新评分（确保前端按 score 排序时保持正确顺序，最高不超过100）
     topResults.forEach((item, i) => {
-      item.score = Math.max(60, 100 - i * 8 + surnameBonus);
+      item.score = Math.min(100, Math.max(60, 100 - i * 8 + surnameBonus));
     });
 
     return {
