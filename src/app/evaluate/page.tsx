@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, Suspense, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -87,6 +87,7 @@ interface EvaluateResponse {
 /* ─── 组件 ─── */
 function EvaluateContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const name = searchParams.get("name") || "";
   const type = searchParams.get("type") || "person";
   const info = searchParams.get("info") || "";
@@ -95,6 +96,13 @@ function EvaluateContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [expanded, setExpanded] = useState(-1);
+
+  // 如果没有name参数，自动跳转到表单页
+  useEffect(() => {
+    if (!name) {
+      router.replace("/evaluate/form");
+    }
+  }, [name, router]);
 
   useEffect(() => {
     if (!name) {
@@ -160,25 +168,6 @@ function EvaluateContent() {
       </div>
     );
   }, [result]);
-
-  if (!name) {
-    return (
-      <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
-        <div className="text-center px-4">
-          <Star className="w-12 h-12 text-[#DDD0C0] mx-auto mb-4" />
-          <p className="text-xl text-[#5C4A42] mb-4" style={{ fontFamily: "'Noto Serif SC', serif" }}>
-            请先输入要测评的名字
-          </p>
-          <Link
-            href="/evaluate/form"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#E86A17] text-white rounded-xl font-medium hover:bg-[#D55A0B] transition-colors"
-          >
-            ← 返回测评
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FDFAF4] to-[#EDE5D8]">
