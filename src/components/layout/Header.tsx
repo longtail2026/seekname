@@ -11,6 +11,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 const PERSONAL_SUBMENU = [
   { label: "起名改名", href: "/rename", desc: "AI智能起名" },
   { label: "英文起名", href: "/en/choose-name", desc: "英文名字" },
+  { label: "外国友人起中文名", href: "/foreigner-name", desc: "外国人中文名" },
   { label: "社交网名", href: "/social-name", desc: "网名昵称" },
 ];
 const BUSINESS_SUBMENU = [
