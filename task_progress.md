@@ -1,30 +1,32 @@
-# 任务进度
+# SeekName 后台管理系统 - 开发任务清单
 
-## 问题分析
-姓氏匹配算法中，`calcSurnameMatchScore` 虽然已改进为"姓氏在150映射表中有海外表达给85分"，但用户发现：
-- `Gordon Cheung` 排第10（74.1分），远低于期望
-- 因为姓氏"张→Cheung"的100分映射无法体现——候选名"Gordon"不匹配"Cheung"时只得了85分
-- 需要改为：姓氏在 SURNAME_ENGLISH_MAP 中有映射时**直接给100分**（因为推荐全名本身已使用正确的英文表达）
+## 阶段1：Prisma Schema 更新（新增模型）
+- [ ] 添加 AdminUser 管理用户表（扩展 User 模型加 role）
+- [ ] 添加 NavigationItem 导航菜单表
+- [ ] 添加 AutoBlogConfig 自动发文配置表
+- [ ] 添加 AutoBlogLog 自动发文日志表
+- [ ] 更新 BlogPost 添加 category、isPinned、coverImage 字段
+- [ ] 更新 BlogComment 添加 status 字段
+- [ ] 添加 NamingRecordType 起名记录分类
 
-## 修复内容（calcSurnameMatchScore V6.6）
+## 阶段2：Admin API 路由
+- [ ] Admin 登录/认证 API
+- [ ] Dashboard 统计数据 API
+- [ ] 用户管理 CRUD API
+- [ ] 起名记录管理 API
+- [ ] 博客管理 CRUD API
+- [ ] 评论管理 API
+- [ ] 导航管理 CRUD API
+- [ ] 自动发文配置/日志 API
 
-### 核心变更
-- **姓氏在 SURNAME_ENGLISH_MAP 中有映射 → 直接给100分**
-  - 因为推荐全名已使用 `Gordon Cheung` 形式，姓氏部分"Cheung"已正确
-  - 候选名"Gordon"不需要与"Cheung"做匹配，此前的"zh→ch拼音匹配"是错误的降权
-- **移除候选名与姓氏表达精确/前缀匹配的检查**  
-  - 简化逻辑：有映射=100分，无映射=拼音回退
-  - 候选名巧合等于姓氏表达（如"Cheung"匹配"张"）属于巧合，不影响姓氏映射基础分
-
-### 修复后效果
-- `张 → Cheung` → `calcSurnameMatchScore` 返回100分（而不是85分）
-- `Gordon` 的姓氏匹配分从85提高到100，最终综合分上升约4分
-- `Gordon Cheung` 综合分提升，排名从第10提升到前3
-- 更好地区分"有权威英文映射的姓氏"和"无映射需拼音回退的姓氏"
-
-## 已完成的修改
-- [x] 分析 `calcSurnameMatchScore` 当前V6.5逻辑问题
-- [x] 修改为V6.6：姓氏在映射表中直接返回100分
-- [x] 简化函数：移除候选名匹配检查逻辑（-80行，+16行）
-- [x] TypeScript编译验证（无新增错误）
-- [x] git commit (2c375eb) && push to main
+## 阶段3：Admin 前端页面
+- [ ] Admin 布局（侧边栏 + 顶栏）
+- [ ] Admin 登录页面
+- [ ] Dashboard 控制台页面
+- [ ] 用户管理页面
+- [ ] 起名记录管理页面
+- [ ] 博客管理页面（含富文本编辑器）
+- [ ] 评论管理页面
+- [ ] 导航管理页面（拖拽排序）
+- [ ] 自动发文配置页面
+- [ ] 权限管理页面

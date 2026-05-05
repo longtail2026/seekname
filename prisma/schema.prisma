@@ -97,36 +97,39 @@ model WuxingCharacter {
 // 7. 用户表
 // ─────────────────────────────────────────────
 model User {
-  id          String   @id @default(cuid())
-  email       String?  @unique
-  phone       String?  @unique
-  password    String?  // bcrypt 哈希密码
-  name        String?  @db.VarChar(50)
-  avatar      String?  // 头像 URL（动漫风格）
-  
+  id       String  @id @default(cuid())
+  email    String? @unique
+  phone    String? @unique
+  password String? // bcrypt 哈希密码
+  name     String? @db.VarChar(50)
+  avatar   String? // 头像 URL（动漫风格）
+
   // 个人信息
-  gender      String?  @db.VarChar(10)   // 男/女
-  occupation  String?  @db.VarChar(50)   // 职业
-  hobbies     String[]                  // 爱好列表
-  
+  gender     String?  @db.VarChar(10) // 男/女
+  occupation String?  @db.VarChar(50) // 职业
+  hobbies    String[] // 爱好列表
+
+  // 管理角色（空=普通用户，admin=超级管理员，operator=运营管理员）
+  adminRole String? @map("admin_role") @db.VarChar(20)
+
   // 微信相关
-  wxOpenId    String?  @unique @map("wx_openid")
-  wxUnionId   String?  @map("wx_unionid")
-  
+  wxOpenId  String? @unique @map("wx_openid")
+  wxUnionId String? @map("wx_unionid")
+
   // 状态
-  status      String   @default("active") @db.VarChar(20)
-  
+  status String @default("active") @db.VarChar(20)
+
   // VIP信息
-  vipLevel    Int      @default(0) @map("vip_level")
-  vipExpire   DateTime? @map("vip_expire")
-  
+  vipLevel  Int       @default(0) @map("vip_level")
+  vipExpire DateTime? @map("vip_expire")
+
   // 积分余额
-  points      Int      @default(0)
-  balance     Decimal  @default(0) @db.Decimal(10, 2)
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  points  Int     @default(0)
+  balance Decimal @default(0) @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // 关联
   orders        Order[]
   nameRecords   NameRecord[]
@@ -145,32 +148,32 @@ model User {
 // 8. 订单表
 // ─────────────────────────────────────────────
 model Order {
-  id          String   @id @default(cuid())
-  orderNo     String   @unique @map("order_no") @db.VarChar(50)
+  id      String @id @default(cuid())
+  orderNo String @unique @map("order_no") @db.VarChar(50)
 
-  userId      String?  @map("user_id")
-  user        User?    @relation(fields: [userId], references: [id])
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
 
   // 订单类型
-  type        String   @db.VarChar(20)  // name/report/vip
+  type String @db.VarChar(20) // name/report/vip
 
   // 金额
-  amount      Decimal  @db.Decimal(10, 2) @default(0)
+  amount Decimal @default(0) @db.Decimal(10, 2)
 
   // 支付状态
-  payStatus   String   @default("pending") @map("pay_status") @db.VarChar(20)
-  payMethod   String?  @map("pay_method") @db.VarChar(20)
-  payTime     DateTime? @map("pay_time")
+  payStatus String    @default("pending") @map("pay_status") @db.VarChar(20)
+  payMethod String?   @map("pay_method") @db.VarChar(20)
+  payTime   DateTime? @map("pay_time")
 
   // 订单状态
-  status      String   @default("pending") @db.VarChar(20)  // pending/processing/completed/closed
+  status String @default("pending") @db.VarChar(20) // pending/processing/completed/closed
 
   // 关联的起名记录
-  nameRecordId String? @map("name_record_id")
+  nameRecordId String?     @map("name_record_id")
   nameRecord   NameRecord? @relation(fields: [nameRecordId], references: [id])
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId], map: "idx_order_user")
   @@index([orderNo], map: "idx_order_no")
@@ -183,41 +186,41 @@ model Order {
 // 9. 起名记录表
 // ─────────────────────────────────────────────
 model NameRecord {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String?  @map("user_id")
-  user        User?    @relation(fields: [userId], references: [id])
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
 
   // 起名参数
-  surname     String   @db.VarChar(20)
-  gender      String   @db.Char(1)
-  birthDate   DateTime @map("birth_date")
-  birthTime   String?  @map("birth_time") @db.VarChar(20)
+  surname   String   @db.VarChar(20)
+  gender    String   @db.Char(1)
+  birthDate DateTime @map("birth_date")
+  birthTime String?  @map("birth_time") @db.VarChar(20)
 
   // 八字信息
-  baziYear    String?  @map("bazi_year") @db.VarChar(20)
-  baziMonth   String?  @map("bazi_month") @db.VarChar(20)
-  baziDay     String?  @map("bazi_day") @db.VarChar(20)
-  baziHour    String?  @map("bazi_hour") @db.VarChar(20)
+  baziYear  String? @map("bazi_year") @db.VarChar(20)
+  baziMonth String? @map("bazi_month") @db.VarChar(20)
+  baziDay   String? @map("bazi_day") @db.VarChar(20)
+  baziHour  String? @map("bazi_hour") @db.VarChar(20)
 
   // 期望寓意
   expectations String? @db.VarChar(1000)
-  style       String?  @db.VarChar(20)
+  style        String? @db.VarChar(20)
 
   // 生成的名字结果（JSON，存名字列表+来源+评分）
-  results     Json?
+  results Json?
 
   // 状态
-  status      String   @default("generating") @db.VarChar(20)
+  status String @default("generating") @db.VarChar(20)
 
   // 是否已支付查看
-  isPaid      Boolean  @default(false) @map("is_paid")
+  isPaid Boolean @default(false) @map("is_paid")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // 关联
-  orders      Order[]
+  orders Order[]
 
   @@index([userId], map: "idx_nr_user")
   @@index([surname], map: "idx_nr_surname")
@@ -228,44 +231,51 @@ model NameRecord {
 
 // ─── 10. 博客表 ────────────────────────────────────────────────────────────────
 model BlogPost {
-  id            Int          @id @default(autoincrement())
-  userId        String       @map("user_id")
-  user          User         @relation(fields: [userId], references: [id])
+  id     Int    @id @default(autoincrement())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
 
-  title         String       @db.VarChar(200)
-  slug          String       @unique @db.VarChar(250)
-  summary       String?      @db.VarChar(500)
-  content       String?
-  coverImage    String?      @map("cover_image") @db.VarChar(500)
+  title      String  @db.VarChar(200)
+  slug       String  @unique @db.VarChar(250)
+  summary    String? @db.VarChar(500)
+  content    String?
+  coverImage String? @map("cover_image") @db.VarChar(500)
 
-  viewCount     Int          @default(0) @map("view_count")
-  likeCount     Int          @default(0) @map("like_count")
-  commentCount  Int          @default(0) @map("comment_count")
-  favoriteCount Int          @default(0) @map("favorite_count")
+  viewCount     Int @default(0) @map("view_count")
+  likeCount     Int @default(0) @map("like_count")
+  commentCount  Int @default(0) @map("comment_count")
+  favoriteCount Int @default(0) @map("favorite_count")
 
-  status        String       @default("draft") @db.VarChar(20)  // draft | published | archived
+  status String @default("draft") @db.VarChar(20) // draft | published | archived
 
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
+  // 博客扩展字段
+  category  String? @db.VarChar(50)
+  isPinned  Boolean @default(false) @map("is_pinned")
+  source    String? @db.VarChar(100) // 来源（auto_blog / manual）
+  sourceUrl String? @map("source_url") @db.VarChar(1000)
 
-  tags          BlogPostTag[]
-  comments      BlogComment[]
-  favorites     BlogFavorite[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tags      BlogPostTag[]
+  comments  BlogComment[]
+  favorites BlogFavorite[]
 
   @@index([userId], map: "idx_bp_user")
   @@index([status], map: "idx_bp_status")
+  @@index([category], map: "idx_bp_category")
   @@index([createdAt], map: "idx_bp_created")
   @@map("blog_posts")
 }
 
 model BlogTag {
-  id        Int          @id @default(autoincrement())
-  name      String       @unique @db.VarChar(50)
-  slug      String       @unique @db.VarChar(60)
-  count     Int          @default(0)
-  createdAt DateTime     @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  slug      String   @unique @db.VarChar(60)
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  posts     BlogPostTag[]
+  posts BlogPostTag[]
 
   @@map("blog_tags")
 }
@@ -285,36 +295,40 @@ model BlogPostTag {
 
 // ─── 11. 博客评论表 ─────────────────────────────────────────────────────────
 model BlogComment {
-  id        Int         @id @default(autoincrement())
-  postId    Int         @map("post_id")
-  userId    String      @map("user_id")
-  parentId  Int?        @map("parent_id")        // 父评论 null=一级
-  content   String      @db.Text
-  likeCount Int         @default(0) @map("like_count")
+  id        Int    @id @default(autoincrement())
+  postId    Int    @map("post_id")
+  userId    String @map("user_id")
+  parentId  Int?   @map("parent_id") // 父评论 null=一级
+  content   String @db.Text
+  likeCount Int    @default(0) @map("like_count")
 
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
+  // 评论状态（pending/approved/spam）
+  status String @default("pending") @db.VarChar(20)
 
-  post      BlogPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id])
-  parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   BlogComment[] @relation("CommentReplies")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post    BlogPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id])
+  parent  BlogComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies BlogComment[] @relation("CommentReplies")
 
   @@index([postId], map: "idx_bc_post")
   @@index([userId], map: "idx_bc_user")
+  @@index([status], map: "idx_bc_status")
   @@index([parentId], map: "idx_bc_parent")
   @@map("blog_comments")
 }
 
 // ─── 12. 博客点赞表 ─────────────────────────────────────────────────────────
 model BlogLike {
-  id        Int      @id @default(autoincrement())
-  userId    String   @map("user_id")
-  targetType String  @map("target_type") @db.VarChar(20)  // post | comment
-  targetId  Int      @map("target_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  userId     String   @map("user_id")
+  targetType String   @map("target_type") @db.VarChar(20) // post | comment
+  targetId   Int      @map("target_id")
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, targetType, targetId], map: "uk_blog_like")
   @@index([userId], map: "idx_bl_user")
@@ -328,8 +342,8 @@ model BlogFavorite {
   postId    Int      @map("post_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, postId], map: "uk_blog_favorite")
   @@index([userId], map: "idx_bf_user")
@@ -339,21 +353,21 @@ model BlogFavorite {
 
 // ─── 14. 名字典藏表 ──────────────────────────────────────────────────────────
 model NameFavorite {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
 
   // 名字基本信息
-  surname   String   @db.VarChar(10)
-  fullName  String   @map("full_name") @db.VarChar(30)
-  gender    String   @db.Char(1)       // M/F
-  score     Int?     @default(0)
+  surname  String @db.VarChar(10)
+  fullName String @map("full_name") @db.VarChar(30)
+  gender   String @db.Char(1) // M/F
+  score    Int?   @default(0)
 
   // 完整分析结果（JSON，兼容 NameResult 结构）
-  analysis  Json?                          @map("analysis")
-  wuxing    String? @map("wuxing") @db.VarChar(100) // 喜用五行（JSON字符串）
-  source    String? @db.VarChar(200)        // 来源：naming_results / api_generate
-  note      String? @db.VarChar(200)        // 用户备注
+  analysis Json?   @map("analysis")
+  wuxing   String? @map("wuxing") @db.VarChar(100) // 喜用五行（JSON字符串）
+  source   String? @db.VarChar(200) // 来源：naming_results / api_generate
+  note     String? @db.VarChar(200) // 用户备注
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -366,11 +380,71 @@ model NameFavorite {
 // ─── 字符频率表（起名评分：常用度维度）───────────────────────────────
 // 用 raw SQL 查询，所以这个 model 只是为了让 Prisma 引擎识别表存在
 model CharacterFrequency {
-  char      String @id @db.VarChar(1)
-  freq      Int    @default(0) @db.Integer
-  freqRank  Int    @default(9999) @map("freq_rank") @db.Integer
-  genderM   Int    @default(0) @map("gender_m") @db.Integer
-  genderF   Int    @default(0) @map("gender_f") @db.Integer
+  char     String @id @db.VarChar(1)
+  freq     Int    @default(0) @db.Integer
+  freqRank Int    @default(9999) @map("freq_rank") @db.Integer
+  genderM  Int    @default(0) @map("gender_m") @db.Integer
+  genderF  Int    @default(0) @map("gender_f") @db.Integer
 
   @@map("character_frequency")
+}
+
+// ─── 15. 导航菜单管理表 ──────────────────────────────────────────────────────
+model NavigationItem {
+  id          Int     @id @default(autoincrement())
+  parentId    Int?    @map("parent_id")
+  label       String  @db.VarChar(100)
+  labelKey    String? @map("label_key") @db.VarChar(50)
+  href        String? @db.VarChar(500)
+  icon        String? @db.VarChar(50)
+  description String? @db.VarChar(200)
+  sortOrder   Int     @default(0) @map("sort_order")
+  isActive    Boolean @default(true) @map("is_active")
+  isExternal  Boolean @default(false) @map("is_external")
+
+  // 自关联子菜单
+  parent   NavigationItem?  @relation("NavChildren", fields: [parentId], references: [id])
+  children NavigationItem[] @relation("NavChildren")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([parentId], map: "idx_ni_parent")
+  @@index([isActive], map: "idx_ni_active")
+  @@map("navigation_items")
+}
+
+// ─── 16. 自动发文配置表 ──────────────────────────────────────────────────────
+model AutoBlogConfig {
+  id              Int       @id @default(autoincrement())
+  isEnabled       Boolean   @default(true) @map("is_enabled")
+  frequency       String    @default("daily") @db.VarChar(20) // daily | weekly
+  crawlKeywords   String[]  @map("crawl_keywords") // 爬取关键词列表
+  requireReview   Boolean   @default(true) @map("require_review")
+  defaultCategory String?   @map("default_category") @db.VarChar(50)
+  writingStyle    String    @default("formal") @map("writing_style") @db.VarChar(20) // formal/通俗/专业
+  lastRunTime     DateTime? @map("last_run_time")
+  lastRunStatus   String?   @map("last_run_status") @db.VarChar(20) // success/failed/running
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("auto_blog_config")
+}
+
+// ─── 17. 自动发文日志表 ──────────────────────────────────────────────────────
+model AutoBlogLog {
+  id          Int     @id @default(autoincrement())
+  sourceUrl   String  @map("source_url") @db.VarChar(1000)
+  sourceTitle String? @map("source_title") @db.VarChar(300)
+  status      String  @db.VarChar(20) // success | failed | pending
+  postId      Int?    @map("post_id")
+  errorMsg    String? @map("error_msg") @db.Text
+  duration    Int? // 爬取+改写耗时（秒）
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([status], map: "idx_abl_status")
+  @@index([createdAt], map: "idx_abl_created")
+  @@map("auto_blog_logs")
 }
