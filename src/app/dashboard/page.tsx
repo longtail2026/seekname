@@ -139,7 +139,7 @@ export default function DashboardPage() {
 
   if (authLoading || !user) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--foreground-muted)", fontFamily: "'Noto Sans SC', sans-serif" }}>
+      <div style={{ minHeight: "100vh", paddingTop: 60, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--foreground-muted)", fontFamily: "'Noto Sans SC', sans-serif" }}>
         <Loader2 className="w-5 h-5 animate-spin" />
         <span>{isEn ? "Loading..." : "加载中..."}</span>
       </div>
@@ -220,7 +220,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Tab 导航 + 内容 ── */}
-      <div style={{ maxWidth: 900, margin: "-24px auto 0", padding: "0 20px 60px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 20px 60px" }}>
         {/* Tab 切换器 */}
         <div
           style={{
@@ -268,6 +268,8 @@ export default function DashboardPage() {
             borderRadius: "0 0 16px 16px",
             minHeight: 400,
             padding: "24px",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {tabLoading ? (
@@ -279,13 +281,14 @@ export default function DashboardPage() {
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--error)" }}>
               <p style={{ margin: 0, fontFamily: "'Noto Sans SC', sans-serif" }}>{error}</p>
             </div>
+          ) : activeTab === "orders" ? (
+            <OrdersTab orders={orders} isEn={isEn} />
+          ) : activeTab === "favorites" ? (
+            <FavoritesTab favorites={favorites} isEn={isEn} />
+          ) : activeTab === "articles" ? (
+            <ArticlesTab articles={articles} isEn={isEn} />
           ) : (
-            <>
-              {activeTab === "orders" && <OrdersTab orders={orders} isEn={isEn} />}
-              {activeTab === "favorites" && <FavoritesTab favorites={favorites} isEn={isEn} />}
-              {activeTab === "articles" && <ArticlesTab articles={articles} isEn={isEn} />}
-              {activeTab === "vip" && <VipTab user={user} isEn={isEn} />}
-            </>
+            <VipTab user={user} isEn={isEn} />
           )}
         </div>
       </div>
@@ -299,7 +302,7 @@ function OrdersTab({ orders, isEn }: { orders: Order[]; isEn: boolean }) {
   if (orders.length === 0) return <EmptyState icon="📋" message={isEn ? "No naming history yet" : "还没有起名记录"} sub={isEn ? "Start naming to see your history here" : "使用起名服务后，记录将自动展示在这里"} actionHref="/personal" actionLabel={isEn ? "Start Naming" : "立即起名"} />;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
       {orders.map((order) => {
         const candidates: string[] = Array.isArray(order.nameRecord?.results) ? order.nameRecord.results.map((r: unknown) => (r as { name?: string }).name).filter((n): n is string => Boolean(n)) : [];
         return (
@@ -315,19 +318,21 @@ function OrdersTab({ orders, isEn }: { orders: Order[]; isEn: boolean }) {
               </span>
             </div>
             {order.nameRecord && (
-              <div style={{ fontSize: 12, color: "var(--foreground-muted)", marginBottom: 8, fontFamily: "'Noto Sans SC', sans-serif" }}>
-                {order.nameRecord.surname}姓 · {order.nameRecord.gender === "male" ? "男" : order.nameRecord.gender === "female" ? "女" : order.nameRecord.gender}
-                <span style={{ marginLeft: 8, color: "#2EAD5A" }}><ThumbsUp className="w-3 h-3 inline" style={{ marginRight: 2, verticalAlign: "middle" }} />{candidates.length} {isEn ? "candidates" : "个候选名"}</span>
-              </div>
-            )}
-            {candidates.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {candidates.slice(0, 5).map((name, i) => (
-                  <Link key={i} href={`/naming/${name}`} style={{ padding: "3px 10px", borderRadius: 6, background: "#fff", border: `1px solid ${i === 0 ? "var(--primary)" : "var(--border)"}`, fontSize: 14, color: i === 0 ? "var(--primary)" : "var(--foreground-muted)", textDecoration: "none", fontFamily: "'Noto Serif SC', serif", fontWeight: i === 0 ? 600 : 400 }}>
-                    {name}
-                  </Link>
-                ))}
-              </div>
+              <>
+                <div style={{ fontSize: 12, color: "var(--foreground-muted)", marginBottom: 8, fontFamily: "'Noto Sans SC', sans-serif" }}>
+                  {order.nameRecord.surname}姓 · {order.nameRecord.gender === "male" ? "男" : order.nameRecord.gender === "female" ? "女" : order.nameRecord.gender}
+                  <span style={{ marginLeft: 8, color: "#2EAD5A" }}><ThumbsUp className="w-3 h-3 inline" style={{ marginRight: 2, verticalAlign: "middle" }} />{candidates.length} {isEn ? "candidates" : "个候选名"}</span>
+                </div>
+                {candidates.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {candidates.slice(0, 5).map((name, i) => (
+                      <Link key={i} href={`/naming/${name}`} style={{ padding: "3px 10px", borderRadius: 6, background: "#fff", border: `1px solid ${i === 0 ? "var(--primary)" : "var(--border)"}`, fontSize: 14, color: i === 0 ? "var(--primary)" : "var(--foreground-muted)", textDecoration: "none", fontFamily: "'Noto Serif SC', serif", fontWeight: i === 0 ? 600 : 400 }}>
+                        {name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -340,7 +345,7 @@ function FavoritesTab({ favorites, isEn }: { favorites: Favorite[]; isEn: boolea
   if (favorites.length === 0) return <EmptyState icon="❤️" message={isEn ? "No favorites yet" : "还没有收藏的名字"} sub={isEn ? "Save names you love to your collection" : "在名字详情页点击收藏，名字将出现在这里"} actionHref="/collection" actionLabel={isEn ? "Browse Collection" : "浏览典藏本"} />;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
       {favorites.map((fav) => (
         <div key={fav.id} style={{ background: "var(--background-warm)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ flex: 1 }}>
@@ -462,7 +467,7 @@ function VipTab({ user, isEn }: { user: { vipLevel: number; points: number }; is
 
 function EmptyState({ icon, message, sub, actionHref, actionLabel }: { icon: string; message: string; sub: string; actionHref: string; actionLabel: string }) {
   return (
-    <div style={{ textAlign: "center", padding: "48px 24px" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px" }}>
       <div style={{ fontSize: 48, marginBottom: 12 }}>{icon}</div>
       <p style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--ink)", fontFamily: "'Noto Serif SC', serif" }}>{message}</p>
       <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--foreground-muted)", fontFamily: "'Noto Sans SC', sans-serif" }}>{sub}</p>
