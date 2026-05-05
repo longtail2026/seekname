@@ -1,5 +1,5 @@
 # robots.txt - SeekName AI起名网
-# https://www.seekname.cn
+# https://seekname.cn
 
 User-agent: *
 Allow: /
@@ -32,10 +32,10 @@ Disallow: /vip
 Disallow: /subscribe
 
 # Sitemap
-Sitemap: https://www.seekname.cn/sitemap.xml
+Sitemap: https://seekname.cn/sitemap.xml
 
 # Crawl rules
 Crawl-Delay: 5
 
 # Host
-Host: https://www.seekname.cn
+Host: https://seekname.cn

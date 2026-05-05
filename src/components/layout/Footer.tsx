@@ -24,7 +24,7 @@ const Footer = () => {
             </div>
             <div>
               <span className="text-lg font-bold">寻名网</span>
-              <span className="block text-xs text-gray-400">www.seekname.cn</span>
+              <span className="block text-xs text-gray-400">seekname.cn</span>
             </div>
           </div>
 

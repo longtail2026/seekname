@@ -702,7 +702,7 @@ export default function Home() {
                   <img src="/images/48-48-ICO-1.png" alt="寻名网" className="w-7 h-7 rounded" />
                   <div>
                     <div className="font-bold text-white text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
-                    <div className="text-[9px] text-gray-500">www.seekname.cn</div>
+                    <div className="text-[9px] text-gray-500">seekname.cn</div>
                   </div>
                 </div>
                 <p className="text-gray-500 text-[11px] leading-relaxed hidden lg:block">

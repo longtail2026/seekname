@@ -18,11 +18,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     keywords: ["起名", "名字分析", name || "", "五行", "八字", "典籍出处"],
     alternates: {
-      canonical: "https://www.seekname.cn",
+      canonical: "https://seekname.cn",
       languages: {
-        "zh-CN": "https://www.seekname.cn",
-        "en-US": "https://www.seekname.cn",
-        "x-default": "https://www.seekname.cn",
+        "zh-CN": "https://seekname.cn",
+        "en-US": "https://seekname.cn",
+        "x-default": "https://seekname.cn",
       },
     },
     openGraph: {

@@ -54,7 +54,7 @@ export default async function SharePage({ params }: Props) {
   };
 
   const genderLabel = name.gender === "M" ? "男孩" : "女孩";
-  const shareUrl = typeof window !== "undefined" ? window.location.href : `https://www.seekname.cn/share/${token}`;
+  const shareUrl = typeof window !== "undefined" ? window.location.href : `https://seekname.cn/share/${token}`;
   const shareTitle = `「${name.name}」—— 一个寓意美好的名字，推荐给你！`;
 
   return (

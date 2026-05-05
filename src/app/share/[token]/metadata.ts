@@ -61,7 +61,7 @@ export async function generateMetadata({
       images: [`/api/og?name=${encodeURIComponent(name)}`],
     },
     alternates: {
-      canonical: `https://www.seekname.cn/share/${token}`,
+      canonical: `https://seekname.cn/share/${token}`,
     },
   };
 }

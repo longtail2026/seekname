@@ -23,7 +23,7 @@ export default function BlogBreadcrumb({ items }: BlogBreadcrumbProps) {
       "@type": "ListItem",
       position: index + 1,
       name: item.label,
-      ...(item.href ? { item: `https://www.seekname.cn${item.href}` } : {}),
+      ...(item.href ? { item: `https://seekname.cn${item.href}` } : {}),
     })),
   };
 

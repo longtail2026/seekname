@@ -5,7 +5,7 @@
 
 import type { Metadata } from "next";
 
-const BASE_URL = "https://www.seekname.cn";
+const BASE_URL = "https://seekname.cn";
 
 /**
  * 生成带 hreflang alternate 的通用 metadata

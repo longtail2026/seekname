@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 
-const baseUrl = "https://www.seekname.cn";
+const baseUrl = "https://seekname.cn";
 
 async function fetchBlogPosts(): Promise<MetadataRoute.Sitemap> {
   try {

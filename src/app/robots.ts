@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/orders", "/settings", "/blog/write"],
       },
     ],
-    sitemap: "https://www.seekname.cn/sitemap.xml",
+    sitemap: "https://seekname.cn/sitemap.xml",
   };
 }

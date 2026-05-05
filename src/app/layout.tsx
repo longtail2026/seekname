@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.seekname.cn"),
+  metadataBase: new URL("https://seekname.cn"),
   title: {
     default: "AI起名网站 - 免费宝宝起名/英文名/公司名/店铺名生成 | SeekName",
     template: "%s | SeekName",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "zh_CN",
-    url: "https://www.seekname.cn",
+    url: "https://seekname.cn",
     siteName: "SeekName AI起名网",
     title: "AI起名网站 - 免费宝宝起名/英文名/公司名/店铺名生成 | SeekName",
     description: "AI智能起名，提供宝宝起名、英文名、公司起名、店铺起名、艺名笔名、跨境电商名、外国人中文名、网名等一站式名字生成服务，好听、好记、无负面歧义。",
@@ -71,11 +71,11 @@ export const metadata: Metadata = {
     "msapplication-TileColor": "#E86A17",
   },
   alternates: {
-    canonical: "https://www.seekname.cn",
+    canonical: "https://seekname.cn",
     languages: {
-      "zh-CN": "https://www.seekname.cn",
-      "en-US": "https://www.seekname.cn",
-      "x-default": "https://www.seekname.cn",
+      "zh-CN": "https://seekname.cn",
+      "en-US": "https://seekname.cn",
+      "x-default": "https://seekname.cn",
     },
   },
 };

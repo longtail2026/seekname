@@ -8,10 +8,10 @@ export const metadata: Metadata = {
   description: "Generate meaningful Chinese names with AI. Combine BaZi, Five Elements (Wuxing), and classic references from Shijing, Chuci, and Tang poetry. Perfect for newborns, businesses, and pets.",
   keywords: "Chinese name generator, Chinese naming, AI naming, BaZi, Five Elements, Wuxing, Chinese culture, name meaning",
   alternates: {
-    canonical: "https://www.seekname.cn/en",
+    canonical: "https://seekname.cn/en",
     languages: {
-      "zh-CN": "https://www.seekname.cn/",
-      "en-US": "https://www.seekname.cn/en",
+      "zh-CN": "https://seekname.cn/",
+      "en-US": "https://seekname.cn/en",
     },
   },
   openGraph: {

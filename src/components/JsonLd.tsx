@@ -7,7 +7,7 @@ export default function JsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "SeekName AI起名网",
-    url: "https://www.seekname.cn",
+    url: "https://seekname.cn",
     description:
       "AI智能起名，提供宝宝起名、英文名、公司起名、店铺起名、艺名笔名、跨境电商名、外国人中文名、网名等一站式名字生成服务，好听、好记、无负面歧义。",
     inLanguage: "zh-CN",
@@ -15,7 +15,7 @@ export default function JsonLd() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: "https://www.seekname.cn/search?q={search_term_string}",
+        urlTemplate: "https://seekname.cn/search?q={search_term_string}",
       },
       "query-input": "required name=search_term_string",
     },
@@ -28,10 +28,10 @@ export default function JsonLd() {
     publisher: {
       "@type": "Organization",
       name: "SeekName",
-      url: "https://www.seekname.cn",
+      url: "https://seekname.cn",
       logo: {
         "@type": "ImageObject",
-        url: "https://www.seekname.cn/images/icon-512.png",
+        url: "https://seekname.cn/images/icon-512.png",
         width: 512,
         height: 512,
       },
@@ -49,7 +49,7 @@ export default function JsonLd() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "SeekName AI起名网", item: "https://www.seekname.cn" },
+      { "@type": "ListItem", position: 1, name: "SeekName AI起名网", item: "https://seekname.cn" },
     ],
   };
 
@@ -62,7 +62,7 @@ export default function JsonLd() {
     provider: {
       "@type": "Organization",
       name: "SeekName",
-      url: "https://www.seekname.cn",
+      url: "https://seekname.cn",
     },
     areaServed: { "@type": "Country", name: "CN" },
     description: "提供AI驱动的宝宝起名、公司起名、店铺起名、英文名生成等一站式命名服务",
@@ -84,22 +84,22 @@ export default function JsonLd() {
     "@type": "ItemList",
     name: "SeekName AI起名工具大全",
     description: "一站式AI起名工具列表，覆盖宝宝、英文、公司、店铺等各类起名需求",
-    url: "https://www.seekname.cn",
+    url: "https://seekname.cn",
     numberOfItems: 12,
     itemListOrder: "http://schema.org/ItemListOrderDescending",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "AI宝宝起名", url: "https://www.seekname.cn/personal" },
-      { "@type": "ListItem", position: 2, name: "AI英文名生成", url: "https://www.seekname.cn/en/choose-name" },
-      { "@type": "ListItem", position: 3, name: "AI公司起名", url: "https://www.seekname.cn/company" },
-      { "@type": "ListItem", position: 4, name: "AI品牌起名", url: "https://www.seekname.cn/brand" },
-      { "@type": "ListItem", position: 5, name: "AI店铺起名", url: "https://www.seekname.cn/shop" },
-      { "@type": "ListItem", position: 6, name: "跨境电商英文起名", url: "https://www.seekname.cn/business-name/cross-border-en-name" },
-      { "@type": "ListItem", position: 7, name: "AI外国人中文名", url: "https://www.seekname.cn/foreigner-name" },
-      { "@type": "ListItem", position: 8, name: "AI艺名笔名生成", url: "https://www.seekname.cn/work-name" },
-      { "@type": "ListItem", position: 9, name: "AI社交网名", url: "https://www.seekname.cn/social-name" },
-      { "@type": "ListItem", position: 10, name: "AI宠物起名", url: "https://www.seekname.cn/pet" },
-      { "@type": "ListItem", position: 11, name: "AI名字评分", url: "https://www.seekname.cn/evaluate" },
-      { "@type": "ListItem", position: 12, name: "起名知识博客", url: "https://www.seekname.cn/blog" },
+      { "@type": "ListItem", position: 1, name: "AI宝宝起名", url: "https://seekname.cn/personal" },
+      { "@type": "ListItem", position: 2, name: "AI英文名生成", url: "https://seekname.cn/en/choose-name" },
+      { "@type": "ListItem", position: 3, name: "AI公司起名", url: "https://seekname.cn/company" },
+      { "@type": "ListItem", position: 4, name: "AI品牌起名", url: "https://seekname.cn/brand" },
+      { "@type": "ListItem", position: 5, name: "AI店铺起名", url: "https://seekname.cn/shop" },
+      { "@type": "ListItem", position: 6, name: "跨境电商英文起名", url: "https://seekname.cn/business-name/cross-border-en-name" },
+      { "@type": "ListItem", position: 7, name: "AI外国人中文名", url: "https://seekname.cn/foreigner-name" },
+      { "@type": "ListItem", position: 8, name: "AI艺名笔名生成", url: "https://seekname.cn/work-name" },
+      { "@type": "ListItem", position: 9, name: "AI社交网名", url: "https://seekname.cn/social-name" },
+      { "@type": "ListItem", position: 10, name: "AI宠物起名", url: "https://seekname.cn/pet" },
+      { "@type": "ListItem", position: 11, name: "AI名字评分", url: "https://seekname.cn/evaluate" },
+      { "@type": "ListItem", position: 12, name: "起名知识博客", url: "https://seekname.cn/blog" },
     ],
   };
 
@@ -149,11 +149,11 @@ export default function JsonLd() {
     "@type": "CollectionPage",
     name: "起名知识博客 - 宝宝起名技巧·名字大全·命名文化",
     description: "分享宝宝起名技巧、好听名字大全、英文名推荐、公司店铺起名攻略、命名文化典故等丰富内容",
-    url: "https://www.seekname.cn/blog",
+    url: "https://seekname.cn/blog",
     isPartOf: {
       "@type": "WebSite",
       name: "SeekName AI起名网",
-      url: "https://www.seekname.cn",
+      url: "https://seekname.cn",
     },
     about: {
       "@type": "Thing",
@@ -166,8 +166,8 @@ export default function JsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "SeekName AI起名网",
-    url: "https://www.seekname.cn",
-    logo: "https://www.seekname.cn/images/icon-512.png",
+    url: "https://seekname.cn",
+    logo: "https://seekname.cn/images/icon-512.png",
     description: "AI智能起名平台，提供宝宝起名、英文名、公司起名、店铺起名等一站式名字生成服务",
     foundingDate: "2024",
     contactPoint: [
