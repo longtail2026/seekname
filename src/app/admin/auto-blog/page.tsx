@@ -111,7 +111,22 @@ export default function AutoBlogPage() {
     return map[s] || { bg: "#f5f5f5", color: "#999", text: s };
   };
 
-  const categories = ["起名知识", "英文知识", "公司起名", "跨境电商", "宝宝起名", "艺名笔名"];
+  const categories = [
+    "起名知识",
+    "英文名大全",
+    "男生英文名",
+    "女生英文名",
+    "宝宝起名",
+    "好听不重名",
+    "公司起名",
+    "工商核名",
+    "跨境电商",
+    "外国人中文名",
+    "艺名笔名主播名",
+    "姓氏起源",
+    "名字文化寓意",
+    "名字打分测试",
+  ];
 
   if (loading) {
     return <div style={{ textAlign: "center", padding: 60, color: "#999" }}>加载中...</div>;

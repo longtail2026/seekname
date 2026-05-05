@@ -108,8 +108,6 @@ export default function Header() {
     { label: isEn ? "Pet Naming" : "宠物起名", labelKey: "pet", href: "/pet" },
     { label: isEn ? "Name Evaluation" : "好名测评", labelKey: "evaluate", href: "/evaluate/form" },
     { label: isEn ? "Blog" : "起名杂谈", labelKey: "blog", href: "/blog" },
-    { label: isEn ? "Write" : "写文章", labelKey: "write", href: "/blog/write" },
-    { label: isEn ? "Collection" : "典藏本", labelKey: "collection", href: "/collection" },
   ];
 
   return (
@@ -298,11 +296,9 @@ export default function Header() {
 
                   {/* 菜单项 */}
                   {[
-                    { icon: "🔍", label: isEn ? "Search Names" : "搜索名字", href: "/search", desc: isEn ? "Search history · favorites" : "搜索历史 · 典藏本" },
                     { icon: "📊", label: isEn ? "Dashboard" : "用户中心", href: "/dashboard", desc: isEn ? "Overview · history · favorites" : "概览 · 起名历史 · 收藏" },
                     { icon: "📋", label: isEn ? "My Orders" : "我的订单", href: "/orders", desc: isEn ? "View naming history" : "查看起名历史记录" },
                     { icon: "📖", label: isEn ? "Name Collection" : "名字典藏本", href: "/collection", desc: isEn ? "Saved names · PDF export" : "收藏的名字 · PDF 导出" },
-                    { icon: "⚖️", label: isEn ? "Compare Names" : "名字对比", href: "/compare", desc: isEn ? "Compare up to 3 names" : "最多 3 个名字横向对比" },
                     { icon: "⚙️", label: isEn ? "Settings" : "账号设置", href: "/settings", desc: isEn ? "Profile management" : "头像与个人信息管理" },
                   ].map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setUserDropdownOpen(false)}

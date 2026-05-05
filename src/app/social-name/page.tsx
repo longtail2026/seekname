@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, Loader2, ArrowLeft, Check, Copy, RefreshCw } from "lucide-react";
+import { Sparkles, Loader2, Check, Copy, RefreshCw } from "lucide-react";
 
 // ─── 数据定义 ───
 
@@ -189,64 +189,49 @@ export default function SocialNamePage() {
 
   const buttonEnabled = gender && style && keywords.length > 0 && !loading;
 
-  return (
-    <div className="min-h-screen" style={{ background: COLORS.bg }}>
-      {/* Header */}
-      <header
-        className="sticky top-0 z-50 border-b"
-        style={{
-          background: "rgba(255,252,247,0.85)",
-          backdropFilter: "blur(6px)",
-          borderColor: COLORS.border,
-        }}
-      >
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link
-            href="/"
-            className="text-[#5C4A42] hover:text-[#C84A2A] transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <Sparkles className="w-5 h-5" style={{ color: COLORS.primary }} />
-          <span
-            className="font-bold"
-            style={{ color: COLORS.text, fontFamily: "'Noto Serif SC', serif" }}
-          >
-            起一个社交网名
-          </span>
-        </div>
-      </header>
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !loading) {
+      handleGenerate();
+    }
+  };
 
-      <main className="container mx-auto px-4 py-8 max-w-lg">
-        {/* 副标题 */}
-        <div className="text-center mb-6">
-          <h1
-            className="text-2xl font-bold mb-2"
-            style={{ color: COLORS.text, fontFamily: "'Noto Serif SC', serif" }}
-          >
+  return (
+    <main style={{
+      minHeight: "100vh",
+      background: "linear-gradient(180deg, #FFFBF5 0%, #FFF8F0 100%)",
+      paddingTop: 80,
+    }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px 24px 60px" }}>
+
+        {/* 页面标题 */}
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <h1 style={{
+            fontSize: 30, fontWeight: 700, color: "#4A3428",
+            fontFamily: "'Noto Serif SC', serif", margin: "0 0 6px",
+          }}>
             🎭 社交网名生成器
           </h1>
-          <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-            先选使用场景，再挑风格，AI 为你定制专属网名
+          <p style={{
+            fontSize: 15, color: "#B8A898",
+            fontFamily: "'Noto Sans SC', sans-serif", margin: 0,
+          }}>
+            🎭 生成个性化社交网名
           </p>
         </div>
 
-        {/* 0. 使用场景选择（新增） */}
-        <div
-          className="rounded-2xl p-5 mb-4 shadow-sm space-y-3"
-          style={{
-            background: COLORS.cardBg,
-            border: `1px solid ${COLORS.border}`,
-          }}
-        >
-          <label
-            className="block text-sm font-semibold mb-2"
-            style={{ color: COLORS.text }}
-          >
-            🎯 使用场景 <span className="text-red-400">*</span>
+        {/* 0. 使用场景选择 */}
+        <div style={{
+          background: "#FFF", borderRadius: 16,
+          border: "1px solid rgba(212,148,26,0.15)",
+          boxShadow: "0 4px 20px rgba(74,52,40,0.06)",
+          padding: "28px 30px",
+          marginBottom: 16,
+        }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "#4A3428", marginBottom: 12, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
+            🎯 使用场景 <span style={{ color: "#E86A17" }}>*</span>
           </label>
           {/* 一级分类 */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
             {SCENE_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
@@ -255,49 +240,42 @@ export default function SocialNamePage() {
                   setSceneCategory(cat.id);
                   setSceneSub(cat.defaultSub);
                 }}
-                className="py-3 px-2 rounded-xl text-sm font-medium transition-all text-center"
                 style={{
-                  background:
-                    sceneCategory === cat.id
-                      ? COLORS.primary
-                      : "rgba(245,237,224,0.5)",
-                  color: sceneCategory === cat.id ? "#FFF" : COLORS.textSecondary,
-                  border: `1px solid ${
-                    sceneCategory === cat.id ? COLORS.primary : COLORS.border
-                  }`,
-                  cursor: "pointer",
+                  padding: "12px 8px", borderRadius: 10,
+                  border: `1.5px solid ${sceneCategory === cat.id ? "#E86A17" : "#DDD0C0"}`,
+                  background: sceneCategory === cat.id ? "rgba(232,106,23,0.06)" : "#FFF",
+                  cursor: "pointer", textAlign: "center",
+                  transition: "all 0.2s",
+                  fontFamily: "'Noto Sans SC', sans-serif",
                 }}
               >
-                <div className="text-lg mb-1">{cat.label.split(" ")[0]}</div>
-                <div>{cat.label.split(" ").slice(1).join(" ")}</div>
+                <div style={{ fontSize: 16, marginBottom: 2 }}>{cat.label.split(" ")[0]}</div>
+                <div style={{ fontSize: 13, fontWeight: sceneCategory === cat.id ? 600 : 400, color: sceneCategory === cat.id ? "#E86A17" : "#4A3428" }}>
+                  {cat.label.split(" ").slice(1).join(" ")}
+                </div>
               </button>
             ))}
           </div>
           {/* 二级细分 */}
           <div>
-            <label
-              className="block text-xs font-medium mb-1.5"
-              style={{ color: COLORS.textSecondary }}
-            >
+            <label style={{ fontSize: 12, fontWeight: 500, color: "#6B5A4E", marginBottom: 6, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
               具体场景（选填）
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {SCENE_CATEGORIES.find((c) => c.id === sceneCategory)?.subOptions.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => setSceneSub(opt)}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
                   style={{
-                    background:
-                      sceneSub === opt
-                        ? COLORS.primary
-                        : "rgba(245,237,224,0.5)",
-                    color: sceneSub === opt ? "#FFF" : COLORS.textSecondary,
-                    border: `1px solid ${
-                      sceneSub === opt ? COLORS.primary : COLORS.border
-                    }`,
+                    padding: "6px 14px", borderRadius: 20,
+                    border: `1.5px solid ${sceneSub === opt ? "#E86A17" : "#DDD0C0"}`,
+                    background: sceneSub === opt ? "rgba(232,106,23,0.06)" : "#FFF",
                     cursor: "pointer",
+                    fontSize: 12, fontWeight: sceneSub === opt ? 600 : 400,
+                    color: sceneSub === opt ? "#E86A17" : "#6B5A4E",
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    transition: "all 0.2s",
                   }}
                 >
                   {opt}
@@ -305,98 +283,84 @@ export default function SocialNamePage() {
               ))}
             </div>
           </div>
-          {/* 场景描述 */}
-          <p className="text-xs mt-1" style={{ color: "#AAA" }}>
+          <p style={{ fontSize: 11, color: "#B8A898", marginTop: 8, fontFamily: "'Noto Sans SC', sans-serif" }}>
             {SCENE_CATEGORIES.find((c) => c.id === sceneCategory)?.desc}
           </p>
         </div>
 
-        {/* 表单卡片 */}
-        <div
-          className="rounded-2xl p-6 shadow-lg space-y-5"
-          style={{
-            background: COLORS.cardBg,
-            border: `1px solid ${COLORS.border}`,
-          }}
-        >
-          {/* 1. 性别 */}
-          <div>
-            <label
-              className="block text-sm font-semibold mb-2"
-              style={{ color: COLORS.text }}
-            >
-              你的性别 <span className="text-red-400">*</span>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {GENDER_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setGender(opt.value)}
-                  className="py-2.5 px-1 rounded-xl text-sm font-medium transition-all"
-                  style={{
-                    background:
-                      gender === opt.value
-                        ? opt.color
-                        : "rgba(245,237,224,0.5)",
-                    color: gender === opt.value ? "#FFF" : COLORS.textSecondary,
-                    border: `1px solid ${
-                      gender === opt.value ? opt.color : COLORS.border
-                    }`,
-                    cursor: "pointer",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+        {/* 输入表单 */}
+        <div style={{
+          background: "#FFF", borderRadius: 16,
+          border: "1px solid rgba(212,148,26,0.15)",
+          boxShadow: "0 4px 20px rgba(74,52,40,0.06)",
+          padding: "28px 30px",
+          marginBottom: 28,
+        }}>
+          {/* 1. 性别 + 2. 风格倾向 并排 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#4A3428", marginBottom: 8, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                你的性别 <span style={{ color: "#E86A17" }}>*</span>
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {GENDER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setGender(opt.value)}
+                    style={{
+                      flex: 1, height: 42, borderRadius: 10,
+                      border: `1.5px solid ${gender === opt.value ? opt.color : "#DDD0C0"}`,
+                      background: gender === opt.value ? opt.color : "#FFF",
+                      cursor: "pointer",
+                      fontSize: 13, fontWeight: gender === opt.value ? 600 : 400,
+                      color: gender === opt.value ? "#FFF" : "#6B5A4E",
+                      fontFamily: "'Noto Sans SC', sans-serif",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* 2. 风格倾向 */}
-          <div>
-            <label
-              className="block text-sm font-semibold mb-2"
-              style={{ color: COLORS.text }}
-            >
-              你的风格倾向 <span className="text-red-400">*</span>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {STYLE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setStyle(opt.value)}
-                  className="py-2.5 px-1 rounded-xl text-sm font-medium transition-all"
-                  style={{
-                    background:
-                      style === opt.value
-                        ? opt.color
-                        : "rgba(245,237,224,0.5)",
-                    color: style === opt.value ? "#FFF" : COLORS.textSecondary,
-                    border: `1px solid ${
-                      style === opt.value ? opt.color : COLORS.border
-                    }`,
-                    cursor: "pointer",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#4A3428", marginBottom: 8, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                你的风格倾向 <span style={{ color: "#E86A17" }}>*</span>
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {STYLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setStyle(opt.value)}
+                    style={{
+                      flex: 1, height: 42, borderRadius: 10,
+                      border: `1.5px solid ${style === opt.value ? opt.color : "#DDD0C0"}`,
+                      background: style === opt.value ? opt.color : "#FFF",
+                      cursor: "pointer",
+                      fontSize: 13, fontWeight: style === opt.value ? 600 : 400,
+                      color: style === opt.value ? "#FFF" : "#6B5A4E",
+                      fontFamily: "'Noto Sans SC', sans-serif",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* 3. 风格关键词 */}
-          <div>
-            <label
-              className="block text-sm font-semibold mb-2"
-              style={{ color: COLORS.text }}
-            >
-              风格关键词 <span className="text-red-400">*</span>
-              <span className="text-xs ml-1" style={{ color: COLORS.textSecondary }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#4A3428", marginBottom: 8, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
+              风格关键词 <span style={{ color: "#E86A17" }}>*</span>
+              <span style={{ color: "#B8A898", fontSize: 11, fontWeight: 400, marginLeft: 4 }}>
                 （最多选 3 个）
               </span>
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {KEYWORDS.map((kw) => {
                 const selected = keywords.includes(kw);
                 const atLimit = keywords.length >= 3 && !selected;
@@ -405,135 +369,139 @@ export default function SocialNamePage() {
                     key={kw}
                     type="button"
                     onClick={() => toggleKeyword(kw)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
                     style={{
-                      background: selected
-                        ? COLORS.primary
-                        : "rgba(245,237,224,0.5)",
-                      color: selected ? "#FFF" : COLORS.textSecondary,
-                      border: `1px solid ${
-                        selected ? COLORS.primary : COLORS.border
-                      }`,
-                      opacity: atLimit ? 0.4 : 1,
+                      padding: "6px 14px", borderRadius: 20,
+                      border: `1.5px solid ${selected ? "#E86A17" : "#DDD0C0"}`,
+                      background: selected ? "rgba(232,106,23,0.06)" : "#FFF",
                       cursor: atLimit ? "not-allowed" : "pointer",
+                      fontSize: 12, fontWeight: selected ? 600 : 400,
+                      color: selected ? "#E86A17" : "#6B5A4E",
+                      opacity: atLimit ? 0.4 : 1,
+                      fontFamily: "'Noto Sans SC', sans-serif",
+                      transition: "all 0.2s",
                     }}
                   >
-                    {kw}
-                    {selected && " ✓"}
+                    {kw}{selected && " ✓"}
                   </button>
                 );
               })}
             </div>
             {keywords.length === 3 && (
-              <p
-                className="text-xs mt-1"
-                style={{ color: COLORS.primary }}
-              >
+              <p style={{ fontSize: 11, color: "#E86A17", marginTop: 6, fontFamily: "'Noto Sans SC', sans-serif" }}>
                 ✅ 已选 3 个，如需更换先取消再选
               </p>
             )}
           </div>
 
-          {/* 4. 想包含的字 */}
-          <div>
-            <label
-              className="block text-sm font-semibold mb-1"
-              style={{ color: COLORS.text }}
-            >
-              想包含的字
-              <span className="text-xs ml-1" style={{ color: COLORS.textSecondary }}>
-                （选填，最多 3 个字）
-              </span>
-            </label>
-            <input
-              type="text"
-              value={contains}
-              onChange={(e) =>
-                setContains(e.target.value.replace(/[^\u4e00-\u9fa5a-zA-Z]/g, "").slice(0, 3))
-              }
-              placeholder="例如：星、晚、雾、尧"
-              className="w-full px-4 py-3 rounded-xl text-sm"
-              style={{
-                background: "rgba(255,255,255,0.8)",
-                border: `1px solid ${COLORS.border}`,
-                outline: "none",
-                color: COLORS.text,
-              }}
-            />
-          </div>
-
-          {/* 5. 字数要求 */}
-          <div>
-            <label
-              className="block text-sm font-semibold mb-2"
-              style={{ color: COLORS.text }}
-            >
-              想要几个字？
-            </label>
-            <div className="flex gap-2">
-              {LENGTH_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setLengthPref(opt.value)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all"
-                  style={{
-                    background:
-                      lengthPref === opt.value ? COLORS.primary : "rgba(245,237,224,0.5)",
-                    color: lengthPref === opt.value ? "#FFF" : COLORS.textSecondary,
-                    border: `1px solid ${
-                      lengthPref === opt.value ? COLORS.primary : COLORS.border
-                    }`,
-                    cursor: "pointer",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
+          {/* 4. 想包含的字 + 5. 字数要求 并排 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: "#6B5A4E", marginBottom: 6, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                想包含的字
+                <span style={{ color: "#B8A898", fontSize: 11, marginLeft: 4 }}>（选填）</span>
+              </label>
+              <input
+                type="text"
+                value={contains}
+                onChange={(e) =>
+                  setContains(e.target.value.replace(/[^\u4e00-\u9fa5a-zA-Z]/g, "").slice(0, 3))
+                }
+                onKeyDown={handleKeyDown}
+                placeholder="例如：星、晚、雾、尧"
+                style={{
+                  width: "100%", height: 40, padding: "0 14px",
+                  fontSize: 13, borderRadius: 10, border: "1px solid #DDD0C0",
+                  outline: "none", color: "#4A3428", boxSizing: "border-box",
+                  fontFamily: "'Noto Sans SC', sans-serif",
+                }}
+                onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = "#E86A17"; }}
+                onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = "#DDD0C0"; }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: "#6B5A4E", marginBottom: 6, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
+                想要几个字？
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {LENGTH_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLengthPref(opt.value)}
+                    style={{
+                      flex: 1, height: 40, borderRadius: 10,
+                      border: `1.5px solid ${lengthPref === opt.value ? "#E86A17" : "#DDD0C0"}`,
+                      background: lengthPref === opt.value ? "rgba(232,106,23,0.06)" : "#FFF",
+                      cursor: "pointer",
+                      fontSize: 12, fontWeight: lengthPref === opt.value ? 600 : 400,
+                      color: lengthPref === opt.value ? "#E86A17" : "#6B5A4E",
+                      fontFamily: "'Noto Sans SC', sans-serif",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* 6. 禁忌 */}
-          <div>
-            <label
-              className="block text-sm font-semibold mb-1"
-              style={{ color: COLORS.text }}
-            >
+          {/* 6. 不想要什么 */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: "#6B5A4E", marginBottom: 6, display: "block", fontFamily: "'Noto Sans SC', sans-serif" }}>
               不想要什么？
-              <span className="text-xs ml-1" style={{ color: COLORS.textSecondary }}>
-                （选填）
-              </span>
+              <span style={{ color: "#B8A898", fontSize: 11, marginLeft: 4 }}>（选填）</span>
             </label>
             <input
               type="text"
               value={avoid}
               onChange={(e) => setAvoid(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="例如：不要太可爱、不要古风、不要烂大街"
-              className="w-full px-4 py-3 rounded-xl text-sm"
               style={{
-                background: "rgba(255,255,255,0.8)",
-                border: `1px solid ${COLORS.border}`,
-                outline: "none",
-                color: COLORS.text,
+                width: "100%", height: 40, padding: "0 14px",
+                fontSize: 13, borderRadius: 10, border: "1px solid #DDD0C0",
+                outline: "none", color: "#4A3428", boxSizing: "border-box",
+                fontFamily: "'Noto Sans SC', sans-serif",
               }}
+              onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = "#E86A17"; }}
+              onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = "#DDD0C0"; }}
             />
           </div>
+
+          {/* 错误提示 */}
+          {error && (
+            <div style={{
+              padding: "10px 14px", background: "rgba(192,57,43,0.06)",
+              borderRadius: 10, marginBottom: 14,
+              fontSize: 13, color: "#C0392B",
+              fontFamily: "'Noto Sans SC', sans-serif",
+            }}>
+              ⚠️ {error}
+            </div>
+          )}
 
           {/* 提交按钮 */}
           <button
             type="button"
             onClick={handleGenerate}
             disabled={!buttonEnabled}
-            className="w-full py-4 rounded-xl font-bold text-white text-base transition-all flex items-center justify-center gap-2"
             style={{
+              width: "100%", height: 48,
               background: buttonEnabled
-                ? `linear-gradient(135deg, ${COLORS.primary} 0%, #D55A0B 100%)`
-                : "#CCC",
+                ? "linear-gradient(135deg, #E86A17 0%, #D55A0B 100%)"
+                : "#DDD",
+              color: buttonEnabled ? "#FFF" : "#999",
+              border: "none", borderRadius: 12,
+              fontSize: 16, fontWeight: 600,
               cursor: buttonEnabled ? "pointer" : "not-allowed",
-              boxShadow: buttonEnabled
-                ? `0 4px 16px rgba(232,106,23,0.3)`
-                : "none",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              transition: "all 0.2s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              boxShadow: buttonEnabled ? "0 4px 12px rgba(232,106,23,0.3)" : "none",
             }}
+            onMouseEnter={(e) => { if (buttonEnabled) { (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(232,106,23,0.4)"; } }}
+            onMouseLeave={(e) => { if (buttonEnabled) { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 12px rgba(232,106,23,0.3)"; } }}
           >
             {loading ? (
               <>
@@ -549,28 +517,20 @@ export default function SocialNamePage() {
           </button>
         </div>
 
-        {/* 错误信息 */}
-        {error && (
-          <div
-            className="mt-4 p-4 rounded-xl text-sm"
-            style={{
-              background: "#FFF0F0",
-              border: "1px solid #FFD0D0",
-              color: "#C0392B",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
         {/* 加载动画 */}
         {loading && !results && (
-          <div className="flex flex-col items-center justify-center py-12">
+          <div style={{
+            background: "#FFF", borderRadius: 16,
+            border: "1px solid rgba(212,148,26,0.15)",
+            padding: "60px 28px",
+            marginBottom: 28,
+            textAlign: "center",
+          }}>
             <Loader2
               className="w-10 h-10 animate-spin mb-3"
-              style={{ color: COLORS.primary }}
+              style={{ color: "#E86A17", margin: "0 auto 12px" }}
             />
-            <p className="text-sm" style={{ color: COLORS.textSecondary }}>
+            <p style={{ fontSize: 14, color: "#B8A898", fontFamily: "'Noto Sans SC', sans-serif", margin: 0 }}>
               AI 正在为你构思网名...
             </p>
           </div>
@@ -578,25 +538,33 @@ export default function SocialNamePage() {
 
         {/* 结果列表 */}
         {results && results.length > 0 && (
-          <div className="mt-6 space-y-3">
+          <div style={{
+            background: "#FFF", borderRadius: 16,
+            border: "1px solid rgba(212,148,26,0.15)",
+            boxShadow: "0 4px 20px rgba(74,52,40,0.06)",
+            padding: "28px 30px",
+            marginBottom: 28,
+          }}>
             {/* 操作栏 */}
-            <div className="flex items-center justify-between mb-2">
-              <h2
-                className="text-lg font-bold"
-                style={{ color: COLORS.text, fontFamily: "'Noto Serif SC', serif" }}
-              >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{
+                fontSize: 18, fontWeight: 600, color: "#4A3428",
+                fontFamily: "'Noto Sans SC', sans-serif", margin: 0,
+              }}>
                 ✨ 为你推荐 {results.length} 个网名
               </h2>
               <button
                 type="button"
                 onClick={handleRegenerate}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  background: COLORS.primaryLight,
-                  color: COLORS.primary,
-                  border: "none",
-                  cursor: "pointer",
+                  background: "none", border: "1px solid #DDD0C0", borderRadius: 8,
+                  padding: "6px 14px", cursor: "pointer", fontSize: 13, color: "#6B5A4E",
+                  fontFamily: "'Noto Sans SC', sans-serif",
+                  transition: "all 0.2s",
+                  display: "flex", alignItems: "center", gap: 4,
                 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#E86A17"; (e.currentTarget as HTMLElement).style.color = "#E86A17"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#DDD0C0"; (e.currentTarget as HTMLElement).style.color = "#6B5A4E"; }}
               >
                 <RefreshCw className="w-3 h-3" />
                 换一批
@@ -606,53 +574,50 @@ export default function SocialNamePage() {
             {results.map((item, i) => (
               <div
                 key={i}
-                className="rounded-xl p-4 transition-all hover:shadow-md"
                 style={{
-                  background: "rgba(255,255,255,0.9)",
-                  border: `1px solid ${COLORS.border}`,
+                  background: "#FFF",
+                  borderRadius: 12,
+                  border: "1px solid rgba(212,148,26,0.15)",
+                  padding: "20px 18px",
+                  transition: "all 0.2s",
+                  position: "relative",
+                  marginBottom: 12,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(74,52,40,0.08)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(212,148,26,0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(212,148,26,0.15)";
                 }}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    {/* 网名 */}
-                    <p
-                      className="text-lg font-bold"
-                      style={{ color: COLORS.text }}
-                    >
-                      {item.name}
-                    </p>
-                    {/* 说明 */}
-                    {item.explanation && (
-                      <p
-                        className="text-xs mt-1 leading-relaxed"
-                        style={{ color: COLORS.textSecondary }}
-                      >
-                        {item.explanation}
-                      </p>
-                    )}
-                  </div>
-                  {/* 复制按钮 */}
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(item.name, i)}
-                    className="shrink-0 ml-3 p-2 rounded-lg transition-all"
-                    style={{
-                      background:
-                        copiedIndex === i
-                          ? "rgba(34,197,94,0.1)"
-                          : "rgba(232,106,23,0.06)",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                    title="复制"
-                  >
-                    {copiedIndex === i ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" style={{ color: COLORS.primary }} />
-                    )}
-                  </button>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: 28, fontWeight: 700, color: "#4A3428", fontFamily: "'Noto Serif SC', serif", letterSpacing: "0.08em" }}>
+                    {item.name}
+                  </span>
                 </div>
+                {item.explanation && (
+                  <p style={{ fontSize: 13, color: "#6B5A4E", margin: "6px 0 4px", lineHeight: 1.6, fontFamily: "'Noto Sans SC', sans-serif" }}>
+                    {item.explanation}
+                  </p>
+                )}
+                {/* 复制按钮 */}
+                <button
+                  type="button"
+                  onClick={() => handleCopy(item.name, i)}
+                  style={{
+                    position: "absolute", top: 12, right: 12,
+                    background: copiedIndex === i ? "#22C55E" : "rgba(232,106,23,0.08)",
+                    border: "none", borderRadius: 6,
+                    padding: "5px 10px", cursor: "pointer",
+                    fontSize: 12, color: copiedIndex === i ? "#FFF" : "#E86A17",
+                    fontFamily: "'Noto Sans SC', sans-serif",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {copiedIndex === i ? "✓ 已复制" : "📋 复制"}
+                </button>
               </div>
             ))}
           </div>
@@ -660,28 +625,43 @@ export default function SocialNamePage() {
 
         {/* 初始提示 */}
         {!results && !loading && !error && (
-          <div className="text-center py-12">
-            <div className="text-5xl mb-3">🎨</div>
-            <p className="text-sm" style={{ color: COLORS.textSecondary }}>
+          <div style={{
+            background: "#FFF", borderRadius: 16,
+            border: "1px solid rgba(212,148,26,0.12)",
+            padding: "60px 28px",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🎨</div>
+            <p style={{ fontSize: 14, color: "#B8A898", fontFamily: "'Noto Sans SC', sans-serif", margin: "0 0 4px" }}>
               选好使用场景、风格和关键词，生成专属网名
             </p>
-            <p className="text-xs mt-1" style={{ color: "#AAA" }}>
+            <p style={{ fontSize: 12, color: "#D4C9B0", fontFamily: "'Noto Sans SC', sans-serif", margin: 0 }}>
               10 秒完成，AI 为你定制
             </p>
           </div>
         )}
 
         {/* 返回首页 */}
-        <div className="mt-8 text-center">
+        <div style={{ marginTop: 24, textAlign: "center" }}>
           <Link
             href="/"
-            className="text-xs transition-colors"
-            style={{ color: COLORS.textSecondary }}
+            style={{
+              fontSize: 13, color: "#B8A898", textDecoration: "none",
+              fontFamily: "'Noto Sans SC', sans-serif",
+              transition: "color 0.2s",
+            }}
           >
             ← 返回首页
           </Link>
         </div>
-      </main>
-    </div>
+
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    </main>
   );
 }

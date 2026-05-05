@@ -150,7 +150,7 @@ export default function DashboardPage() {
   const isVip = user.vipLevel > 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--background)", color: "var(--foreground)" }}>
+    <div style={{ minHeight: "100vh", paddingTop: 60, background: "var(--background)", color: "var(--foreground)" }}>
       {/* ── 用户信息 Header ── */}
       <div
         style={{
