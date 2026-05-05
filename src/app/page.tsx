@@ -9,99 +9,107 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SITE_CONFIG } from "@/lib/config";
-
-// ─── 第1屏：价值展示卡片 ───
-const valueCards = [
-  { icon: Library, title: "12万部", subtitle: "典籍数据库", desc: "唐诗宋词、四书五经", color: "#E86A17" },
-  { icon: Brain, title: "AI驱动", subtitle: "深度学习", desc: "大模型智能分析", color: "#FF8A33" },
-  { icon: Compass, title: "八字五行", subtitle: "命理分析", desc: "传统智慧科学算法", color: "#D4941A" },
-  { icon: Zap, title: "30秒", subtitle: "极速生成", desc: "6个精选好名", color: "#C8540A" },
-];
-
-// ─── 第2屏：能力展示数据 ───
-const capabilities = [
-  {
-    icon: BookOpen,
-    number: "124,120",
-    unit: "条",
-    label: "典籍名句",
-    detail: "覆盖诗经、楚辞、论语等经典著作",
-    color: "#E86A17",
-  },
-  {
-    icon: Shield,
-    number: "24,097",
-    unit: "字",
-    label: "康熙字典",
-    detail: "含笔画、拼音、五行属性完整收录",
-    color: "#FF8A33",
-  },
-  {
-    icon: Microscope,
-    number: "88,431",
-    unit: "例",
-    label: "人名样本",
-    detail: "按姓氏分布的真实姓名大数据",
-    color: "#D4941A",
-  },
-  {
-    icon: Clock,
-    number: "<30s",
-    unit: "",
-    label: "响应速度",
-    detail: "从输入到出结果，极速体验",
-    color: "#C8540A",
-  },
-];
-
-// ─── 第3屏：服务矩阵 ───
-const services = [
-  {
-    icon: User,
-    title: "个人起名",
-    desc: "为新生儿或改名需求，融合八字五行与典籍文化，AI智能推荐吉祥美名",
-    features: ["八字分析", "典籍出处", "五行匹配"],
-    href: "/personal",
-    gradient: "linear-gradient(135deg, #E86A17 0%, #FF8A33 100%)",
-    tag: "热门",
-  },
-  {
-    icon: Building2,
-    title: "公司起名",
-    desc: "结合行业属性与易经数理，为企业打造大气易记、寓意深远的品牌名称",
-    features: ["行业适配", "数理吉凶", "商标查询"],
-    href: "/company/form",
-    gradient: "linear-gradient(135deg, #D4941A 0%, #E8B02E 100%)",
-    tag: null,
-  },
-  {
-    icon: PawPrint,
-    title: "宠物起名",
-    desc: "根据宠物品种、性格特征和主人喜好，为毛孩子起个可爱又有寓意的名字",
-    features: ["品种识别", "性格匹配", "趣味创意"],
-    href: "/pet/form",
-    gradient: "linear-gradient(135deg, #F09A3A 0%, #F0B860 100%)",
-    tag: null,
-  },
-  {
-    icon: BarChart3,
-    title: "名字测评",
-    desc: "已有名字想了解其内涵？深度解析名字的音律、字形、五行、典故等多维信息",
-    features: ["音律评分", "五行分析", "典故溯源"],
-    href: "/evaluate/form",
-    gradient: "linear-gradient(135deg, #C8540A 0%, #E86A17 100%)",
-    tag: null,
-  },
-];
-
-// ─── 第4屏：客户评价 ───
-const testimonials = [
-  { name: "张先生", role: "新手爸爸", content: "给女儿起名，AI生成的名字既有文化底蕴又符合八字五行，家人都很满意！", rating: 5 },
-  { name: "李女士", role: "二胎妈妈", content: "第二个宝宝了，这次用寻名网起的名字更有寓意，比第一个好听多了。", rating: 5 },
-  { name: "王先生", role: "企业主", content: "新公司起名，结合了行业特点和易经数理，名字大气好记，推荐！", rating: 5 },
-];
+import { useLocale } from "@/contexts/LocaleContext";
 
 export default function Home() {
+  const { locale, t } = useLocale();
+  const isEn = locale === "en";
+
+  // ─── 第1屏：价值展示卡片 ───
+  const valueCards = [
+    { icon: Library, title: "12万部", subtitle: isEn ? "Classic Database" : "典籍数据库", desc: isEn ? "Tang & Song poetry, Four Books and Five Classics" : "唐诗宋词、四书五经", color: "#E86A17" },
+    { icon: Brain, title: isEn ? "AI Driven" : "AI驱动", subtitle: isEn ? "Deep Learning" : "深度学习", desc: isEn ? "LLM-powered analysis" : "大模型智能分析", color: "#FF8A33" },
+    { icon: Compass, title: isEn ? "BaZi & Five Elements" : "八字五行", subtitle: isEn ? "Fortune Analysis" : "命理分析", desc: isEn ? "Ancient wisdom meets modern algorithms" : "传统智慧科学算法", color: "#D4941A" },
+    { icon: Zap, title: "30s", subtitle: isEn ? "Instant Generation" : "极速生成", desc: isEn ? "6 curated name suggestions" : "6个精选好名", color: "#C8540A" },
+  ];
+
+  // ─── 第2屏：能力展示数据 ───
+  const capabilities = [
+    {
+      icon: BookOpen,
+      number: "124,120",
+      unit: isEn ? "entries" : "条",
+      label: isEn ? "Classic Quotes" : "典籍名句",
+      detail: isEn ? "From Shijing, Chuci, Analects and more" : "覆盖诗经、楚辞、论语等经典著作",
+      color: "#E86A17",
+    },
+    {
+      icon: Shield,
+      number: "24,097",
+      unit: isEn ? "chars" : "字",
+      label: isEn ? "Kangxi Dictionary" : "康熙字典",
+      detail: isEn ? "Complete strokes, pinyin & five elements" : "含笔画、拼音、五行属性完整收录",
+      color: "#FF8A33",
+    },
+    {
+      icon: Microscope,
+      number: "88,431",
+      unit: isEn ? "samples" : "例",
+      label: isEn ? "Name Samples" : "人名样本",
+      detail: isEn ? "Real name big data distributed by surname" : "按姓氏分布的真实姓名大数据",
+      color: "#D4941A",
+    },
+    {
+      icon: Clock,
+      number: "<30s",
+      unit: "",
+      label: isEn ? "Response Time" : "响应速度",
+      detail: isEn ? "From input to result, lightning fast" : "从输入到出结果，极速体验",
+      color: "#C8540A",
+    },
+  ];
+
+  // ─── 第3屏：服务矩阵 ───
+  const services = [
+    {
+      icon: User,
+      title: isEn ? "Personal Naming" : "个人起名",
+      desc: isEn ? "For newborns or name changes. Combining BaZi & Five Elements with classic literature, AI recommends auspicious names." : "为新生儿或改名需求，融合八字五行与典籍文化，AI智能推荐吉祥美名",
+      features: isEn ? ["BaZi Analysis", "Classic Origin", "Five Elements"] : ["八字分析", "典籍出处", "五行匹配"],
+      href: "/personal",
+      gradient: "linear-gradient(135deg, #E86A17 0%, #FF8A33 100%)",
+      tag: isEn ? "HOT" : "热门",
+    },
+    {
+      icon: Building2,
+      title: isEn ? "Business Naming" : "公司起名",
+      desc: isEn ? "Combine industry attributes with I-Ching numerology to create grand, memorable brand names." : "结合行业属性与易经数理，为企业打造大气易记、寓意深远的品牌名称",
+      features: isEn ? ["Industry Fit", "Numerology", "Trademark Check"] : ["行业适配", "数理吉凶", "商标查询"],
+      href: "/company/form",
+      gradient: "linear-gradient(135deg, #D4941A 0%, #E8B02E 100%)",
+      tag: null,
+    },
+    {
+      icon: PawPrint,
+      title: isEn ? "Pet Naming" : "宠物起名",
+      desc: isEn ? "Based on breed, personality and owner preference, find the cutest and most meaningful name for your furry friend." : "根据宠物品种、性格特征和主人喜好，为毛孩子起个可爱又有寓意的名字",
+      features: isEn ? ["Breed Match", "Personality Fit", "Creative Fun"] : ["品种识别", "性格匹配", "趣味创意"],
+      href: "/pet/form",
+      gradient: "linear-gradient(135deg, #F09A3A 0%, #F0B860 100%)",
+      tag: null,
+    },
+    {
+      icon: BarChart3,
+      title: isEn ? "Name Evaluation" : "名字测评",
+      desc: isEn ? "Deep analysis of your name's phonetic harmony, stroke structure, five elements, and cultural origins." : "已有名字想了解其内涵？深度解析名字的音律、字形、五行、典故等多维信息",
+      features: isEn ? ["Phonetic Score", "Five Elements", "Origin Trace"] : ["音律评分", "五行分析", "典故溯源"],
+      href: "/evaluate/form",
+      gradient: "linear-gradient(135deg, #C8540A 0%, #E86A17 100%)",
+      tag: null,
+    },
+  ];
+
+  // ─── 第4屏：客户评价 ───
+  const testimonials = isEn ? [
+    { name: "Mr. Zhang", role: "New Dad", content: "AI-generated names are both culturally enriching and BaZi-compliant. My whole family loved it!", rating: 5 },
+    { name: "Ms. Li", role: "Mom of Two", content: "Second baby this time, the names from SeekName are even more meaningful than the first child's.", rating: 5 },
+    { name: "Mr. Wang", role: "Business Owner", content: "Company naming that combines industry characteristics with I-Ching. Grand and memorable — highly recommended!", rating: 5 },
+  ] : [
+    { name: "张先生", role: "新手爸爸", content: "给女儿起名，AI生成的名字既有文化底蕴又符合八字五行，家人都很满意！", rating: 5 },
+    { name: "李女士", role: "二胎妈妈", content: "第二个宝宝了，这次用寻名网起的名字更有寓意，比第一个好听多了。", rating: 5 },
+    { name: "王先生", role: "企业主", content: "新公司起名，结合了行业特点和易经数理，名字大气好记，推荐！", rating: 5 },
+  ];
+
   const [surname, setSurname] = useState("");
   const [gender, setGender] = useState<"男"|"女">("男");
   const [birthDate, setBirthDate] = useState("");
@@ -123,7 +131,13 @@ export default function Home() {
     // 暂时没有定义相反的寓意词语
   ];
   
-  const oppositeStylePairs = [
+  const oppositeStylePairs = isEn ? [
+    ["Classic Elegant", "International Style"],
+    ["Classic Elegant", "Modern Minimal"],
+    ["Modern Minimal", "International Style"],
+    ["Grand & Bold", "Gentle & Graceful"],
+    ["Mature & Steady", "Cute & Lively"],
+  ] : [
     ["古风典雅", "洋气国际"],
     ["古风典雅", "现代简约"],
     ["现代简约", "洋气国际"],
@@ -213,6 +227,33 @@ export default function Home() {
     }
   };
 
+  // 多选选项
+  const expectationOptions = isEn ? [
+    "Peace & Health", "Wisdom", "Career Success", "Wealth", "Noble Character",
+    "Cheerful", "Beautiful", "Brave", "Happiness", "Artistic Talent"
+  ] : [
+    "平安健康", "聪明智慧", "事业有成", "富贵财富", "品德高尚",
+    "阳光开朗", "美丽俊俏", "勇敢坚强", "幸福美满", "才华艺术"
+  ];
+
+  const styleOptions = isEn ? [
+    "Classic Elegant", "Modern Minimal", "Natural Fresh", "Grand & Bold", "Gentle & Graceful",
+    "Unique Style", "Cute & Lively", "Mature & Steady", "Poetic Romance", "International Style"
+  ] : [
+    "古风典雅", "现代简约", "清新自然", "大气豪迈", "温柔婉约",
+    "独特个性", "可爱灵动", "稳重成熟", "诗意浪漫", "洋气国际"
+  ];
+
+  const statItems = isEn ? [
+    { n: "120K+", l: "Classic Works" },
+    { n: "99.6%", l: "Satisfaction" },
+    { n: "<30s", l: "Response Time" },
+  ] : [
+    { n: "12万+", l: "典籍收录" },
+    { n: "99.6%", l: "好评率" },
+    { n: "<30s", l: "响应速度" },
+  ];
+
   return (
     <div className="relative" style={{ paddingTop: 60 }}>
       {/* ════════════ 第一屏：Hero 入口（垂直偏下布局） ════════════ */}
@@ -236,28 +277,39 @@ export default function Home() {
             <div className="w-full mb-8 text-center" style={{ maxWidth: 800 }}>
               <div className="inline-flex items-center gap-3 mb-4 animate-ink-spread">
                 <span className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#D4941A]" />
-                <span className="text-[15px] tracking-[0.25em] text-[#D4941A] font-medium uppercase">千年智慧 · 一秒传承</span>
+                <span className="text-[15px] tracking-[0.25em] text-[#D4941A] font-medium uppercase">
+                  {isEn ? "THOUSAND YEARS WISDOM · INHERITED IN SECONDS" : "千年智慧 · 一秒传承"}
+                </span>
                 <span className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#D4941A]" />
               </div>
               <h1
                 className="text-[2.5rem] sm:text-[3rem] lg:text-[3.5rem] font-bold leading-[1.1] tracking-wide mb-3"
                 style={{ fontFamily: "'Noto Serif SC', 'Songti SC', serif" }}
               >
-                <span className="block text-[#2D1B0E] animate-char-reveal">AI读懂</span>
-                <span className="block text-[#E86A17] animate-char-reveal delay-200">千年起名之道</span>
+                {isEn ? (
+                  <>
+                    <span className="block text-[#2D1B0E] animate-char-reveal">AI Understands</span>
+                    <span className="block text-[#E86A17] animate-char-reveal delay-200">Millennia of Naming Wisdom</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-[#2D1B0E] animate-char-reveal">AI读懂</span>
+                    <span className="block text-[#E86A17] animate-char-reveal delay-200">千年起名之道</span>
+                  </>
+                )}
               </h1>
               <p className="text-[16px] lg:text-[18px] text-[#5A4334] leading-relaxed" style={{ fontFamily: "'Noto Sans SC', sans-serif" }}>
-                12万部典籍 × 深度学习 × 八字五行 · <span className="text-[#E86A17] font-semibold">30秒生成6个吉祥好名</span>
+                {isEn ? (
+                  <>120K classics × Deep Learning × BaZi · <span className="text-[#E86A17] font-semibold">6 auspicious names in 30s</span></>
+                ) : (
+                  <>12万部典籍 × 深度学习 × 八字五行 · <span className="text-[#E86A17] font-semibold">30秒生成6个吉祥好名</span></>
+                )}
               </p>
             </div>
 
             {/* 统计数据行 */}
             <div className="flex gap-8 mb-6">
-              {[
-                { n: "12万+", l: "典籍收录" },
-                { n: "99.6%", l: "好评率" },
-                { n: "<30s", l: "响应速度" },
-              ].map((s, i) => (
+              {statItems.map((s, i) => (
                 <div key={i} className="text-center">
                   <div className="text-[16px] font-bold text-[#E86A17]" style={{ fontFamily: "'Noto Serif SC', serif" }}>{s.n}</div>
                   <div className="text-[12px] text-[#A09080] tracking-wide">{s.l}</div>
@@ -270,7 +322,7 @@ export default function Home() {
               <div className="relative w-full" style={{ maxWidth: 900 }}>
                 <img
                   src="/images/画轴.png"
-                  alt="起名画轴"
+                  alt={isEn ? "Naming Scroll" : "起名画轴"}
                   className="w-full h-auto"
                   style={{ display: 'block', borderRadius: 4 }}
                   draggable={false}
@@ -291,7 +343,7 @@ export default function Home() {
                         setIsComposing(false);
                         setSurname(handleInput((e.target as HTMLInputElement).value));
                       }}
-                      placeholder="请输入您的姓氏"
+                      placeholder={isEn ? "Enter surname" : "请输入您的姓氏"}
                       className="w-full px-4 py-2 text-[14px] rounded"
                       style={{ fontFamily: "'Noto Serif SC', serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.5)', outline: 'none' }}
                       autoComplete="off"
@@ -305,7 +357,7 @@ export default function Home() {
                             color: gender === g ? "#fff" : "#5A4334",
                             border: 'none', cursor: 'pointer', fontFamily: "'Noto Sans SC', sans-serif",
                           }}
-                        >{g}</button>
+                        >{g === "男" ? (isEn ? "Male" : "男") : (isEn ? "Female" : "女")}</button>
                       ))}
                     </div>
                     <button
@@ -321,7 +373,7 @@ export default function Home() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {enableBazi ? "✓" : "✕"} 是否启用八字推算
+                      {enableBazi ? "✓" : "✕"} {isEn ? "Enable BaZi" : "是否启用八字推算"}
                     </button>
                   </div>
                   
@@ -348,18 +400,17 @@ export default function Home() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {enableWuxing ? "✓" : "✕"} 是否启用五行属性分析
+                      {enableWuxing ? "✓" : "✕"} {isEn ? "Enable Five Elements" : "是否启用五行属性分析"}
                     </button>
                   </div>
                   
-                  {/* 第三行：语义多洗框（多选项） */}
+                  {/* 第三行：语义多选框（多选项） */}
                   <div className="mb-2">
-                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">起名寓意（可多选）</div>
+                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">
+                      {isEn ? "Desired Meaning (multi-select)" : "起名寓意（可多选）"}
+                    </div>
                     <div className="grid grid-cols-5 gap-2 justify-items-center">
-                      {[
-                        "平安健康", "聪明智慧", "事业有成", "富贵财富", "品德高尚",
-                        "阳光开朗", "美丽俊俏", "勇敢坚强", "幸福美满", "才华艺术"
-                      ].map((option) => (
+                      {expectationOptions.map((option) => (
                         <label key={option} className="flex items-center gap-1 cursor-pointer justify-center">
                           <input
                             type="checkbox"
@@ -375,12 +426,11 @@ export default function Home() {
                   
                   {/* 第四行：风格偏好（多选项）+ 策略矩阵提示 */}
                   <div className="mb-2">
-                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">风格偏好（可多选，影响起名策略）</div>
+                    <div className="text-[14px] font-medium text-[#5A4334] mb-2">
+                      {isEn ? "Style Preference (multi-select, affects strategy)" : "风格偏好（可多选，影响起名策略）"}
+                    </div>
                     <div className="grid grid-cols-5 gap-2 mb-2 justify-items-center">
-                      {[
-                        "古风典雅", "现代简约", "清新自然", "大气豪迈", "温柔婉约",
-                        "独特个性", "可爱灵动", "稳重成熟", "诗意浪漫", "洋气国际"
-                      ].map((option) => (
+                      {styleOptions.map((option) => (
                         <label key={option} className="flex items-center gap-1 cursor-pointer justify-center">
                           <input
                             type="checkbox"
@@ -400,7 +450,7 @@ export default function Home() {
                       type="text"
                       value={additionalNotes}
                       onChange={(e) => setAdditionalNotes(e.target.value)}
-                      placeholder="补充说明（可不填）"
+                      placeholder={isEn ? "Additional notes (optional)" : "补充说明（可不填）"}
                       className="w-full px-4 py-1 text-[14px] rounded"
                       style={{ fontFamily: "'Noto Sans SC', sans-serif", color: '#3D2B1F', background: 'rgba(255, 252, 245, 0.92)', border: '1px solid rgba(180,160,130,0.5)', outline: 'none' }}
                       autoComplete="off"
@@ -425,12 +475,12 @@ export default function Home() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                         </svg>
-                        分析中...
+                        {isEn ? "Analyzing..." : "分析中..."}
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-1.5">
                         <Sparkles className="w-5 h-5" />
-                        立即起名
+                        {isEn ? "Start Naming" : "立即起名"}
                       </span>
                     )}
                   </button>
@@ -438,7 +488,11 @@ export default function Home() {
               </div>
               {/* 已有用户数提示 */}
               <p className="text-sm text-[#B0AAA0] mt-4 text-center">
-                已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名
+                {isEn ? (
+                  <>Already <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> users found their perfect name</>
+                ) : (
+                  <>已有 <span className="text-[#E86A17] font-semibold">{SITE_CONFIG.stats.totalUsers.toLocaleString()}</span> 位用户找到心仪好名</>
+                )}
               </p>
             </form>
           </div>
@@ -462,16 +516,18 @@ export default function Home() {
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-4">
                 <Microscope className="w-5 h-5 text-[#D4941A]" />
-                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">技术实力</span>
+                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">
+                  {isEn ? "TECHNOLOGY" : "技术实力"}
+                </span>
               </div>
               <h2
                 className="text-[1.75rem] sm:text-2xl lg:text-3xl font-bold text-[#2D1B0E]"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
-                不只是随机组合，每一个名字都有据可依
+                {isEn ? "Beyond Random Combinations — Every Name Has a Story" : "不只是随机组合，每一个名字都有据可依"}
               </h2>
               <p className="mt-3 text-[#5A4334] max-w-2xl mx-auto text-sm lg:text-base">
-                我们将传统起名智慧数字化，让千年文化在 AI 时代焕发新生
+                {isEn ? "Digitalizing ancient naming wisdom, bringing millennial culture to life in the AI era" : "我们将传统起名智慧数字化，让千年文化在 AI 时代焕发新生"}
               </p>
             </div>
 
@@ -514,12 +570,12 @@ export default function Home() {
               <div className="inline-flex items-center gap-6 px-8 py-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.70)', border: '1px solid rgba(201,168,76,0.40)' }}>
                 <div className="flex items-center gap-2">
                   <UnlockIcon className="w-5 h-5 text-green-600" />
-                  <span className="text-sm text-[#2D1B0E]"><strong>免费查看</strong> 排名 4-6 名</span>
+                  <span className="text-sm text-[#2D1B0E]"><strong>{isEn ? "Free Preview" : "免费查看"}</strong> {isEn ? "Rank 4-6" : "排名 4-6 名"}</span>
                 </div>
                 <div className="w-px h-6 bg-[#E8DDD0]" />
                 <div className="flex items-center gap-2">
                   <LockIcon className="w-5 h-5 text-[#D4941A]" />
-                  <span className="text-sm text-[#2D1B0E]"><strong>解锁精品</strong> 排名 1-3 名</span>
+                  <span className="text-sm text-[#2D1B0E]"><strong>{isEn ? "Unlock Premium" : "解锁精品"}</strong> {isEn ? "Rank 1-3" : "排名 1-3 名"}</span>
                 </div>
               </div>
             </div>
@@ -536,13 +592,15 @@ export default function Home() {
             <div className="text-center mb-11">
               <div className="inline-flex items-center gap-2 mb-4">
                 <Scroll className="w-5 h-5 text-[#D4941A]" />
-                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">服务项目</span>
+                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">
+                  {isEn ? "SERVICES" : "服务项目"}
+                </span>
               </div>
               <h2
                 className="text-[1.75rem] sm:text-2xl lg:text-3xl font-bold text-[#2D1B0E]"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
-                四大核心服务，满足全场景起名需求
+                {isEn ? "Four Core Services for All Naming Needs" : "四大核心服务，满足全场景起名需求"}
               </h2>
             </div>
 
@@ -616,7 +674,9 @@ export default function Home() {
 
             {/* 底部引导 */}
             <div className="mt-10 text-center">
-              <p className="text-sm text-[#A09080]">点击任意服务卡片，即刻开始体验</p>
+              <p className="text-sm text-[#A09080]">
+                {isEn ? "Click any service card to get started" : "点击任意服务卡片，即刻开始体验"}
+              </p>
             </div>
           </div>
         </div>
@@ -631,16 +691,22 @@ export default function Home() {
             <div className="text-center mb-8 lg:mb-10">
               <div className="inline-flex items-center gap-2 mb-4">
                 <Quote className="w-5 h-5 text-[#D4941A]" />
-                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">用户心声</span>
+                <span className="text-sm tracking-[0.2em] text-[#D4941A] uppercase font-medium">
+                  {isEn ? "TESTIMONIALS" : "用户心声"}
+                </span>
               </div>
               <h2
                 className="text-[1.75rem] sm:text-2xl lg:text-[2.25rem] font-bold text-[#2D1B0E]"
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
-                听听他们怎么说
+                {isEn ? "Hear What They Say" : "听听他们怎么说"}
               </h2>
               <p className="mt-2 text-sm lg:text-base text-[#5A4334]">
-                已服务超过 <span className="text-[#E86A17] font-bold">128,000+</span> 家庭
+                {isEn ? (
+                  <>Served over <span className="text-[#E86A17] font-bold">128,000+</span> families</>
+                ) : (
+                  <>已服务超过 <span className="text-[#E86A17] font-bold">128,000+</span> 家庭</>
+                )}
               </p>
             </div>
 
@@ -688,7 +754,9 @@ export default function Home() {
 
             {/* 底部引导 */}
             <div className="mt-10 text-center">
-              <p className="text-sm text-[#A09080]">感谢每一位用户的信任与支持</p>
+              <p className="text-sm text-[#A09080]">
+                {isEn ? "Thank you for your trust and support" : "感谢每一位用户的信任与支持"}
+              </p>
             </div>
           </div>
         </div>
@@ -699,19 +767,23 @@ export default function Home() {
             <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 mb-4 text-center md:text-left">
               <div className="md:text-center">
                 <div className="flex items-center gap-2 mb-2 justify-center">
-                  <img src="/images/48-48-ICO-1.png" alt="寻名网" className="w-7 h-7 rounded" />
+                  <img src="/images/48-48-ICO-1.png" alt={isEn ? "SeekName" : "寻名网"} className="w-7 h-7 rounded" />
                   <div>
-                    <div className="font-bold text-white text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>寻名网</div>
+                    <div className="font-bold text-white text-xs" style={{ fontFamily: "'Noto Serif SC', serif" }}>
+                      {isEn ? "SeekName" : "寻名网"}
+                    </div>
                     <div className="text-[9px] text-gray-500">seekname.cn</div>
                   </div>
                 </div>
                 <p className="text-gray-500 text-[11px] leading-relaxed hidden lg:block">
-                  传承千年起名智慧，融合现代 AI 技术。
+                  {isEn ? "Inheriting millennia of naming wisdom with modern AI." : "传承千年起名智慧，融合现代 AI 技术。"}
                 </p>
               </div>
 
               <div className="text-center">
-                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">服务项目</h4>
+                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">
+                  {isEn ? "SERVICES" : "服务项目"}
+                </h4>
                 <ul className="space-y-1 text-[11px] text-gray-500">
                   {services.map((s, i) => (
                     <li key={i}><Link href={s.href} className="hover:text-white transition-colors duration-200">{s.title}</Link></li>
@@ -720,18 +792,22 @@ export default function Home() {
               </div>
 
               <div className="text-center">
-                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">关于我们</h4>
+                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">
+                  {isEn ? "ABOUT" : "关于我们"}
+                </h4>
                 <ul className="space-y-1 text-[11px] text-gray-500">
-                  {['平台介绍', '专家团队', '联系我们', '加入我们'].map((item, i) => (
+                  {(isEn ? ['About Us', 'Expert Team', 'Contact', 'Careers'] : ['平台介绍', '专家团队', '联系我们', '加入我们']).map((item, i) => (
                     <li key={i}><Link href="#" className="hover:text-white transition-colors duration-200">{item}</Link></li>
                   ))}
                 </ul>
               </div>
 
               <div className="text-center">
-                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">帮助支持</h4>
+                <h4 className="font-bold mb-2 text-[#D4941A] text-[11px] tracking-wide">
+                  {isEn ? "SUPPORT" : "帮助支持"}
+                </h4>
                 <ul className="space-y-1 text-[11px] text-gray-500">
-                  {['使用帮助', '常见问题', '隐私政策', '服务条款'].map((item, i) => (
+                  {(isEn ? ['User Guide', 'FAQ', 'Privacy Policy', 'Terms of Service'] : ['使用帮助', '常见问题', '隐私政策', '服务条款']).map((item, i) => (
                     <li key={i}><Link href="#" className="hover:text-white transition-colors duration-200">{item}</Link></li>
                   ))}
                 </ul>
@@ -739,8 +815,14 @@ export default function Home() {
             </div>
 
             <div className="border-t border-gray-800 pt-3 flex flex-col md:flex-row justify-between items-center gap-2 text-[10px] text-gray-600">
-              <span>&copy; 2026 寻名网 seekname.cn 版权所有</span>
-              <span>ICP备案号：京ICP备XXXXXXXX号-1</span>
+              <span>
+                {isEn ? (
+                  <>© 2026 SeekName seekname.cn. All rights reserved.</>
+                ) : (
+                  <>© 2026 寻名网 seekname.cn 版权所有</>
+                )}
+              </span>
+              <span>{isEn ? "ICP Record: 京ICP备XXXXXXXX号-1" : "ICP备案号：京ICP备XXXXXXXX号-1"}</span>
             </div>
           </div>
         </footer>

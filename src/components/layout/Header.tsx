@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { getEnPath, getZhPath } from "@/lib/route-mapping";
 
 /* ═══════════ 导航数据（模块级常量） ═══════════ */
 const PERSONAL_SUBMENU = [
@@ -31,6 +32,7 @@ export default function Header() {
   const [openSubmenuKey, setOpenSubmenuKey] = useState<string | null>(null);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
 
@@ -226,13 +228,27 @@ export default function Header() {
             </button>
             {langMenuOpen && (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "rgba(255,255,255,0.98)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 32px rgba(74,52,40,0.15), 0 2px 8px rgba(74,52,40,0.08)", border: "1px solid rgba(212,148,26,0.2)", padding: "6px 0", zIndex: 2000, minWidth: 120, textAlign: "center" }}>
-                <button onClick={() => { setLocale("zh"); setLangMenuOpen(false); }}
+              <button onClick={() => {
+                  setLocale("zh");
+                  setLangMenuOpen(false);
+                  const target = getZhPath(pathname);
+                  if (target !== pathname) {
+                    window.location.href = target;
+                  }
+                }}
                   style={{ display: "block", width: "100%", padding: "9px 16px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: isEn ? "#4A3428" : "#E86A17", fontFamily: "'Noto Sans SC', sans-serif", fontWeight: !isEn ? 600 : 400, transition: "background 0.15s" }}
                   onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(232,106,23,0.05)")}
                   onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}>
                   中文
                 </button>
-                <button onClick={() => { setLocale("en"); setLangMenuOpen(false); }}
+                <button onClick={() => {
+                  setLocale("en");
+                  setLangMenuOpen(false);
+                  const target = getEnPath(pathname);
+                  if (target !== pathname) {
+                    window.location.href = target;
+                  }
+                }}
                   style={{ display: "block", width: "100%", padding: "9px 16px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: isEn ? "#E86A17" : "#4A3428", fontFamily: "'Noto Sans SC', sans-serif", fontWeight: isEn ? 600 : 400, transition: "background 0.15s" }}
                   onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(232,106,23,0.05)")}
                   onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}>
@@ -369,9 +385,23 @@ export default function Header() {
 
             {/* 语言切换 */}
             <div style={{ padding: "8px 0", display: "flex", gap: 8 }}>
-              <button onClick={() => { setLocale("zh"); setMobileMenuOpen(false); }}
+              <button onClick={() => {
+                setLocale("zh");
+                setMobileMenuOpen(false);
+                const target = getZhPath(pathname);
+                if (target !== pathname) {
+                  window.location.href = target;
+                }
+              }}
                 style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid", borderColor: !isEn ? "#E86A17" : "#DDD0C0", background: !isEn ? "rgba(232,106,23,0.08)" : "transparent", color: !isEn ? "#E86A17" : "#AAA", fontSize: 13, cursor: "pointer" }}>中文</button>
-              <button onClick={() => { setLocale("en"); setMobileMenuOpen(false); }}
+              <button onClick={() => {
+                setLocale("en");
+                setMobileMenuOpen(false);
+                const target = getEnPath(pathname);
+                if (target !== pathname) {
+                  window.location.href = target;
+                }
+              }}
                 style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid", borderColor: isEn ? "#E86A17" : "#DDD0C0", background: isEn ? "rgba(232,106,23,0.08)" : "transparent", color: isEn ? "#E86A17" : "#AAA", fontSize: 13, cursor: "pointer" }}>English</button>
             </div>
 
