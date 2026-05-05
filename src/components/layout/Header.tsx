@@ -14,11 +14,7 @@ const PERSONAL_SUBMENU = [
   { label: "社交网名", href: "/social-name", desc: "网名昵称" },
 ];
 const BUSINESS_SUBMENU = [
-  { label: "公司起名", href: "/company-name", desc: "企业名称" },
-  { label: "品牌起名", href: "/company?type=brand", desc: "品牌命名" },
-  { label: "项目起名", href: "/company?type=project", desc: "项目代号" },
-  { label: "店铺起名", href: "/company?type=shop", desc: "店面招牌" },
-  { label: "跨境电商英文起名", href: "/company?type=ecommerce", desc: "跨境英文" },
+  { label: "商业项目", href: "/business-name", desc: "公司·品牌·店铺·项目" },
 ];
 
 export default function Header() {
@@ -102,7 +98,7 @@ export default function Header() {
     {
       label: isEn ? "Business Naming" : "商业起名",
       labelKey: "company",
-      href: "/company",
+      href: "/business-name",
       submenu: BUSINESS_SUBMENU,
     },
     { label: isEn ? "Pet Naming" : "宠物起名", labelKey: "pet", href: "/pet" },
