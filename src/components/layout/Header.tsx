@@ -15,6 +15,7 @@ const PERSONAL_SUBMENU = [
 ];
 const BUSINESS_SUBMENU = [
   { label: "商业项目", href: "/business-name", desc: "公司·品牌·店铺·项目" },
+  { label: "跨境电商英文起名", href: "/business-name/cross-border-en-name", desc: "易读易记无歧义·适合跨境" },
 ];
 
 export default function Header() {

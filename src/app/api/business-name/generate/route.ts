@@ -10,7 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { DeepSeekIntegration } from "@/lib/deepseek-integration";
-import { PROMPT_TEMPLATES } from "@/lib/business-name-data";
+import { PROMPT_TEMPLATES, CROSS_BORDER_EN_PROMPT } from "@/lib/business-name-data";
 import type { BusinessNameType } from "@/lib/business-name-data";
 
 export async function POST(request: NextRequest) {
@@ -22,6 +22,73 @@ export async function POST(request: NextRequest) {
     const validTypes: BusinessNameType[] = ["company", "brand", "shop", "project"];
     const nameType: BusinessNameType = validTypes.includes(type) ? type : "company";
 
+    /* ── 跨境电商英文名 特殊处理 ── */
+    if (type === "cross-border-en") {
+      if (!body.category || !body.market || !body.style || !Array.isArray(body.style) || body.style.length === 0) {
+        return NextResponse.json(
+          { success: false, message: "请填写必填信息（主营品类、目标市场、风格倾向）" },
+          { status: 400 }
+        );
+      }
+
+      if (!DeepSeekIntegration.isAvailable()) {
+        return NextResponse.json(
+          { success: false, message: "AI 服务未配置，请稍后重试" },
+          { status: 503 }
+        );
+      }
+
+      const systemPrompt = CROSS_BORDER_EN_PROMPT.system;
+      const userPrompt = CROSS_BORDER_EN_PROMPT.user(body);
+
+      const rawResult = await DeepSeekIntegration.callRaw(systemPrompt, userPrompt, 0.7, 4096);
+
+      // 解析 JSON
+      let trimmed = rawResult.trim();
+      const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (match) trimmed = match[1].trim();
+
+      let names: Array<{
+        name: string;
+        pronunciation: string;
+        meaning: string;
+        ecommerceFit: string;
+        safety: string;
+        recommendScore: string;
+      }> = [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          names = parsed
+            .filter((item: any) => item.name)
+            .map((item: any) => ({
+              name: item.name.trim(),
+              pronunciation: item.pronunciation?.trim() || "",
+              meaning: item.meaning?.trim() || "",
+              ecommerceFit: item.ecommerceFit?.trim() || "高",
+              safety: item.safety?.trim() || "✅安全无歧义",
+              recommendScore: item.recommendScore?.trim() || "★★★★★",
+            }));
+        }
+      } catch {
+        console.warn(`[cross-border-en] JSON 解析失败:`, rawResult.slice(0, 200));
+        return NextResponse.json(
+          { success: false, message: "AI 返回结果格式异常，请重试" },
+          { status: 500 }
+        );
+      }
+
+      if (names.length === 0) {
+        return NextResponse.json(
+          { success: false, message: "AI 返回结果为空，请重试" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ success: true, data: names });
+    }
+
+    /* ── 原有商业起名流程 ── */
     const template = PROMPT_TEMPLATES[nameType];
 
     // 参数校验

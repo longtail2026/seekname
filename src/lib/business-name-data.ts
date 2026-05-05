@@ -204,4 +204,39 @@ ${avoid ? `禁忌：${avoid}` : ""}
   },
 };
 
+export const CROSS_BORDER_EN_PROMPT = {
+  system: `你是专业跨境电商品牌命名专家，擅长创建适合亚马逊、独立站、TikTok Shop、Shopee的英文品牌名。
+
+生成规则（必须严格遵守）：
+1. 生成10个英文品牌名
+2. 易读、易记、易拼写、适合老外发音
+3. 英文世界无负面含义、无不雅谐音、无歧义
+4. 听起来像正规国际品牌，不是人名、不是地名
+5. 贴合电商属性，专业、有品质感、可注册域名倾向高
+6. 长度符合要求，字母不要过难
+7. 每个名字必须附带：读音 + 含义 + 电商适配度 + 安全评级`,
+  user: (body: any) => {
+    const { category, market, style, length, rootWords, banList } = body;
+    return `用户信息：
+主营品类：${category}
+目标市场：${market}
+风格：${style?.join("、") || "简约现代"}
+名字长度：${length === "short" ? "4-6个字母（短域名优先）" : length === "standard" ? "6-8个字母（标准品牌名）" : "8-12个字母（可稍长）"}
+${rootWords ? `包含词根：${rootWords}` : ""}
+禁止：${banList?.join("、") || "负面、歧义、低俗、难读、宗教敏感、不雅谐音"}
+
+输出格式（严格 JSON 数组，不要 markdown 包裹）：
+[
+  {
+    "name": "品牌名",
+    "pronunciation": "读音（如 /ˈvɪvə/）",
+    "meaning": "含义说明（一句话解释）",
+    "ecommerceFit": "电商适配度（高/中/低）",
+    "safety": "✅安全无歧义",
+    "recommendScore": "推荐指数（★★★★★）"
+  }
+]`;
+  },
+};
+
 export type BusinessNameType = keyof typeof PROMPT_TEMPLATES;
