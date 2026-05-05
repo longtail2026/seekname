@@ -140,19 +140,12 @@ function PetForm() {
   );
 }
 
-/* ─── 宠物起名结果 ─── */
-function PetResultContent() {
+/* ─── 宠物起名结果视图（独立组件，确保 hooks 调用一致） ─── */
+function PetNames({ petType }: { petType: string }) {
   const searchParams = useSearchParams();
-
-  const petType = searchParams.get("petType") || "";
   const gender = searchParams.get("gender") || "";
   const expectations = searchParams.get("expectations") || "";
   const style = searchParams.get("style") || "";
-
-  // 如果没有宠物类型参数，显示表单页
-  if (!petType) {
-    return <PetForm />;
-  }
 
   const [loading, setLoading] = useState(true);
   const [names, setNames] = useState<PetName[]>([]);
@@ -168,6 +161,9 @@ function PetResultContent() {
       try {
         const body: Record<string, string> = {
           category: "pet",
+          surname: "宠",
+          gender: gender ? (gender === "公的" || gender === "不限" ? "M" : "F") : "M",
+          birthDate: new Date().toISOString().split("T")[0],
           expectations: expectations || "可爱呆萌有灵气",
           style: style || "可爱",
         };
@@ -369,6 +365,18 @@ function PetResultContent() {
       </main>
     </div>
   );
+}
+
+/* ─── 宠物起名结果容器（仅做条件判断，无 hooks 不一致） ─── */
+function PetResultContent() {
+  const searchParams = useSearchParams();
+  const petType = searchParams.get("petType") || "";
+
+  if (!petType) {
+    return <PetForm />;
+  }
+
+  return <PetNames petType={petType} />;
 }
 
 function generatePetTags(name: string, petType: string): string[] {
