@@ -58,6 +58,31 @@ const LENGTH_OPTIONS = [
   { value: "不限（推荐）", label: "不限 📏" },
 ];
 
+// 4. 使用场景（新增）
+const SCENE_CATEGORIES = [
+  {
+    id: "social",
+    label: "📱 社交平台",
+    subOptions: ["小红书", "抖音", "B站", "微信", "INS", "通用社交ID"],
+    defaultSub: "通用社交ID",
+    desc: "适合社交媒体的干净ID",
+  },
+  {
+    id: "game",
+    label: "🎮 游戏ID",
+    subOptions: ["游戏ID通用", "Steam", "原神", "王者荣耀", "和平精英(吃鸡)"],
+    defaultSub: "游戏ID通用",
+    desc: "游戏角色昵称，有辨识度",
+  },
+  {
+    id: "relationship",
+    label: "💑 关系ID",
+    subOptions: ["情侣ID", "闺蜜ID", "战队名"],
+    defaultSub: "情侣ID",
+    desc: "成对出现的匹配ID",
+  },
+];
+
 // ─── 颜色主题 ───
 const COLORS = {
   primary: "#E86A17",
@@ -83,6 +108,8 @@ export default function SocialNamePage() {
   const [results, setResults] = useState<Array<{ name: string; explanation: string }> | null>(null);
   const [error, setError] = useState("");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [sceneCategory, setSceneCategory] = useState("social");
+  const [sceneSub, setSceneSub] = useState("通用社交ID");
 
   // 处理关键词选择（最多3个 + 互斥顶替）
   const toggleKeyword = (kw: string) => {
@@ -122,6 +149,8 @@ export default function SocialNamePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           genderStyle: combinedStyle,
+          sceneCategory,
+          sceneSub,
           keywords,
           contains: contains.trim(),
           length: lengthPref,
@@ -198,7 +227,87 @@ export default function SocialNamePage() {
             🎭 社交网名生成器
           </h1>
           <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-            适合抖音 · 小红书 · 微信 · INS
+            先选使用场景，再挑风格，AI 为你定制专属网名
+          </p>
+        </div>
+
+        {/* 0. 使用场景选择（新增） */}
+        <div
+          className="rounded-2xl p-5 mb-4 shadow-sm space-y-3"
+          style={{
+            background: COLORS.cardBg,
+            border: `1px solid ${COLORS.border}`,
+          }}
+        >
+          <label
+            className="block text-sm font-semibold mb-2"
+            style={{ color: COLORS.text }}
+          >
+            🎯 使用场景 <span className="text-red-400">*</span>
+          </label>
+          {/* 一级分类 */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {SCENE_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setSceneCategory(cat.id);
+                  setSceneSub(cat.defaultSub);
+                }}
+                className="py-3 px-2 rounded-xl text-sm font-medium transition-all text-center"
+                style={{
+                  background:
+                    sceneCategory === cat.id
+                      ? COLORS.primary
+                      : "rgba(245,237,224,0.5)",
+                  color: sceneCategory === cat.id ? "#FFF" : COLORS.textSecondary,
+                  border: `1px solid ${
+                    sceneCategory === cat.id ? COLORS.primary : COLORS.border
+                  }`,
+                  cursor: "pointer",
+                }}
+              >
+                <div className="text-lg mb-1">{cat.label.split(" ")[0]}</div>
+                <div>{cat.label.split(" ").slice(1).join(" ")}</div>
+              </button>
+            ))}
+          </div>
+          {/* 二级细分 */}
+          <div>
+            <label
+              className="block text-xs font-medium mb-1.5"
+              style={{ color: COLORS.textSecondary }}
+            >
+              具体场景（选填）
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {SCENE_CATEGORIES.find((c) => c.id === sceneCategory)?.subOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSceneSub(opt)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                  style={{
+                    background:
+                      sceneSub === opt
+                        ? COLORS.primary
+                        : "rgba(245,237,224,0.5)",
+                    color: sceneSub === opt ? "#FFF" : COLORS.textSecondary,
+                    border: `1px solid ${
+                      sceneSub === opt ? COLORS.primary : COLORS.border
+                    }`,
+                    cursor: "pointer",
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 场景描述 */}
+          <p className="text-xs mt-1" style={{ color: "#AAA" }}>
+            {SCENE_CATEGORIES.find((c) => c.id === sceneCategory)?.desc}
           </p>
         </div>
 
@@ -554,7 +663,7 @@ export default function SocialNamePage() {
           <div className="text-center py-12">
             <div className="text-5xl mb-3">🎨</div>
             <p className="text-sm" style={{ color: COLORS.textSecondary }}>
-              选好风格和关键词，生成专属社交网名
+              选好使用场景、风格和关键词，生成专属网名
             </p>
             <p className="text-xs mt-1" style={{ color: "#AAA" }}>
               10 秒完成，AI 为你定制
