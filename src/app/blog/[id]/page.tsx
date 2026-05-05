@@ -255,7 +255,7 @@ export default function BlogDetailPage() {
             paddingBottom: 20, borderBottom: "1px solid #F5EDE0"
           }}>
             {post.author_avatar ? (
-              <img src={post.author_avatar} alt="" style={{
+              <img src={post.author_avatar} alt={`${post.author_name}头像`} style={{
                 width: 36, height: 36, borderRadius: "50%", objectFit: "cover",
                 border: "2px solid #D4941A"
               }} />
@@ -469,7 +469,7 @@ function CommentItem({ comment, currentUserId, onReply, onRefresh, t }: {
     <div style={{ padding: "16px 0", borderBottom: "1px solid #F5EDE0" }}>
       <div style={{ display: "flex", gap: 10 }}>
         {comment.author_avatar ? (
-          <img src={comment.author_avatar} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+          <img src={comment.author_avatar} alt={`${comment.author_name}头像`} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
         ) : (
           <span style={{
             width: 32, height: 32, borderRadius: "50%", flexShrink: 0,

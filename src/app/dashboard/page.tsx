@@ -167,7 +167,7 @@ export default function DashboardPage() {
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", gap: 20 }}>
           {/* 头像 */}
           {user.avatar ? (
-            <img src={user.avatar} alt="" style={{ width: 64, height: 64, borderRadius: "50%", border: "3px solid rgba(212,148,26,0.5)", objectFit: "cover" }} />
+            <img src={user.avatar} alt={`${user.name || '用户'}头像`} style={{ width: 64, height: 64, borderRadius: "50%", border: "3px solid rgba(212,148,26,0.5)", objectFit: "cover" }} />
           ) : (
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #E86A17, #D4941A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", fontFamily: "'Noto Serif SC', serif", border: "3px solid rgba(212,148,26,0.5)" }}>
               {(user.name || user.email || "?").charAt(0).toUpperCase()}

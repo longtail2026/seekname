@@ -81,10 +81,10 @@ export default function BlogPage() {
               ─── 起名杂谈 ───
             </div>
             <h1 style={{ fontSize: 36, fontWeight: 700, color: "#FFFCF7", margin: "0 0 12px", fontFamily: "'Noto Serif SC', serif" }}>
-              千年起名文化交流
+              起名知识博客 - 宝宝起名技巧·名字大全·命名文化
             </h1>
             <p style={{ fontSize: 15, color: "rgba(255,252,247,0.65)", margin: "0 0 24px" }}>
-              分享起名心得，传承文字智慧
+              分享宝宝起名技巧、好听名字大全、英文名推荐、公司店铺起名攻略、命名文化典故等丰富内容，帮你轻松取个好名字
             </p>
             {user && (
               <button
@@ -295,7 +295,7 @@ function PostCard({ post }: { post: Post }) {
       >
         {/* 封面图 */}
         {post.cover_image && (
-          <img src={post.cover_image} alt="" style={{ width: "100%", height: 160, objectFit: "cover" }} />
+          <img src={post.cover_image} alt={`${post.title} - SeekName起名博客封面图`} style={{ width: "100%", height: 160, objectFit: "cover" }} />
         )}
 
         <div style={{ padding: "16px 18px" }}>
@@ -339,7 +339,7 @@ function PostCard({ post }: { post: Post }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {post.author_avatar ? (
-                <img src={post.author_avatar} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover" }} />
+                <img src={post.author_avatar} alt={`${post.author_name}头像`} style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover" }} />
               ) : (
                 <span style={{
                   width: 22, height: 22, borderRadius: "50%",

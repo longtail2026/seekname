@@ -1,0 +1,41 @@
+# robots.txt - SeekName AI起名网
+# https://www.seekname.cn
+
+User-agent: *
+Allow: /
+Allow: /personal
+Allow: /business-name
+Allow: /business-name/cross-border-en-name
+Allow: /company
+Allow: /company-name
+Allow: /brand
+Allow: /shop
+Allow: /en/choose-name
+Allow: /foreigner-name
+Allow: /work-name
+Allow: /stage-name
+Allow: /social-name
+Allow: /pet
+Allow: /evaluate
+Allow: /evaluate/form
+Allow: /rename
+Allow: /blog
+Allow: /search
+Disallow: /admin/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /compare
+Disallow: /collection
+Disallow: /dashboard
+Disallow: /vip
+Disallow: /subscribe
+
+# Sitemap
+Sitemap: https://www.seekname.cn/sitemap.xml
+
+# Crawl rules
+Crawl-Delay: 5
+
+# Host
+Host: https://www.seekname.cn

@@ -142,7 +142,7 @@ export default function Header() {
       >
         {/* Logo */}
         <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", flexShrink: 0 }}>
-          <img src="/images/banner.png" alt="SeekName" style={{ width: 220, height: 48, objectFit: "contain", display: "block", borderRadius: 10 }} />
+          <img src="/images/banner.png" alt="SeekName - AI起名网站 免费宝宝起名/英文名/公司名/店铺名生成" style={{ width: 220, height: 48, objectFit: "contain", display: "block", borderRadius: 10 }} />
         </Link>
 
         {/* Right: Nav + Search + Lang + User */}
@@ -265,8 +265,8 @@ export default function Header() {
             <div ref={userDropdownRef} style={{ position: "relative" }}>
               {/* 头像/昵称触发区 */}
               <div onClick={() => setUserDropdownOpen(!userDropdownOpen)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", padding: "4px 10px", borderRadius: 24, transition: "all 0.2s", border: userDropdownOpen ? "1px solid rgba(232,106,23,0.4)" : "1px solid transparent", background: userDropdownOpen ? "rgba(232,106,23,0.04)" : "transparent" }}>
-                {user.avatar ? (
-                  <img src={user.avatar} alt="" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", border: "2px solid #D4941A" }} />
+          {user.avatar ? (
+                  <img src={user.avatar} alt={`${user.name || user.email || '用户'}头像`} style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", border: "2px solid #D4941A" }} />
                 ) : (
                   <span style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #E86A17 0%, #D4941A 100%)", color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>
                     {(user.name || user.email || user.phone || "?").charAt(0).toUpperCase()}

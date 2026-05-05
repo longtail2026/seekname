@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import PWAProvider from "@/components/PWAProvider";
+import JsonLd from "@/components/JsonLd";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,14 +17,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.seekname.cn"),
   title: {
-    default: "寻名网 | SeekName - 寻一个好名，许一个未来",
-    template: "%s | 寻名网",
+    default: "AI起名网站 - 免费宝宝起名/英文名/公司名/店铺名生成 | SeekName",
+    template: "%s | SeekName",
   },
-  description: "专业起名服务平台，为个人、公司、宠物提供文化典籍、唐诗宋词、四书五经等传统文化与现代命理相结合的起名服务",
-  keywords: ["起名", "姓名", "公司起名", "宠物起名", "文化典籍", "唐诗宋词", "四书五经", "命理", "易经", "五行"],
-  authors: [{ name: "寻名网" }],
-  creator: "寻名网",
-  publisher: "寻名网",
+  description: "AI智能起名，提供宝宝起名、英文名、公司起名、店铺起名、艺名笔名、跨境电商名、外国人中文名、网名等一站式名字生成服务，好听、好记、无负面歧义。",
+  keywords: ["AI起名", "起名网站", "免费起名", "名字生成器", "宝宝起名", "英文名生成", "公司起名", "店铺起名", "艺名笔名", "跨境电商品牌名", "外国人中文名", "社交网名", "宠物起名", "作品起名", "美国商标起名"],
+  authors: [{ name: "SeekName" }],
+  creator: "SeekName",
+  publisher: "SeekName",
   robots: {
     index: true,
     follow: true,
@@ -39,24 +40,22 @@ export const metadata: Metadata = {
     type: "website",
     locale: "zh_CN",
     url: "https://www.seekname.cn",
-    siteName: "寻名网 SeekName",
-    title: "寻名网 | SeekName - 寻一个好名，许一个未来",
-    description: "专业起名服务平台，12万部典籍 × AI × 八字五行，30秒生成6个吉祥好名",
+    siteName: "SeekName AI起名网",
+    title: "AI起名网站 - 免费宝宝起名/英文名/公司名/店铺名生成 | SeekName",
+    description: "AI智能起名，提供宝宝起名、英文名、公司起名、店铺起名、艺名笔名、跨境电商名、外国人中文名、网名等一站式名字生成服务，好听、好记、无负面歧义。",
     images: [
       {
         url: "/images/icon-512.png",
         width: 512,
         height: 512,
-        alt: "寻名网 - AI起名平台",
+        alt: "SeekName - AI起名平台",
       },
-      // TODO: 上线前替换为真实 OG 封面图 (1200x630 PNG)
-      // og-cover.png 生成后更新此处
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "寻名网 | SeekName",
-    description: "专业起名服务平台，12万部典籍 × AI × 八字五行，30秒生成6个吉祥好名",
+    title: "AI起名网站 - 免费宝宝起名/英文名/公司名/店铺名生成 | SeekName",
+    description: "AI智能起名，提供宝宝起名、英文名、公司起名、店铺起名、艺名笔名、跨境电商名、外国人中文名、网名等一站式名字生成服务。",
     images: ["/images/icon-512.png"],
     creator: "@seekname",
   },
@@ -73,8 +72,6 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "https://www.seekname.cn",
-    // hreflang: cookie-based i18n，URL 不变，cookie 控制语言
-    // x-default 表示用户代理根据 Accept-Language 自动选择
     languages: {
       "zh-CN": "https://www.seekname.cn",
       "en-US": "https://www.seekname.cn",
@@ -97,6 +94,7 @@ export default function RootLayout({
               <PWAProvider />
               <Header />
               {children}
+              <JsonLd />
             </LocaleProvider>
           </AuthProvider>
         </ThemeProvider>
