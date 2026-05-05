@@ -160,7 +160,7 @@ export default function CrossBorderEnNamePage() {
         </p>
       </div>
 
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
+      <div style={{ maxWidth: 990, margin: "0 auto", padding: "24px 16px" }}>
         {/* 提示信息 */}
         {showTips && (
           <div

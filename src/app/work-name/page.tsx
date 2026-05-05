@@ -215,7 +215,7 @@ export default function WorkNamePage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-lg">
+      <main className="container mx-auto px-4 py-8" style={{ maxWidth: 990 }}>
         {/* 副标题 */}
         <div className="text-center mb-6">
           <h1

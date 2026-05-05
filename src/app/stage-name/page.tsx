@@ -189,7 +189,7 @@ export default function StageNamePage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-lg">
+      <main className="container mx-auto px-4 py-8" style={{ maxWidth: 990 }}>
         {/* ═══ 主标题区 ═══ */}
         <div className="text-center mb-8">
           <div
