@@ -170,21 +170,36 @@ async function main() {
       console.log(`[setup-db] Inserted ${unique.length} character_frequency rows`);
     }
 
-    // ── 2. user ─────────────────────────────────────────────────────────────
+    // ── 2. users ────────────────────────────────────────────────────────────
+    // Prisma 实际使用的是 "users" 表（migration 202504130755_add_user_system）
     await client.query(`
-      CREATE TABLE IF NOT EXISTS "user" (
-        id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-        email       VARCHAR(255) UNIQUE NOT NULL,
-        name        VARCHAR(100),
-        password    VARCHAR(255),
-        avatar_url  VARCHAR(500),
-        vip_expires_at TIMESTAMPTZ,
-        is_vip      BOOLEAN     DEFAULT FALSE,
-        created_at  TIMESTAMPTZ DEFAULT NOW(),
-        updated_at  TIMESTAMPTZ DEFAULT NOW()
+      CREATE TABLE IF NOT EXISTS "users" (
+        id          TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        email       TEXT        UNIQUE,
+        name        VARCHAR(50),
+        password    TEXT,
+        avatar      TEXT,
+        admin_role  VARCHAR(20),
+        gender      VARCHAR(10),
+        occupation  VARCHAR(50),
+        hobbies     TEXT[]      DEFAULT '{}',
+        wx_openid   TEXT        UNIQUE,
+        wx_unionid  TEXT,
+        status      VARCHAR(20) NOT NULL DEFAULT 'active',
+        vip_level   INTEGER     NOT NULL DEFAULT 0,
+        vip_expire  TIMESTAMP(3),
+        points      INTEGER     NOT NULL DEFAULT 0,
+        balance     DECIMAL(10,2) NOT NULL DEFAULT 0,
+        created_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("[setup-db] Table 'user' OK");
+    // 如果表已存在但缺列，补上（生产中迁移遗漏的情况）
+    await client.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS password TEXT`).catch(() => {});
+    await client.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS admin_role VARCHAR(20)`).catch(() => {});
+    await client.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS occupation VARCHAR(50)`).catch(() => {});
+    await client.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS hobbies TEXT[] DEFAULT '{}'`).catch(() => {});
+    console.log("[setup-db] Table 'users' OK");
 
     // ── 3. name_record ───────────────────────────────────────────────────────
     await client.query(`

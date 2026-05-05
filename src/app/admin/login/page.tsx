@@ -166,9 +166,6 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: 24, padding: "12px 16px", background: "#f6ffed", borderRadius: 6, fontSize: 12, color: "#52c41a" }}>
-          <strong>默认管理员：</strong>seekname@163.com / ZGGs1240
-        </div>
       </div>
     </div>
   );
