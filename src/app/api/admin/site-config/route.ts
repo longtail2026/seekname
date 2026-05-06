@@ -1,23 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { executeRaw } from "@/lib/prisma";
-import { CATEGORY_PRICING, getAllPriceConfigKeys, getPriceConfigKey } from "@/lib/site-config";
+import {
+  CATEGORY_PRICING,
+  getAllPricingKeys,
+  getPriceConfigKey,
+  getEnabledConfigKey,
+} from "@/lib/site-config";
 
 // 💡 强制动态渲染，避免 Vercel Edge Network 将 PUT 请求缓为静态资源并拒绝非 GET 方法
 export const dynamic = "force-dynamic";
 
-// 所有配置 key（收费开关 + 所有项目定价）
+// 所有配置 key（收费开关 + 所有项目定价 + 独立收费开关）
+const pricingKeys = getAllPricingKeys();
 const CONFIG_KEYS = [
   "paywall_enabled",
-  ...getAllPriceConfigKeys(),
+  ...pricingKeys.map(getPriceConfigKey),
+  ...pricingKeys.map(getEnabledConfigKey),
 ];
 
 // 默认值
 const DEFAULTS: Record<string, string> = {
   paywall_enabled: "false",
   ...Object.fromEntries(
-    Object.entries(CATEGORY_PRICING).map(([key, val]) => [
-      getPriceConfigKey(key),
-      String(val.defaultPrice),
+    pricingKeys.flatMap((key) => [
+      [getPriceConfigKey(key), String(CATEGORY_PRICING[key]?.defaultPrice ?? 0)],
+      [getEnabledConfigKey(key), "false"],
     ])
   ),
 };
@@ -49,24 +56,33 @@ async function getConfigRaw(keys: string[]): Promise<Record<string, string>> {
 function buildResponse(config: Record<string, string>) {
   // 收集所有 categoryPrices
   const categoryPrices: Record<string, number> = {};
-  for (const key of Object.keys(CATEGORY_PRICING)) {
-    const configKey = getPriceConfigKey(key);
-    const val = parseFloat(config[configKey]);
+  // 收集所有 categoryEnabled
+  const categoryEnabled: Record<string, boolean> = {};
+
+  for (const key of pricingKeys) {
+    // 价格
+    const priceConfigKey = getPriceConfigKey(key);
+    const val = parseFloat(config[priceConfigKey]);
     if (!isNaN(val) && val > 0) {
       categoryPrices[key] = val;
     }
+
+    // 开关
+    const enabledConfigKey = getEnabledConfigKey(key);
+    categoryEnabled[key] = config[enabledConfigKey] === "true";
   }
 
   return {
     paywallEnabled: config.paywall_enabled === "true",
     paywallPrice: parseFloat(config[getPriceConfigKey("personal")]) || 9.9, // 兼容旧版
     categoryPrices,
+    categoryEnabled,
   };
 }
 
 /**
  * GET /api/admin/site-config
- * 读取收费配置（含分类定价）
+ * 读取收费配置（含分类定价和独立开关）
  */
 export async function GET() {
   try {
@@ -80,7 +96,7 @@ export async function GET() {
 
 /**
  * PUT /api/admin/site-config
- * 更新收费配置（含分类定价）
+ * 更新收费配置（含分类定价和独立开关）
  *
  * ⚠️ 使用原生 SQL upsert 而非 Prisma model 操作，
  * 因为 @prisma/adapter-pg 在 Vercel Serverless 中对写操作支持不稳定，
@@ -91,11 +107,17 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const updates: Record<string, string> = {};
 
+    // 兼容旧版：全局收费开关
     if (typeof body.paywallEnabled === "boolean") {
       updates.paywall_enabled = String(body.paywallEnabled);
     }
 
-    // 分类定价：传入 categoryPrices 对象 { "personal": 39, "company_name": 59, ... }
+    // 兼容旧版：单独传入 paywallPrice 时更新 personal 价格
+    if (body.paywallPrice !== undefined && !body.categoryPrices) {
+      updates[getPriceConfigKey("personal")] = String(body.paywallPrice);
+    }
+
+    // 新格式：分类定价 { "personal": 39, "company_name": 59, ... }
     if (body.categoryPrices && typeof body.categoryPrices === "object") {
       for (const [key, price] of Object.entries(body.categoryPrices)) {
         const configKey = getPriceConfigKey(key);
@@ -103,9 +125,12 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // 兼容旧版：单独传入 paywallPrice 时更新 personal 价格
-    if (body.paywallPrice !== undefined && !body.categoryPrices) {
-      updates[getPriceConfigKey("personal")] = String(body.paywallPrice);
+    // 新格式：独立收费开关 { "personal": true, "company_name": false, ... }
+    if (body.categoryEnabled && typeof body.categoryEnabled === "object") {
+      for (const [key, enabled] of Object.entries(body.categoryEnabled)) {
+        const configKey = getEnabledConfigKey(key);
+        updates[configKey] = String(enabled);
+      }
     }
 
     // 逐条 upsert — 使用原生 SQL 避免 adapter 写操作问题

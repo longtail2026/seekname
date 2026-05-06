@@ -284,6 +284,8 @@ async function publishPost(postData, requireReview) {
       keywords: postData.keywords || [],
       status: requireReview ? "draft" : "published",
       tags: postData.keywords || [],
+      source: "auto_blog",
+      sourceUrl: postData.sourceUrl || "",
     }),
   });
 
@@ -350,6 +352,7 @@ async function executeAutoBlog() {
       sourceTitle: article.title,
       status: "success",
       duration,
+      errorMsg: null,
       postId: post.id,
     });
 
@@ -363,7 +366,7 @@ async function executeAutoBlog() {
       sourceTitle: "",
       status: "failed",
       duration,
-      errorMessage: error.message,
+      errorMsg: error.message,
     }).catch(() => {});
 
     return { status: "failed", error: error.message, duration };

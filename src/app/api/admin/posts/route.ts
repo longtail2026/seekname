@@ -88,25 +88,44 @@ export async function PUT(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, summary, content, category, status = "draft", coverImage, userId } = body;
+    const { title, summary, content, category, status = "draft", coverImage, userId, source, sourceUrl, tags } = body;
 
     const slug = title
       .toLowerCase()
       .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
       .replace(/(^-|-$)/g, "") + "-" + Date.now();
 
-    const post = await prisma.blogPost.create({
-      data: {
-        title,
-        slug,
-        summary,
-        content,
-        category,
-        status,
-        coverImage,
-        userId: userId || "admin",
-      },
-    });
+    const postData: any = {
+      title,
+      slug,
+      summary,
+      content,
+      category,
+      status,
+      coverImage,
+      userId: userId || "admin",
+    };
+    if (source !== undefined) postData.source = source;
+    if (sourceUrl !== undefined) postData.sourceUrl = sourceUrl;
+
+    const post = await prisma.blogPost.create({ data: postData });
+
+    // 如果传了 tags，创建标签关联
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      for (const tagName of tags) {
+        const tag = await prisma.blogTag.upsert({
+          where: { name: tagName },
+          update: { count: { increment: 1 } },
+          create: {
+            name: tagName,
+            slug: tagName.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-"),
+          },
+        });
+        await prisma.blogPostTag.create({
+          data: { postId: post.id, tagId: tag.id },
+        }).catch(() => {}); // 忽略重复
+      }
+    }
 
     return NextResponse.json({ success: true, post });
   } catch (error) {

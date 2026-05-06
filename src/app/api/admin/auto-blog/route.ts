@@ -8,7 +8,7 @@ export async function GET() {
     if (!config) {
       config = await prisma.autoBlogConfig.create({
         data: {
-          isEnabled: false,
+          isEnabled: true,
           frequency: "daily",
       crawlKeywords: [
         "英文名大全",
@@ -46,11 +46,26 @@ export async function GET() {
   }
 }
 
-// 更新自动发文配置
+// 更新自动发文配置或保存日志
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { isEnabled, frequency, crawlKeywords, requireReview, defaultCategory, writingStyle } = body;
+    const { isEnabled, frequency, crawlKeywords, requireReview, defaultCategory, writingStyle, logEntry } = body;
+
+    // 如果传的是日志条目，就保存到 auto_blog_logs 表
+    if (logEntry) {
+      const log = await prisma.autoBlogLog.create({
+        data: {
+          sourceUrl: logEntry.sourceUrl || "",
+          sourceTitle: logEntry.sourceTitle || "",
+          status: logEntry.status || "pending",
+          duration: logEntry.duration || 0,
+          errorMsg: logEntry.errorMsg || null,
+          postId: logEntry.postId ? parseInt(logEntry.postId, 10) : null,
+        },
+      });
+      return NextResponse.json({ success: true, log });
+    }
 
     const config = await prisma.autoBlogConfig.findFirst();
     if (!config) {

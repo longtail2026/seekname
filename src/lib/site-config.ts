@@ -1,6 +1,6 @@
 /**
  * 站点配置工具
- * 支持全局收费开关 + 按项目类别的差异化定价
+ * 每个项目类别有独立的收费开关和价格设置
  */
 
 /**
@@ -59,9 +59,17 @@ const CATEGORY_TO_PRICING_KEY: Record<string, string> = {
 /** 数据库 site_config 表中存储价格的 key 前缀 */
 const PRICE_KEY_PREFIX = "price_";
 
-/** 获取指定定价 key 对应的数据库配置 key */
+/** 数据库 site_config 表中存储收费开关的 key 前缀 */
+const ENABLED_KEY_PREFIX = "paywall_enabled_";
+
+/** 获取指定定价 key 对应的数据库配置 key（价格） */
 export function getPriceConfigKey(pricingKey: string): string {
   return `${PRICE_KEY_PREFIX}${pricingKey}`;
+}
+
+/** 获取指定定价 key 对应的数据库配置 key（收费开关） */
+export function getEnabledConfigKey(pricingKey: string): string {
+  return `${ENABLED_KEY_PREFIX}${pricingKey}`;
 }
 
 /**
@@ -75,17 +83,31 @@ export function getPricingKeyByCategory(category: string): string {
  * 获取站点配置数据类型
  */
 export interface SiteConfigData {
-  paywallEnabled: boolean;
+  paywallEnabled: boolean; // 兼容旧版：全局收费开关（后备）
   paywallPrice: number; // 兼容旧版：默认后备价格
   categoryPrices: Record<string, number>; // key 为 pricing key, value 为价格
+  categoryEnabled: Record<string, boolean>; // key 为 pricing key, value 为是否收费
 }
 
 /**
- * 设置所有定价 keys 列表（用于统一查询数据库）
+ * 获取所有 pricing keys 列表（用于统一查询数据库）
+ */
+export function getAllPricingKeys(): string[] {
+  return [...new Set(Object.values(CATEGORY_TO_PRICING_KEY))];
+}
+
+/**
+ * 获取所有定价 keys 列表（用于统一查询数据库）
  */
 export function getAllPriceConfigKeys(): string[] {
-  const pricingKeys = new Set(Object.values(CATEGORY_TO_PRICING_KEY));
-  return [...pricingKeys].map(getPriceConfigKey);
+  return getAllPricingKeys().map(getPriceConfigKey);
+}
+
+/**
+ * 获取所有收费开关 keys 列表（用于统一查询数据库）
+ */
+export function getAllEnabledConfigKeys(): string[] {
+  return getAllPricingKeys().map(getEnabledConfigKey);
 }
 
 /**
@@ -100,8 +122,20 @@ export function getCategoryPrice(config: SiteConfigData, category: string): numb
 }
 
 /**
+ * 判断指定 category 是否开启了收费
+ */
+export function isCategoryPaywallEnabled(config: SiteConfigData, category: string): boolean {
+  const pricingKey = getPricingKeyByCategory(category);
+  // 优先使用该分类的独立开关
+  if (config.categoryEnabled && config.categoryEnabled[pricingKey] !== undefined) {
+    return config.categoryEnabled[pricingKey];
+  }
+  // 兜底：使用全局开关
+  return config.paywallEnabled;
+}
+
+/**
  * 检查某个排名是否在收费隐藏范围内
- * 当前逻辑：前 3 个名字隐藏（rank 1-3）
  */
 export function isHiddenRank(rank: number, _config?: SiteConfigData): boolean {
   return rank <= 3;
@@ -119,6 +153,7 @@ export async function fetchSiteConfig(): Promise<SiteConfigData> {
         paywallEnabled: data.paywallEnabled ?? false,
         paywallPrice: data.paywallPrice ?? 9.9,
         categoryPrices: data.categoryPrices ?? {},
+        categoryEnabled: data.categoryEnabled ?? {},
       };
     }
   } catch {
@@ -128,5 +163,6 @@ export async function fetchSiteConfig(): Promise<SiteConfigData> {
     paywallEnabled: false,
     paywallPrice: 9.9,
     categoryPrices: {},
+    categoryEnabled: {},
   };
 }

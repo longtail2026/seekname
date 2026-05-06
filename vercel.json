@@ -3,6 +3,12 @@
   "buildCommand": "node prisma/setup-db.js && npx prisma generate && next build",
   "installCommand": "npm install",
   "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/auto-blog",
+      "schedule": "0 8 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
