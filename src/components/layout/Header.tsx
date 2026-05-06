@@ -6,20 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
-/* ═══════════ 导航数据（模块级常量） ═══════════ */
-const PERSONAL_SUBMENU = [
-  { label: "起名改名", href: "/rename", desc: "AI智能起名" },
-  { label: "英文起名", href: "/naming", desc: "英文名字" },
-  { label: "外国友人起中文名", href: "/foreigner-name", desc: "外国人中文名" },
-  { label: "社交网名", href: "/social-name", desc: "网名昵称" },
-];
-const BUSINESS_SUBMENU = [
-  { label: "商业项目", href: "/business-name", desc: "公司·品牌·店铺·项目" },
-  { label: "跨境电商英文起名", href: "/business-name/cross-border-en-name", desc: "易读易记无歧义·适合跨境" },
-  { label: "作品起名", href: "/work-name", desc: "文学作品·文章·影视剧" },
-  { label: "艺名笔名", href: "/stage-name", desc: "主播·演员·作家" },
-];
-
 export default function Header() {
   const { user, logout } = useAuth();
   const { locale, setLocale, t } = useLocale();
@@ -31,6 +17,37 @@ export default function Header() {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
+
+  const isEn = locale === "en";
+
+  /* ═══════ 导航数据（双语响应式） ═══════ */
+  const PERSONAL_SUBMENU = isEn
+    ? [
+        { label: "Rename", href: "/rename", desc: "AI-powered name change" },
+        { label: "English Names", href: "/naming", desc: "English name suggestions" },
+        { label: "Chinese Names for Foreigners", href: "/foreigner-name", desc: "Get a Chinese name" },
+        { label: "Social Names", href: "/social-name", desc: "Online nicknames & handles" },
+      ]
+    : [
+        { label: "起名改名", href: "/rename", desc: "AI智能起名" },
+        { label: "英文起名", href: "/naming", desc: "英文名字" },
+        { label: "外国友人起中文名", href: "/foreigner-name", desc: "外国人中文名" },
+        { label: "社交网名", href: "/social-name", desc: "网名昵称" },
+      ];
+
+  const BUSINESS_SUBMENU = isEn
+    ? [
+        { label: "Business Projects", href: "/business-name", desc: "Company · Brand · Store · Product" },
+        { label: "Cross-border EN Names", href: "/business-name/cross-border-en-name", desc: "Easy to read & remember" },
+        { label: "Work Titles", href: "/work-name", desc: "Literature · Articles · Film & TV" },
+        { label: "Stage Names", href: "/stage-name", desc: "Streamer · Actor · Writer" },
+      ]
+    : [
+        { label: "商业项目", href: "/business-name", desc: "公司·品牌·店铺·项目" },
+        { label: "跨境电商英文起名", href: "/business-name/cross-border-en-name", desc: "易读易记无歧义·适合跨境" },
+        { label: "作品起名", href: "/work-name", desc: "文学作品·文章·影视剧" },
+        { label: "艺名笔名", href: "/stage-name", desc: "主播·演员·作家" },
+      ];
 
   // 语言菜单外部点击关闭
   useEffect(() => {
@@ -77,8 +94,6 @@ export default function Header() {
     // 不再导航到 /en/ 路由，只切换文本
   };
 
-  const isEn = locale === "en";
-
   const navItemStyle: React.CSSProperties = {
     position: "relative",
     display: "inline-flex",
@@ -114,6 +129,24 @@ export default function Header() {
     { label: isEn ? "Name Evaluation" : "好名测评", labelKey: "evaluate", href: "/evaluate/form" },
     { label: isEn ? "Blog" : "起名杂谈", labelKey: "blog", href: "/blog" },
   ];
+
+  // 子菜单面板样式（英文时更宽）
+  const submenuPanelStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "calc(100% + 4px)",
+    left: 0,
+    minWidth: isEn ? 260 : 180,
+    whiteSpace: "nowrap",
+    background: "rgba(255,255,255,0.98)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    borderRadius: 10,
+    boxShadow: "0 6px 24px rgba(74,52,40,0.12), 0 2px 6px rgba(74,52,40,0.06)",
+    border: "1px solid rgba(212,148,26,0.18)",
+    padding: "6px 0",
+    zIndex: 2000,
+    textAlign: "left" as const,
+  };
 
   return (
     <header
@@ -181,7 +214,7 @@ export default function Header() {
                   </Link>
                 )}
                 {item.submenu && openSubmenuKey === item.labelKey && (
-                  <div className="nav-submenu-panel" style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: "100%", background: "rgba(255,255,255,0.98)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 6px 24px rgba(74,52,40,0.12), 0 2px 6px rgba(74,52,40,0.06)", border: "1px solid rgba(212,148,26,0.18)", padding: "6px 0", zIndex: 2000, textAlign: "center" }}
+                  <div className="nav-submenu-panel" style={submenuPanelStyle}
                     onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={() => setOpenSubmenuKey(null)}>
                     {item.submenu.map((sub) => (
                       <Link key={sub.label} href={sub.href} onClick={() => setOpenSubmenuKey(null)}
@@ -355,9 +388,8 @@ export default function Header() {
               🏠 {isEn ? "Home" : "首页"}
             </Link>
 
-            {/* 人名起名 */}
+            {/* 子菜单（移动端用内联展开，已传入 isEn 后的数据） */}
             <MobileSubSection title={isEn ? "AI Naming" : "人名起名"} items={PERSONAL_SUBMENU} onClose={() => setMobileMenuOpen(false)} />
-            {/* 商业起名 */}
             <MobileSubSection title={isEn ? "Business Naming" : "商业起名"} items={BUSINESS_SUBMENU} onClose={() => setMobileMenuOpen(false)} />
 
             {navItems.slice(2).map((item) => (
