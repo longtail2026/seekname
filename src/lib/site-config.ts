@@ -4,6 +4,8 @@
  * - 默认关闭（免费模式）：所有名字全部显示
  * - 开启收费：前3个名字隐藏，第4个及以后免费展示
  * - 点击隐藏的名字弹出付费弹窗，提供付费(微信/支付宝/PayPal)或分享解锁
+ * 
+ * 注意：hiddenCount 固定为 3，不允许修改。
  */
 
 export interface SiteConfigData {
@@ -36,7 +38,7 @@ export async function fetchSiteConfig(): Promise<SiteConfigData> {
       return {
         paywallEnabled: data.paywallEnabled,
         paywallPrice: data.paywallPrice ?? DEFAULT_CONFIG.paywallPrice,
-        hiddenCount: data.hiddenCount ?? DEFAULT_CONFIG.hiddenCount,
+        hiddenCount: 3, // 固定为3
       };
     }
     // 兼容旧格式
@@ -55,7 +57,7 @@ export async function fetchSiteConfig(): Promise<SiteConfigData> {
  */
 export async function getServerSiteConfig(prisma: any): Promise<SiteConfigData> {
   try {
-    const keys = ['paywall_enabled', 'paywall_price', 'paywall_hidden_count'];
+    const keys = ['paywall_enabled', 'paywall_price'];
     const rows = await prisma.siteConfig.findMany({
       where: { key: { in: keys } },
     });
@@ -65,7 +67,7 @@ export async function getServerSiteConfig(prisma: any): Promise<SiteConfigData> 
     return {
       paywallEnabled: map['paywall_enabled'] === 'true',
       paywallPrice: parseFloat(map['paywall_price'] || String(DEFAULT_CONFIG.paywallPrice)),
-      hiddenCount: parseInt(map['paywall_hidden_count'] || String(DEFAULT_CONFIG.hiddenCount), 10),
+      hiddenCount: 3, // 固定为3
     };
   } catch {
     return DEFAULT_CONFIG;
@@ -74,9 +76,9 @@ export async function getServerSiteConfig(prisma: any): Promise<SiteConfigData> 
 
 /**
  * 判断指定排名的名字是否隐藏
- * 规则：开启收费时，排名 <= hiddenCount 的隐藏；未开启时全部显示
+ * 规则：开启收费时，排名 <= 3 的隐藏；未开启时全部显示
  */
 export function isHiddenRank(rank: number, config: SiteConfigData): boolean {
   if (!config.paywallEnabled) return false;
-  return rank <= config.hiddenCount;
+  return rank <= 3; // 固定前3个隐藏
 }

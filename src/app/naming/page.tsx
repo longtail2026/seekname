@@ -658,12 +658,12 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           </div>
         )}
 
-        {/* 名字列表 */}
+        {/* 名字列表：前3个隐藏(收费模式)/4+免费展示 */}
         <div className="space-y-4">
           {names.map((nameItem) => {
-            // 收费模式下：前 hiddenCount 个被锁定，其余免费展示
-            const isLocked = siteConfig 
-              ? isHiddenRank(nameItem.rank, siteConfig) && !unlocked 
+            // 收费模式下前3个锁定(rank 1-3)，第4个起免费展示
+            const isLocked = siteConfig?.paywallEnabled && !unlocked
+              ? isHiddenRank(nameItem.rank, siteConfig)
               : false;
 
             return (
@@ -853,60 +853,66 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
         )}
 
         {/* 选中的名字操作栏 - 仅当非锁定状态显示 */}
-        {names[selectedIdx] && (!isHiddenRank(names[selectedIdx].rank, siteConfig || { paywallEnabled: false, hiddenCount: 3, paywallPrice: 0 }) || unlocked) && (
-          <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-[#E5DDD3]">
-            <div className="text-center mb-4">
-              <div
-                className="text-4xl font-bold text-[#2C1810] mb-1"
-                style={{ fontFamily: "'Noto Serif SC', serif" }}
-              >
-                {names[selectedIdx]?.name}
+        {(() => {
+          const selectedName = names[selectedIdx];
+          if (!selectedName) return null;
+          const isNameHidden = siteConfig?.paywallEnabled && isHiddenRank(selectedName.rank, siteConfig);
+          if (isNameHidden && !unlocked) return null;
+          return (
+            <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-[#E5DDD3]">
+              <div className="text-center mb-4">
+                <div
+                  className="text-4xl font-bold text-[#2C1810] mb-1"
+                  style={{ fontFamily: "'Noto Serif SC', serif" }}
+                >
+                  {selectedName.name}
+                </div>
+                <div className="text-lg text-[#5C4A42]">{selectedName.pinyin}</div>
               </div>
-              <div className="text-lg text-[#5C4A42]">{names[selectedIdx]?.pinyin}</div>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => copyName(selectedName?.name || "")}
+                  className="flex items-center gap-2 px-5 py-2 bg-[#F5EDE0] text-[#4A3428] rounded-lg hover:bg-[#EDE5D0] transition-colors text-sm"
+                >
+                  {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "已复制" : "复制名字"}
+                </button>
+                <button
+                  onClick={downloadReport}
+                  className="flex items-center gap-2 px-5 py-2 bg-[#F5EDE0] text-[#4A3428] rounded-lg hover:bg-[#EDE5D0] transition-colors text-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  下载报告
+                </button>
+                <Link
+                  href={(() => {
+                    try {
+                      const n = names[selectedIdx];
+                      if (!n) return "#";
+                      const fullName = n.name;
+                      const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
+                      const data = stored ? btoa(encodeURIComponent(stored)) : "";
+                      return `/naming/${encodeURIComponent(fullName)}?surname=${encodeURIComponent(surname)}&gender=${encodeURIComponent(gender)}&birthDate=${encodeURIComponent(birthDate)}&data=${data}`;
+                    } catch {
+                      return "#";
+                    }
+                  })()}
+                  className="flex items-center gap-2 px-5 py-2 bg-[#C84A2A] text-white rounded-lg hover:bg-[#A83A1F] transition-colors text-sm"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  查看详情
+                </Link>
+                <button
+                  onClick={shareName}
+                  className="flex items-center gap-2 px-5 py-2 border border-[#E5DDD3] text-[#4A3428] rounded-lg hover:bg-[#F5EDE0] transition-colors text-sm"
+                >
+                  <Share2 className="w-4 h-4" />
+                  分享
+                </button>
+              </div>
             </div>
-            <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={() => copyName(names[selectedIdx]?.name || "")}
-                className="flex items-center gap-2 px-5 py-2 bg-[#F5EDE0] text-[#4A3428] rounded-lg hover:bg-[#EDE5D0] transition-colors text-sm"
-              >
-                {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                {copied ? "已复制" : "复制名字"}
-              </button>
-              <button
-                onClick={downloadReport}
-                className="flex items-center gap-2 px-5 py-2 bg-[#F5EDE0] text-[#4A3428] rounded-lg hover:bg-[#EDE5D0] transition-colors text-sm"
-              >
-                <Download className="w-4 h-4" />
-                下载报告
-              </button>
-              <Link
-                href={(() => {
-                  try {
-                    const n = names[selectedIdx];
-                    if (!n) return "#";
-                    const fullName = n.name;
-                    const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
-                    const data = stored ? btoa(encodeURIComponent(stored)) : "";
-                    return `/naming/${encodeURIComponent(fullName)}?surname=${encodeURIComponent(surname)}&gender=${encodeURIComponent(gender)}&birthDate=${encodeURIComponent(birthDate)}&data=${data}`;
-                  } catch {
-                    return "#";
-                  }
-                })()}
-                className="flex items-center gap-2 px-5 py-2 bg-[#C84A2A] text-white rounded-lg hover:bg-[#A83A1F] transition-colors text-sm"
-              >
-                <BookOpen className="w-4 h-4" />
-                查看详情
-              </Link>
-              <button
-                onClick={shareName}
-                className="flex items-center gap-2 px-5 py-2 border border-[#E5DDD3] text-[#4A3428] rounded-lg hover:bg-[#F5EDE0] transition-colors text-sm"
-              >
-                <Share2 className="w-4 h-4" />
-                分享
-              </button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 收费模式下显示解锁区域 */}
         {siteConfig?.paywallEnabled && !unlocked && names.length > 0 && (
@@ -916,10 +922,10 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
               className="text-xl font-bold text-[#2C1810] mb-2"
               style={{ fontFamily: "'Noto Serif SC', serif" }}
             >
-              解锁前{siteConfig.hiddenCount}个精品好名
+              解锁前3个精品好名
             </h3>
             <p className="text-[#5C4A42] mb-4">
-              第{siteConfig.hiddenCount + 1}名及以后的名字已免费展示，解锁后可查看完整名字、五行匹配度、典籍出处及用字建议
+              第4名及以后的名字已免费展示，解锁后可查看完整名字、五行匹配度、典籍出处及用字建议
             </p>
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="text-center">
