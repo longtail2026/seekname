@@ -61,7 +61,7 @@ export default function PaywallModal({
         // 如果有 posterUrl 直接用，否则用 layout 数据在前端 canvas 渲染
         // 这里用 layout 数据在 canvas 上生成海报
         if (data.posterLayout && !data.posterUrl) {
-          renderPosterFromLayout(data.posterLayout);
+          await renderPosterFromLayout(data.posterLayout);
         } else if (data.posterUrl) {
           setPosterUrl(data.posterUrl);
         }

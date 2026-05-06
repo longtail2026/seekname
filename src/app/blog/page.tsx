@@ -78,7 +78,7 @@ export default function BlogPage() {
           }} />
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ fontSize: 13, color: "#D4941A", letterSpacing: "0.2em", marginBottom: 10, fontFamily: "'Noto Serif SC', serif" }}>
-              ─── 起名杂谈 ───
+              ─── 起名百科 ───
             </div>
             <h1 style={{ fontSize: 36, fontWeight: 700, color: "#FFFCF7", margin: "0 0 12px", fontFamily: "'Noto Serif SC', serif" }}>
               起名知识博客 - 宝宝起名技巧·名字大全·命名文化

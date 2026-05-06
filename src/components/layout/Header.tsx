@@ -29,10 +29,10 @@ export default function Header() {
         { label: "Social Names", href: "/social-name", desc: "Online nicknames & handles" },
       ]
     : [
-        { label: "起名改名", href: "/rename", desc: "AI智能起名" },
-        { label: "英文起名", href: "/naming", desc: "英文名字" },
-        { label: "外国友人起中文名", href: "/foreigner-name", desc: "外国人中文名" },
-        { label: "社交网名", href: "/social-name", desc: "网名昵称" },
+        { label: "宝宝起名・成人改名", href: "/rename", desc: "AI智能起名" },
+        { label: "中国人起英文名", href: "/naming", desc: "定制英文名" },
+        { label: "外国人起中文名", href: "/foreigner-name", desc: "外国人中文名" },
+        { label: "社交网名・游戏ID", href: "/social-name", desc: "网名・游戏昵称" },
       ];
 
   const BUSINESS_SUBMENU = isEn
@@ -127,7 +127,7 @@ export default function Header() {
     },
     { label: isEn ? "Pet Naming" : "宠物起名", labelKey: "pet", href: "/pet" },
     { label: isEn ? "Name Evaluation" : "好名测评", labelKey: "evaluate", href: "/evaluate/form" },
-    { label: isEn ? "Blog" : "起名杂谈", labelKey: "blog", href: "/blog" },
+    { label: isEn ? "Naming Blog" : "起名百科", labelKey: "blog", href: "/blog" },
   ];
 
   // 子菜单面板样式（英文时更宽）
