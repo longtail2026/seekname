@@ -17,8 +17,8 @@ const nextConfig = {
   // 生产环境严格模式
   reactStrictMode: true,
 
-  // 导出行为
-  output: "standalone",
+  // Vercel 平台使用默认 serverless 模式，自托管 Docker 部署可启用 standalone
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
 };
 
 export default nextConfig;
