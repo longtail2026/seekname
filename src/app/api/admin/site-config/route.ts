@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { executeRaw } from "@/lib/prisma";
 
+// 💡 强制动态渲染，避免 Vercel Edge Network 将 PUT 请求缓为静态资源并拒绝非 GET 方法
+export const dynamic = "force-dynamic";
+
 // 收费配置的key列表（简化版：仅保留必要字段，hiddenCount固定为3不再配置）
 const PAYWALL_KEYS = [
   "paywall_enabled",
@@ -54,7 +57,7 @@ export async function GET() {
 /**
  * PUT /api/admin/site-config
  * 更新收费配置
- * 
+ *
  * ⚠️ 使用原生 SQL upsert 而非 Prisma model 操作，
  * 因为 @prisma/adapter-pg 在 Vercel Serverless 中对写操作支持不稳定，
  * 会导致 405 INVALID_REQUEST_METHOD 错误。
