@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getConfig, pickTopic, aiRewrite, publishPost } from "@/lib/auto-blog-core";
 
 // 获取自动发文配置
 export async function GET() {
@@ -92,35 +93,81 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// 手动触发一次爬取+改写
+// 手动触发一次完整的爬取+改写+发布
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
     const body = await req.json();
     const { keyword } = body;
+    const topicLabel = keyword || "起名";
 
-    // 记录开始
-    const log = await prisma.autoBlogLog.create({
-      data: {
-        sourceUrl: `manual:${keyword || "起名"}`,
-        sourceTitle: `手动触发-${keyword || "起名"}`,
-        status: "pending",
-      },
-    });
+    // 1. 获取配置
+    const config = await getConfig();
+    if (!config || !config.isEnabled) {
+      // 即使引擎关闭，手动触发也允许执行（但记录时注明）
+      console.log("[Manual] 引擎当前关闭，手动触发强制执行");
+    }
 
-    // 这里调用 DeepSeek 或外部爬虫进行抓取 + 改写
-    // TODO: 实际接入爬虫 + AI 改写逻辑
-    // 现在先模拟成功
-    await prisma.autoBlogLog.update({
-      where: { id: log.id },
+    // 2. 选话题（如果传了 keyword 则优先匹配）
+    const searchKeywords = keyword ? [keyword] : (config?.crawlKeywords || ["起名"]);
+    const topic = pickTopic(searchKeywords);
+    console.log(`[Manual] 话题: ${topic.title}`);
+
+    // 3. AI 改写
+    console.log("[Manual] AI 改写中...");
+    const rewritten = await aiRewrite(
+      topic.content,
+      config?.writingStyle || "formal",
+      config?.defaultCategory || "起名知识"
+    );
+    console.log(`[Manual] 改写完成: ${rewritten.title}`);
+
+    // 4. 发布文章
+    console.log("[Manual] 发布中...");
+    const post = await publishPost({
+      title: rewritten.title,
+      content: rewritten.content,
+      category: config?.defaultCategory || "起名知识",
+      keywords: rewritten.keywords || [],
+      sourceUrl: `manual:${topicLabel}`,
+    }, config?.requireReview !== false);
+
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    const postId = post.post?.id || post.id;
+    console.log(`[Manual] 发布成功! ID: ${postId}, 耗时: ${duration}s`);
+
+    // 5. 写日志（直接入库）
+    await prisma.autoBlogLog.create({
       data: {
+        sourceUrl: `manual:${topicLabel}`,
+        sourceTitle: `手动触发-${topicLabel}`,
         status: "success",
-        duration: 0,
+        duration,
+        postId: postId ? parseInt(String(postId), 10) : null,
       },
     });
 
-    return NextResponse.json({ success: true, logId: log.id, message: "任务已提交，正在后台执行（需接入爬虫+AI逻辑）" });
-  } catch (error) {
-    console.error("Auto blog trigger error:", error);
-    return NextResponse.json({ error: "触发失败" }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      postId,
+      title: rewritten.title,
+      message: `文章已成功发布（${config?.requireReview !== false ? "待审核" : "已发布"}）`,
+    });
+  } catch (error: any) {
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.error("[Manual] 触发失败:", error.message);
+
+    // 写失败日志
+    await prisma.autoBlogLog.create({
+      data: {
+        sourceUrl: "manual:error",
+        sourceTitle: "手动触发-失败",
+        status: "failed",
+        duration,
+        errorMsg: error.message,
+      },
+    }).catch(() => {});
+
+    return NextResponse.json({ error: `执行失败: ${error.message}` }, { status: 500 });
   }
 }
