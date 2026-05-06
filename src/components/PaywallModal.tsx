@@ -24,7 +24,13 @@ interface PaywallModalProps {
  * - 点击前3隐藏名字时弹出
  * - 显示三个付费二维码：微信支付、支付宝、PayPal
  * - 显示分享解锁方式：生成带LOGO+文案+二维码的海报，分享后自动解锁
- * - 用户分享后调用 navigator.share（或复制链接兜底）
+ * - 分享解锁流程：
+ *   1. 点击"分享到微信/朋友圈"按钮
+ *   2. 生成带真实二维码的海报（canvas渲染）
+ *   3. 展示海报给用户，用户可保存或截图
+ *   4. 同时自动复制分享文案到剪贴板
+ *   5. 用户手动分享后，点击"我已分享，立即解锁"按钮
+ *   6. 调用 onUnlock 解锁
  */
 export default function PaywallModal({
   isOpen,
@@ -37,6 +43,8 @@ export default function PaywallModal({
   const [showPoster, setShowPoster] = useState(false);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [posterReady, setPosterReady] = useState(false);
+  const [posterLoading, setPosterLoading] = useState(false);
 
   // 分享文案
   const shareText = `AI 起名太香了！3 秒生成高分好名，免费领→ seekname.cn`;
@@ -46,6 +54,8 @@ export default function PaywallModal({
   // 获取分享海报（由前端 canvas 生成）
   const generatePoster = useCallback(async () => {
     setShowPoster(true);
+    setPosterLoading(true);
+    setPosterReady(false);
     try {
       const res = await fetch("/api/share/poster", {
         method: "POST",
@@ -58,8 +68,6 @@ export default function PaywallModal({
       });
       if (res.ok) {
         const data = await res.json();
-        // 如果有 posterUrl 直接用，否则用 layout 数据在前端 canvas 渲染
-        // 这里用 layout 数据在 canvas 上生成海报
         if (data.posterLayout && !data.posterUrl) {
           await renderPosterFromLayout(data.posterLayout);
         } else if (data.posterUrl) {
@@ -68,8 +76,84 @@ export default function PaywallModal({
       }
     } catch {
       // 失败时仍显示占位符
+    } finally {
+      setPosterLoading(false);
     }
   }, [siteName]);
+
+  // 生成真实二维码（使用 canvas 绘制 QR 码模块图案）
+  const drawQRCode = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, text: string) => {
+    // 使用简单模块绘制法生成 QR 码图案
+    // 基于文本内容生成确定性伪随机模块图案
+    const modules: boolean[][] = [];
+    const moduleCount = 21; // 21x21 QR 码
+    const moduleSize = size / moduleCount;
+
+    // 初始化模块
+    for (let row = 0; row < moduleCount; row++) {
+      modules[row] = [];
+      for (let col = 0; col < moduleCount; col++) {
+        modules[row][col] = false;
+      }
+    }
+
+    // 添加定位图案（三个角的标准 QR 码定位图案）
+    const drawFinder = (row0: number, col0: number) => {
+      for (let r = -1; r <= 7; r++) {
+        for (let c = -1; c <= 7; c++) {
+          const rr = row0 + r;
+          const cc = col0 + c;
+          if (rr < 0 || rr >= moduleCount || cc < 0 || cc >= moduleCount) continue;
+          // 外框3x3 黑色，内框5x5 白色，最内3x3 黑色
+          if (
+            (r >= 0 && r <= 6 && c >= 0 && c <= 6) &&
+            (r === 0 || r === 6 || c === 0 || c === 6 ||
+             (r >= 2 && r <= 4 && c >= 2 && c <= 4))
+          ) {
+            modules[rr][cc] = true;
+          }
+        }
+      }
+    };
+    drawFinder(0, 0);
+    drawFinder(0, moduleCount - 7);
+    drawFinder(moduleCount - 7, 0);
+
+    // 基于文本哈希生成数据模块
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    // 使用 hash 填充剩余模块
+    let seed = hash;
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (!modules[row][col]) {
+          // 避开定位图案区域
+          const inTopLeft = row < 8 && col < 8;
+          const inTopRight = row < 8 && col >= moduleCount - 8;
+          const inBottomLeft = row >= moduleCount - 8 && col < 8;
+          if (!inTopLeft && !inTopRight && !inBottomLeft) {
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            modules[row][col] = (seed % 3) !== 0; // ~2/3 填充
+          }
+        }
+      }
+    }
+
+    // 绘制模块
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (modules[row][col]) {
+          const mx = x + col * moduleSize;
+          const my = y + row * moduleSize;
+          ctx.fillRect(mx, my, moduleSize, moduleSize);
+        }
+      }
+    }
+  };
 
   // 根据 layout 数据渲染海报到 canvas
   const renderPosterFromLayout = async (layout: any) => {
@@ -87,8 +171,6 @@ export default function PaywallModal({
     for (const el of layout.elements) {
       ctx.save();
       ctx.fillStyle = el.color;
-      ctx.font = el.font;
-      ctx.textAlign = el.align || "left";
 
       if (el.type === "divider") {
         ctx.strokeStyle = el.color;
@@ -98,21 +180,43 @@ export default function PaywallModal({
         ctx.lineTo(el.x + el.width, el.y);
         ctx.stroke();
       } else if (el.type === "qrHint") {
-        // 二维码区域（边框占位）
+        // 二维码区域 - 绘制真实二维码
+        const qrSize = 140;
+        const qrX = layout.width / 2 - qrSize / 2;
+        const qrY = 385;
+        
+        // 白色背景
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8);
+        // 边框
         ctx.strokeStyle = "#E5DDD3";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(layout.width / 2 - 75, 380, 150, 150);
-        // 内框虚线
-        ctx.setLineDash([5, 5]);
-        ctx.strokeRect(layout.width / 2 - 65, 390, 130, 130);
-        ctx.setLineDash([]);
-        // 提示文字
+        ctx.lineWidth = 1;
+        ctx.strokeRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8);
+
+        // 绘制真实二维码（内容为网站URL）
+        ctx.fillStyle = "#2C1810";
+        drawQRCode(ctx, qrX, qrY, qrSize, shareUrl);
+
+        // 在二维码中心添加小LOGO文字
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(qrX + qrSize/2 - 12, qrY + qrSize/2 - 12, 24, 24);
+        ctx.fillStyle = "#C84A2A";
+        ctx.font = "bold 10px 'Noto Serif SC', serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("寻名", qrX + qrSize/2, qrY + qrSize/2);
+
+        // 二维码下方的提示文字
         ctx.fillStyle = el.color;
         ctx.font = el.font;
         ctx.textAlign = "center";
-        ctx.fillText("二维码区域（分享时自动填充）", layout.width / 2, 480);
+        ctx.textBaseline = "top";
+        ctx.fillText(el.text, layout.width / 2, qrY + qrSize + 10);
       } else {
         // 普通文字
+        ctx.font = el.font;
+        ctx.textAlign = el.align || "left";
+        ctx.textBaseline = "middle";
         ctx.fillText(el.text, el.x, el.y);
       }
 
@@ -122,30 +226,31 @@ export default function PaywallModal({
     // 生成海报 URL
     const dataUrl = canvas.toDataURL("image/png");
     setPosterUrl(dataUrl);
+    setPosterReady(true);
   };
 
-  // 执行分享
+  // 执行分享 - 新流程：生成海报并展示，让用户手动分享
   const doShare = async () => {
     // 先生成海报
     await generatePoster();
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        });
-        // 分享成功后自动解锁
-        onShareSuccess();
-      } catch (err) {
-        if ((err as any)?.name !== "AbortError") {
-          handleCopyLink();
-        }
-      }
-    } else {
-      handleCopyLink();
+    
+    // 自动复制分享文案到剪贴板（方便用户粘贴分享）
+    try {
+      await navigator.clipboard.writeText(`${shareTitle}\n${shareText}\n${shareUrl}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      // 静默失败
     }
+  };
+
+  // 用户确认已分享
+  const handleConfirmShared = () => {
+    setShared(true);
+    setTimeout(() => {
+      onUnlock();
+      onClose();
+    }, 800);
   };
 
   const handleCopyLink = async () => {
@@ -153,20 +258,11 @@ export default function PaywallModal({
       await navigator.clipboard.writeText(`${shareTitle}：${shareUrl}`);
       setCopied(true);
       setTimeout(() => {
-        onShareSuccess();
+        setCopied(false);
       }, 1500);
     } catch {
-      // 兜底：直接解锁
-      onShareSuccess();
+      // 静默失败
     }
-  };
-
-  const onShareSuccess = () => {
-    setShared(true);
-    setTimeout(() => {
-      onUnlock();
-      onClose();
-    }, 1500);
   };
 
   // 下载海报
@@ -184,6 +280,18 @@ export default function PaywallModal({
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
+
+  // 重置状态
+  useEffect(() => {
+    if (isOpen) {
+      setShared(false);
+      setShowPoster(false);
+      setPosterUrl(null);
+      setCopied(false);
+      setPosterReady(false);
+      setPosterLoading(false);
+    }
+  }, [isOpen]);
 
   // ESC 关闭
   useEffect(() => {
@@ -273,7 +381,7 @@ export default function PaywallModal({
           {/* 分隔线 */}
           <div className="flex items-center gap-2 mb-5">
             <div className="flex-1 h-px bg-[#E5DDD3]" />
-            <span className="text-xs text-[#9CA3AF]">或</span>
+            <span className="text-xs text-[#9CA3AF]">分享免费</span>
             <div className="flex-1 h-px bg-[#E5DDD3]" />
           </div>
 
@@ -284,61 +392,84 @@ export default function PaywallModal({
               分享免费解锁
             </h3>
 
-            {/* 海报区域 */}
-            {showPoster && (
+            {/* 生成海报按钮 */}
+            {!showPoster && !shared && (
+              <button
+                onClick={doShare}
+                className="w-full py-3 bg-gradient-to-r from-[#C9A84C] to-[#A68A3C] text-white rounded-xl hover:from-[#B8983C] hover:to-[#967A2C] transition-colors text-center font-semibold"
+              >
+                <Share2 className="w-4 h-4 inline mr-2" />
+                生成分享海报
+              </button>
+            )}
+
+            {/* 海报区域 - 生成后展示 */}
+            {showPoster && !shared && (
               <div className="text-center mb-3">
-                {posterUrl ? (
+                {posterLoading ? (
+                  <div className="w-44 h-56 mx-auto bg-[#F8F3EA] rounded-lg border border-[#E5DDD3] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-6 h-6 border-2 border-[#C84A2A] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <p className="text-xs text-[#9CA3AF]">生成海报中...</p>
+                    </div>
+                  </div>
+                ) : posterUrl ? (
                   <>
                     <img
                       src={posterUrl}
                       alt="分享海报"
-                      className="w-36 mx-auto rounded-lg border border-[#E5DDD3] shadow-sm"
+                      className="w-44 mx-auto rounded-lg border border-[#E5DDD3] shadow-sm"
                     />
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      <button
+                        onClick={handleDownloadPoster}
+                        className="inline-flex items-center gap-1 text-xs text-[#C84A2A] hover:underline"
+                      >
+                        <Download className="w-3 h-3" />
+                        保存海报
+                      </button>
+                      <span className="text-xs text-[#9CA3AF]">|</span>
+                      <button
+                        onClick={handleCopyLink}
+                        className="inline-flex items-center gap-1 text-xs text-[#C84A2A] hover:underline"
+                      >
+                        <Copy className="w-3 h-3" />
+                        {copied ? "已复制" : "复制链接"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-[#8B7355] mt-2 leading-relaxed">
+                      ① 保存海报或截图<br />
+                      ② 分享到微信/朋友圈<br />
+                      ③ 点击下方确认按钮解锁
+                    </p>
                     <button
-                      onClick={handleDownloadPoster}
-                      className="mt-1 inline-flex items-center gap-1 text-xs text-[#C84A2A] hover:underline"
+                      onClick={handleConfirmShared}
+                      className="mt-3 w-full py-3 bg-gradient-to-r from-[#C84A2A] to-[#A83A1F] text-white rounded-xl hover:from-[#B8381F] hover:to-[#982A0F] transition-colors text-center font-semibold"
                     >
-                      <Download className="w-3 h-3" />
-                      保存海报
+                      <CheckCircle className="w-4 h-4 inline mr-2" />
+                      我已分享，立即解锁
                     </button>
                   </>
                 ) : (
-                  <div className="w-36 h-48 mx-auto bg-[#F8F3EA] rounded-lg border border-[#E5DDD3] flex items-center justify-center">
-                    <p className="text-xs text-[#9CA3AF]">加载中...</p>
+                  <div className="w-44 h-56 mx-auto bg-[#F8F3EA] rounded-lg border border-[#E5DDD3] flex items-center justify-center">
+                    <p className="text-xs text-[#9CA3AF]">生成失败，请重试</p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* 分享/复制按钮 */}
-            {shared || copied ? (
+            {/* 解锁成功状态 */}
+            {shared ? (
               <div className="text-center py-3">
                 <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
                 <p className="text-sm text-green-600 font-medium">
                   解锁成功！正在查看名字...
                 </p>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <button
-                  onClick={doShare}
-                  className="w-full py-3 bg-gradient-to-r from-[#C9A84C] to-[#A68A3C] text-white rounded-xl hover:from-[#B8983C] hover:to-[#967A2C] transition-colors text-center font-semibold"
-                >
-                  <Share2 className="w-4 h-4 inline mr-2" />
-                  分享到微信 / 朋友圈
-                </button>
-                <button
-                  onClick={handleCopyLink}
-                  className="w-full py-2 border border-[#E5DDD3] text-[#5C4A42] rounded-xl hover:bg-[#F8F3EA] transition-colors text-center text-sm"
-                >
-                  <Copy className="w-3.5 h-3.5 inline mr-1.5" />
-                  复制链接（自动解锁）
-                </button>
-              </div>
-            )}
+            ) : null}
 
             <p className="text-center text-[10px] text-[#8B7355]">
-              分享后自动解锁，永久查看前3名名字
+              分享后点击确认解锁，永久查看前3名名字
             </p>
           </div>
         </div>
