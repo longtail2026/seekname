@@ -1,84 +1,132 @@
 /**
  * 站点配置工具
- * 最终收费模式：
- * - 默认关闭（免费模式）：所有名字全部显示
- * - 开启收费：前3个名字隐藏，第4个及以后免费展示
- * - 点击隐藏的名字弹出付费弹窗，提供付费(微信/支付宝/PayPal)或分享解锁
- * 
- * 注意：hiddenCount 固定为 3，不允许修改。
+ * 支持全局收费开关 + 按项目类别的差异化定价
  */
 
-export interface SiteConfigData {
-  /** 收费开关 (默认false=免费模式) */
-  paywallEnabled: boolean;
-  /** 单次付费价格 (元) */
-  paywallPrice: number;
-  /** 前N个名字隐藏 (固定为3) */
-  hiddenCount: number;
-}
-
-// 默认配置
-const DEFAULT_CONFIG: SiteConfigData = {
-  paywallEnabled: false,
-  paywallPrice: 9.9,
-  hiddenCount: 3,
+/**
+ * 所有可定价的项目分类（与起名页面的 category 映射）
+ *
+ * key 说明：
+ *   personal        - 宝宝起名 / 成人改名
+ *   rename          - 改名（复用 personal 价格）
+ *   company_name    - 公司・品牌・店铺起名
+ *   brand           - 品牌起名（复用 company_name 价格）
+ *   shop            - 店铺起名（复用 company_name 价格）
+ *   cross_border_en - 跨境电商品牌英文名
+ *   foreigner_name  - 外国人起中文名
+ *   chinese_en_name - 中国人起英文名
+ *   social_name     - 社交网名 / 游戏ID
+ *   work_name       - 艺名・笔名・主播名
+ *   stage_name      - 艺名（复用 work_name 价格）
+ *   pet             - 宠物起名
+ *   literary_work   - 文艺作品起名
+ *   evaluate        - 好名测试（打分）
+ */
+export const CATEGORY_PRICING: Record<string, { label: string; defaultPrice: number; range?: string }> = {
+  personal:         { label: "宝宝起名・成人改名",    defaultPrice: 39 },
+  company_name:     { label: "公司・品牌・店铺起名",  defaultPrice: 59,  range: "59–99" },
+  brand:            { label: "品牌起名",               defaultPrice: 59,  range: "59–99" },
+  shop:             { label: "店铺起名",               defaultPrice: 59,  range: "59–99" },
+  cross_border_en:  { label: "跨境电商品牌英文名",     defaultPrice: 69,  range: "69–99" },
+  foreigner_name:   { label: "外国人起中文名",         defaultPrice: 29 },
+  chinese_en_name:  { label: "中国人起英文名",         defaultPrice: 19 },
+  social_name:      { label: "社交网名・游戏ID",       defaultPrice: 9.9 },
+  work_name:        { label: "艺名・笔名・主播名",     defaultPrice: 39 },
+  stage_name:       { label: "艺名",                   defaultPrice: 39 },
+  pet:              { label: "宠物起名",               defaultPrice: 9.9 },
+  literary_work:    { label: "文艺作品起名",            defaultPrice: 39 },
+  evaluate:         { label: "好名测试（打分）",        defaultPrice: 9.9 },
 };
 
+// 从 category 获取对应的 pricing key（有些类别共享定价）
+const CATEGORY_TO_PRICING_KEY: Record<string, string> = {
+  personal:        "personal",
+  rename:          "personal",       // 改名复用个人起名价格
+  company:         "company_name",   // 旧版 company → company_name
+  brand:           "company_name",
+  shop:            "company_name",
+  cross_border_en: "cross_border_en",
+  foreigner_name:  "foreigner_name",
+  chinese_en_name: "chinese_en_name",
+  social_name:     "social_name",
+  work_name:       "work_name",
+  stage_name:      "work_name",      // 艺名复用 work_name 价格
+  pet:             "pet",
+  literary_work:   "literary_work",
+  evaluate:        "evaluate",
+};
+
+/** 数据库 site_config 表中存储价格的 key 前缀 */
+const PRICE_KEY_PREFIX = "price_";
+
+/** 获取指定定价 key 对应的数据库配置 key */
+export function getPriceConfigKey(pricingKey: string): string {
+  return `${PRICE_KEY_PREFIX}${pricingKey}`;
+}
+
 /**
- * 从服务器获取收费配置（客户端用）
+ * 根据 category 获取该项目的定价 key（用于数据库查找）
+ */
+export function getPricingKeyByCategory(category: string): string {
+  return CATEGORY_TO_PRICING_KEY[category] || "personal";
+}
+
+/**
+ * 获取站点配置数据类型
+ */
+export interface SiteConfigData {
+  paywallEnabled: boolean;
+  paywallPrice: number; // 兼容旧版：默认后备价格
+  categoryPrices: Record<string, number>; // key 为 pricing key, value 为价格
+}
+
+/**
+ * 设置所有定价 keys 列表（用于统一查询数据库）
+ */
+export function getAllPriceConfigKeys(): string[] {
+  const pricingKeys = new Set(Object.values(CATEGORY_TO_PRICING_KEY));
+  return [...pricingKeys].map(getPriceConfigKey);
+}
+
+/**
+ * 从站点配置获取指定 category 的价格
+ */
+export function getCategoryPrice(config: SiteConfigData, category: string): number {
+  const pricingKey = getPricingKeyByCategory(category);
+  const price = config.categoryPrices[pricingKey];
+  if (price !== undefined && price > 0) return price;
+  // 兜底：使用该定价 key 的默认价格
+  return CATEGORY_PRICING[pricingKey]?.defaultPrice ?? config.paywallPrice;
+}
+
+/**
+ * 检查某个排名是否在收费隐藏范围内
+ * 当前逻辑：前 3 个名字隐藏（rank 1-3）
+ */
+export function isHiddenRank(rank: number, _config?: SiteConfigData): boolean {
+  return rank <= 3;
+}
+
+/**
+ * 从后端 API 获取站点配置
  */
 export async function fetchSiteConfig(): Promise<SiteConfigData> {
   try {
-    const res = await fetch('/api/admin/site-config', {
-      cache: 'no-store',
-    });
-    if (!res.ok) throw new Error('Failed to fetch config');
-    const data = await res.json();
-    if (data.paywallEnabled !== undefined) {
+    const res = await fetch("/api/admin/site-config");
+    if (res.ok) {
+      const data = await res.json();
       return {
-        paywallEnabled: data.paywallEnabled,
-        paywallPrice: data.paywallPrice ?? DEFAULT_CONFIG.paywallPrice,
-        hiddenCount: 3, // 固定为3
+        paywallEnabled: data.paywallEnabled ?? false,
+        paywallPrice: data.paywallPrice ?? 9.9,
+        categoryPrices: data.categoryPrices ?? {},
       };
     }
-    // 兼容旧格式
-    const paywallKey = data.find?.((d: any) => d.key === 'paywall_enabled');
-    return {
-      ...DEFAULT_CONFIG,
-      paywallEnabled: paywallKey?.value === 'true',
-    };
   } catch {
-    return DEFAULT_CONFIG;
+    // 静默失败
   }
-}
-
-/**
- * 服务端获取配置（直接读数据库）
- */
-export async function getServerSiteConfig(prisma: any): Promise<SiteConfigData> {
-  try {
-    const keys = ['paywall_enabled', 'paywall_price'];
-    const rows = await prisma.siteConfig.findMany({
-      where: { key: { in: keys } },
-    });
-    const map: Record<string, string> = {};
-    rows.forEach((r: any) => { map[r.key] = r.value; });
-
-    return {
-      paywallEnabled: map['paywall_enabled'] === 'true',
-      paywallPrice: parseFloat(map['paywall_price'] || String(DEFAULT_CONFIG.paywallPrice)),
-      hiddenCount: 3, // 固定为3
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
-}
-
-/**
- * 判断指定排名的名字是否隐藏
- * 规则：开启收费时，排名 <= 3 的隐藏；未开启时全部显示
- */
-export function isHiddenRank(rank: number, config: SiteConfigData): boolean {
-  if (!config.paywallEnabled) return false;
-  return rank <= 3; // 固定前3个隐藏
+  return {
+    paywallEnabled: false,
+    paywallPrice: 9.9,
+    categoryPrices: {},
+  };
 }

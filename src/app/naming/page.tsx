@@ -14,7 +14,7 @@ import {
   Flame, Droplets, Mountain, Wind, Loader2, RefreshCw,
   CheckCircle, Copy, Share2, Download
 } from "lucide-react";
-import { fetchSiteConfig, isHiddenRank, SiteConfigData } from "@/lib/site-config";
+import { fetchSiteConfig, isHiddenRank, SiteConfigData, getCategoryPrice } from "@/lib/site-config";
 import PaywallModal from "@/components/PaywallModal";
 
 // 五行图标映射
@@ -929,7 +929,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
             </p>
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-[#C84A2A]">¥{siteConfig.paywallPrice}</div>
+                <div className="text-2xl font-bold text-[#C84A2A]">¥{getCategoryPrice(siteConfig, category)}</div>
               </div>
               <div className="w-px h-12 bg-[#E5DDD3]" />
               <div className="text-sm text-[#5C4A42]">
@@ -967,16 +967,16 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
         )}
       </main>
 
-      {/* 付费弹窗 */}
-      {siteConfig && (
-        <PaywallModal
-          isOpen={showPaywallModal}
-          onClose={() => setShowPaywallModal(false)}
-          onUnlock={handleUnlock}
-          price={siteConfig.paywallPrice}
-          siteName="寻名网"
-        />
-      )}
+        {/* 付费弹窗 - 按项目类别显示对应价格 */}
+        {siteConfig && (
+          <PaywallModal
+            isOpen={showPaywallModal}
+            onClose={() => setShowPaywallModal(false)}
+            onUnlock={handleUnlock}
+            price={getCategoryPrice(siteConfig, category)}
+            siteName="寻名网"
+          />
+        )}
     </div>
   );
 }

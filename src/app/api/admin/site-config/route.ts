@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { executeRaw } from "@/lib/prisma";
+import { CATEGORY_PRICING, getAllPriceConfigKeys, getPriceConfigKey } from "@/lib/site-config";
 
 // 💡 强制动态渲染，避免 Vercel Edge Network 将 PUT 请求缓为静态资源并拒绝非 GET 方法
 export const dynamic = "force-dynamic";
 
-// 收费配置的key列表（简化版：仅保留必要字段，hiddenCount固定为3不再配置）
-const PAYWALL_KEYS = [
+// 所有配置 key（收费开关 + 所有项目定价）
+const CONFIG_KEYS = [
   "paywall_enabled",
-  "paywall_price",
+  ...getAllPriceConfigKeys(),
 ];
 
 // 默认值
 const DEFAULTS: Record<string, string> = {
   paywall_enabled: "false",
-  paywall_price: "9.9",
+  ...Object.fromEntries(
+    Object.entries(CATEGORY_PRICING).map(([key, val]) => [
+      getPriceConfigKey(key),
+      String(val.defaultPrice),
+    ])
+  ),
 };
 
 /**
@@ -38,16 +44,34 @@ async function getConfigRaw(keys: string[]): Promise<Record<string, string>> {
 }
 
 /**
+ * 从原始配置构建响应数据
+ */
+function buildResponse(config: Record<string, string>) {
+  // 收集所有 categoryPrices
+  const categoryPrices: Record<string, number> = {};
+  for (const key of Object.keys(CATEGORY_PRICING)) {
+    const configKey = getPriceConfigKey(key);
+    const val = parseFloat(config[configKey]);
+    if (!isNaN(val) && val > 0) {
+      categoryPrices[key] = val;
+    }
+  }
+
+  return {
+    paywallEnabled: config.paywall_enabled === "true",
+    paywallPrice: parseFloat(config[getPriceConfigKey("personal")]) || 9.9, // 兼容旧版
+    categoryPrices,
+  };
+}
+
+/**
  * GET /api/admin/site-config
- * 读取收费配置
+ * 读取收费配置（含分类定价）
  */
 export async function GET() {
   try {
-    const config = await getConfigRaw(PAYWALL_KEYS);
-    return NextResponse.json({
-      paywallEnabled: config.paywall_enabled === "true",
-      paywallPrice: parseFloat(config.paywall_price),
-    });
+    const config = await getConfigRaw(CONFIG_KEYS);
+    return NextResponse.json(buildResponse(config));
   } catch (error: any) {
     console.error("Failed to fetch site config:", error);
     return NextResponse.json({ error: "获取配置失败" }, { status: 500 });
@@ -56,7 +80,7 @@ export async function GET() {
 
 /**
  * PUT /api/admin/site-config
- * 更新收费配置
+ * 更新收费配置（含分类定价）
  *
  * ⚠️ 使用原生 SQL upsert 而非 Prisma model 操作，
  * 因为 @prisma/adapter-pg 在 Vercel Serverless 中对写操作支持不稳定，
@@ -70,8 +94,18 @@ export async function PUT(request: NextRequest) {
     if (typeof body.paywallEnabled === "boolean") {
       updates.paywall_enabled = String(body.paywallEnabled);
     }
-    if (body.paywallPrice !== undefined) {
-      updates.paywall_price = String(body.paywallPrice);
+
+    // 分类定价：传入 categoryPrices 对象 { "personal": 39, "company_name": 59, ... }
+    if (body.categoryPrices && typeof body.categoryPrices === "object") {
+      for (const [key, price] of Object.entries(body.categoryPrices)) {
+        const configKey = getPriceConfigKey(key);
+        updates[configKey] = String(price);
+      }
+    }
+
+    // 兼容旧版：单独传入 paywallPrice 时更新 personal 价格
+    if (body.paywallPrice !== undefined && !body.categoryPrices) {
+      updates[getPriceConfigKey("personal")] = String(body.paywallPrice);
     }
 
     // 逐条 upsert — 使用原生 SQL 避免 adapter 写操作问题
@@ -86,11 +120,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // 返回更新后的完整配置
-    const config = await getConfigRaw(PAYWALL_KEYS);
-    return NextResponse.json({
-      paywallEnabled: config.paywall_enabled === "true",
-      paywallPrice: parseFloat(config.paywall_price),
-    });
+    const config = await getConfigRaw(CONFIG_KEYS);
+    return NextResponse.json(buildResponse(config));
   } catch (error) {
     console.error("Failed to update site config:", error);
     return NextResponse.json({ error: "更新配置失败" }, { status: 500 });
