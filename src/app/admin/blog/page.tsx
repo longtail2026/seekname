@@ -202,6 +202,20 @@ export default function AdminBlogPage() {
                         }
                         setShowEditor(true);
                       }} style={btnStyle}>编辑</button>
+                      {post.status === "draft" && (
+                        <button onClick={async () => {
+                          try {
+                            await fetch("/api/admin/posts", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: post.id, status: "published" }),
+                            });
+                            fetchPosts();
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }} style={{ ...btnStyle, background: "#52c41a", color: "#fff", border: "1px solid #52c41a" }}>发布</button>
+                      )}
                       <button onClick={() => handlePin(post.id, post.isPinned)} style={btnStyle}>{post.isPinned ? "取消置顶" : "置顶"}</button>
                       <button onClick={() => handleDelete(post.id)} style={{ ...btnStyle, color: "#ff4d4f" }}>删除</button>
                     </div>
