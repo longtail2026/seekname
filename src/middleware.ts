@@ -35,13 +35,8 @@ export function middleware(request: NextRequest) {
     detectedLocale = parseAcceptLanguage(acceptLanguage);
   }
 
-  // 默认语言不重定向（SEO 友好）
-  if (detectedLocale !== defaultLocale) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/${detectedLocale}${pathname}`;
-    return NextResponse.redirect(url);
-  }
-
+  // 🔧 不再重定向到 /en/ 路由 —— 所有语言切换均为纯前端实现
+  // 语言切换由 React LocaleContext + cookie 控制，无需路由跳转
   return NextResponse.next();
 }
 

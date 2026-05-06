@@ -89,7 +89,7 @@ export default function JsonLd() {
     itemListOrder: "http://schema.org/ItemListOrderDescending",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "AI宝宝起名", url: "https://seekname.cn/personal" },
-      { "@type": "ListItem", position: 2, name: "AI英文名生成", url: "https://seekname.cn/en/choose-name" },
+      { "@type": "ListItem", position: 2, name: "AI英文名生成", url: "https://seekname.cn/naming" },
       { "@type": "ListItem", position: 3, name: "AI公司起名", url: "https://seekname.cn/company" },
       { "@type": "ListItem", position: 4, name: "AI品牌起名", url: "https://seekname.cn/brand" },
       { "@type": "ListItem", position: 5, name: "AI店铺起名", url: "https://seekname.cn/shop" },

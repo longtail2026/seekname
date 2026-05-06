@@ -79,14 +79,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
 
-    // 英文名工具
-    {
-      url: `${baseUrl}/en/choose-name`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.9,
-    },
-
     // 职场/艺名/社交
     {
       url: `${baseUrl}/work-name`,

@@ -8,6 +8,7 @@ import { LocaleProvider } from "@/contexts/LocaleContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import PWAProvider from "@/components/PWAProvider";
 import JsonLd from "@/components/JsonLd";
+import Script from "next/script";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -87,6 +88,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className={inter.variable}>
+      <head>
+        {/* 纯前端 i18n —— 通过 data-i18n 属性翻译，无路由跳转 */}
+        <Script
+          src="/js/i18n.js"
+          strategy="afterInteractive"
+        />
+      </head>
       <body className="min-h-screen tiled-bg text-gray-900 antialiased">
         <ThemeProvider>
           <AuthProvider>

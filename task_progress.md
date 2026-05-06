@@ -1,32 +1,8 @@
-# SeekName 后台管理系统 - 开发任务清单
+# i18n 中英文切换功能实施计划
 
-## 阶段1：Prisma Schema 更新（新增模型）
-- [ ] 添加 AdminUser 管理用户表（扩展 User 模型加 role）
-- [ ] 添加 NavigationItem 导航菜单表
-- [ ] 添加 AutoBlogConfig 自动发文配置表
-- [ ] 添加 AutoBlogLog 自动发文日志表
-- [ ] 更新 BlogPost 添加 category、isPinned、coverImage 字段
-- [ ] 更新 BlogComment 添加 status 字段
-- [ ] 添加 NamingRecordType 起名记录分类
+- [x] 分析当前 i18n 实现的问题
+- [x] **Header.lang: 移除语言切换时的路由导航，只切换 locale**
+- [ ] 创建中间件将所有 /en/* 路径重定向到对应的中文路径
+- [ ] 构建并验证
 
-## 阶段2：Admin API 路由
-- [ ] Admin 登录/认证 API
-- [ ] Dashboard 统计数据 API
-- [ ] 用户管理 CRUD API
-- [ ] 起名记录管理 API
-- [ ] 博客管理 CRUD API
-- [ ] 评论管理 API
-- [ ] 导航管理 CRUD API
-- [ ] 自动发文配置/日志 API
-
-## 阶段3：Admin 前端页面
-- [ ] Admin 布局（侧边栏 + 顶栏）
-- [ ] Admin 登录页面
-- [ ] Dashboard 控制台页面
-- [ ] 用户管理页面
-- [ ] 起名记录管理页面
-- [ ] 博客管理页面（含富文本编辑器）
-- [ ] 评论管理页面
-- [ ] 导航管理页面（拖拽排序）
-- [ ] 自动发文配置页面
-- [ ] 权限管理页面
+**核心思路**: 切换语言时 **不跳转路由**，只通过 `setLocale()` 切换文本。页面样式始终使用现代的 `src/app/page.tsx`。
