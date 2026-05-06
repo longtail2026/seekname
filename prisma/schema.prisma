@@ -432,7 +432,19 @@ model AutoBlogConfig {
   @@map("auto_blog_config")
 }
 
-// ─── 17. 自动发文日志表 ──────────────────────────────────────────────────────
+// ─── 17. 站点配置表（收费开关等）─────────────────────────────────────────────
+model SiteConfig {
+  id    Int    @id @default(autoincrement())
+  key   String @unique @db.VarChar(100)
+  value String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_config")
+}
+
+// ─── 18. 自动发文日志表 ──────────────────────────────────────────────────────
 model AutoBlogLog {
   id          Int     @id @default(autoincrement())
   sourceUrl   String  @map("source_url") @db.VarChar(1000)

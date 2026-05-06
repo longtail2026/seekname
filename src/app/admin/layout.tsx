@@ -18,6 +18,7 @@ const menuItems: MenuItem[] = [
   { label: "起名记录", key: "naming-records", icon: "📝", href: "/admin/naming-records" },
   { label: "博客管理", key: "blog", icon: "📰", href: "/admin/blog" },
   { label: "评论管理", key: "comments", icon: "💬", href: "/admin/comments" },
+  { label: "收费设置", key: "paywall", icon: "💰", href: "/admin/paywall" },
   {
     label: "网站设置",
     key: "settings",

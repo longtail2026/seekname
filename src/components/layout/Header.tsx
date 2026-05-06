@@ -259,8 +259,7 @@ export default function Header() {
               onClick={() => setLangMenuOpen(!langMenuOpen)}
               style={{ ...navItemStyle, fontSize: 12, padding: "5px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, border: langMenuOpen ? "1px solid rgba(232,106,23,0.4)" : "1px solid #DDD0C0", background: langMenuOpen ? "rgba(232,106,23,0.06)" : "#FFF" }}
             >
-              <span style={{ fontSize: 14 }}>🌐</span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: "#4A3428" }}>{isEn ? "EN" : "中"}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#4A3428", letterSpacing: "0.02em" }}>中/EN</span>
             </button>
             {langMenuOpen && (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "rgba(255,255,255,0.98)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 10, boxShadow: "0 8px 32px rgba(74,52,40,0.15), 0 2px 8px rgba(74,52,40,0.08)", border: "1px solid rgba(212,148,26,0.2)", padding: "6px 0", zIndex: 2000, minWidth: 120, textAlign: "center" }}>

@@ -14,7 +14,8 @@ import {
   Flame, Droplets, Mountain, Wind, Loader2, RefreshCw,
   CheckCircle, Copy, Share2, Download
 } from "lucide-react";
-import { SITE_CONFIG, isPremiumRank } from "@/lib/config";
+import { fetchSiteConfig, isHiddenRank, SiteConfigData } from "@/lib/site-config";
+import PaywallModal from "@/components/PaywallModal";
 
 // 五行图标映射
 const wuxingIcons: Record<string, React.ReactNode> = {
@@ -90,13 +91,17 @@ function NamingResultContent() {
     description?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showPaywall, setShowPaywall] = useState(SITE_CONFIG.paywall.enabled);
-  const [unlocked, setUnlocked] = useState(false);
-  const [orderNo, setOrderNo] = useState<string>("");
-  const [orderId, setOrderId] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [debugError, setDebugError] = useState<string>("");
+  const [orderNo, setOrderNo] = useState<string>("");
+  const [orderId, setOrderId] = useState<string>("");
+
+  // 收费相关
+  const [siteConfig, setSiteConfig] = useState<SiteConfigData | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [paywallTargetRank, setPaywallTargetRank] = useState<number>(0);
   
   // 策略矩阵状态
   const [strategyInfo, setStrategyInfo] = useState<{
@@ -107,6 +112,13 @@ function NamingResultContent() {
     description: string;
     displayMode?: "original" | "modern" | "both";
   } | null>(null);
+
+  // 加载收费配置
+  useEffect(() => {
+    fetchSiteConfig().then((config) => {
+      setSiteConfig(config);
+    });
+  }, []);
 
   // 调试：打印错误变化
   useEffect(() => {
@@ -180,7 +192,6 @@ function NamingResultContent() {
         console.log("[Naming Page] result.data?.orderDetail?.candidates:", JSON.stringify(result.data?.orderDetail?.candidates)?.slice(0, 300));
 
         // 转换 API 结果为前端格式
-        // 优先使用 orderDetail.candidates（因为 names 有时在传输中会变成空数组）
         const namesData = result.data?.names;
         const candidatesData = result.data?.candidates;
         const orderDetailCandidates = result.data?.orderDetail?.candidates;
@@ -228,7 +239,6 @@ function NamingResultContent() {
           console.log(`[Naming Page] map 开始处理第 ${idx + 1} 个名字`);
           try {
             console.log(`[Naming Page] 处理名字 ${idx + 1}:`, n?.name || n?.fullName || "无名");
-            // 确保 n 是对象
             if (!n || typeof n !== "object") {
               console.error(`[Naming Page] 第 ${idx + 1} 个名字不是对象:`, n);
               return {
@@ -247,14 +257,11 @@ function NamingResultContent() {
 
             const wuxingVal = n?.wuxing;
             let wuxingStr = "";
-            // 有效的五行值
             const validWuxing = ["金", "木", "水", "火", "土"];
             if (typeof wuxingVal === "string" && wuxingVal.length > 0) {
-              // 检查是否是有效五行
               if (validWuxing.includes(wuxingVal)) {
                 wuxingStr = wuxingVal;
               } else {
-                // 如果不是单字五行，取第一个字符
                 wuxingStr = wuxingVal[0] || "";
               }
             } else if (Array.isArray(wuxingVal) && wuxingVal.length > 0) {
@@ -265,19 +272,16 @@ function NamingResultContent() {
             const name = (n?.name || n?.fullName || `名字${idx + 1}`) as string;
             const score = typeof n?.score === "number" && n.score > 0 ? n.score : Math.round(70 + Math.random() * 20);
 
-            // 处理 source 字段（可能是对象或字符串）
             let sourceValue: string | undefined = undefined;
             let sourceBookVal: string | undefined = undefined;
             let sourceTextVal: string | undefined = undefined;
             let sourceModernVal: string | undefined = undefined;
             let reasonVal: string | undefined = undefined;
 
-            // 提取 reason（选字理由）
             if (n?.reason && typeof n.reason === "string") {
               reasonVal = n.reason;
             }
 
-            // 新增：modernText 字段映射
             if (n?.modernText && typeof n.modernText === "string") {
               sourceModernVal = n.modernText;
             }
@@ -287,16 +291,13 @@ function NamingResultContent() {
                 sourceValue = n.source;
                 sourceBookVal = n.source;
               } else if (typeof n.source === "object" && n.source?.book) {
-                // book 可能已是《庄子》格式或"庄子"格式，标准化为 book 名（去括号）
                 const rawBook = n.source.book;
                 const cleanBook = rawBook.replace(/[《》]/g, '');
                 const displayBook = `《${cleanBook}》`;
                 sourceBookVal = displayBook;
                 sourceTextVal = n.source.text || "";
                 sourceModernVal = n.source.modernText || "";
-                // reason 优先取 source.reason，其次取直接 reason
                 if (n.source.reason) reasonVal = reasonVal || n.source.reason;
-                // sourceValue 构造用于显示的完整字符串（避免双括号）
                 sourceValue = `${displayBook}：${n.source.text || ""}`;
               }
             }
@@ -339,12 +340,10 @@ function NamingResultContent() {
         });
 
         setNames(mapped.length > 0 ? mapped : []);
-
         console.log("[Naming Page] setNames 完成，names 长度:", mapped.length);
 
         // 保存到 sessionStorage，供详情页兜底读取
         for (const n of mapped) {
-          // n.name 来自 API 已是全名（含姓氏），如"张丽敏"
           const fullName = n.name;
           const detailObj = {
             rank: n.rank,
@@ -389,8 +388,16 @@ function NamingResultContent() {
     fetchNames();
   }, [surname, gender, birthDate, birthTime, expectations, style, category]);
 
+  // 点击解锁前几个名字
+  const handleClickLockedName = (rank: number) => {
+    setPaywallTargetRank(rank);
+    setShowPaywallModal(true);
+  };
+
+  // 解锁成功
   const handleUnlock = () => {
     setUnlocked(true);
+    setShowPaywallModal(false);
   };
 
   const copyName = (name: string) => {
@@ -444,7 +451,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
     }
   };
 
-  // 调试面板（仅开发时使用）
+  // 调试面板
   const showDebugPanel = debugError ? (
     <div className="fixed bottom-4 right-4 z-50 bg-yellow-100 border-2 border-yellow-400 rounded-xl p-4 max-w-lg text-left shadow-lg">
       <p className="text-red-600 font-bold text-sm mb-1">调试: {debugError.slice(0, 200)}</p>
@@ -483,7 +490,6 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
       <div className="min-h-screen bg-[#FDFAF4] flex items-center justify-center">
         <div className="text-center max-w-2xl px-4">
           <p className="text-xl text-red-500 mb-4">{error}</p>
-          {/* 醒目调试面板 */}
           <div className="bg-yellow-100 border-4 border-red-500 rounded-2xl p-6 mb-4 text-left shadow-2xl">
             <p className="text-red-700 font-bold text-base mb-2">🔧 调试信息 (debugError):</p>
             <pre className="text-red-800 text-sm font-mono whitespace-pre-wrap bg-yellow-50 rounded p-3 max-h-60 overflow-auto">
@@ -566,7 +572,6 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
               <div className="font-bold text-[#2C1810] text-sm">{birthTime || '未填写'}</div>
             </div>
           </div>
-          {/* 期望和意向 */}
           {(expectations || intentions.length > 0 || styles.length > 0) && (
             <div className="mt-2.5 flex flex-wrap gap-2">
               {expectations && (
@@ -656,16 +661,27 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
         {/* 名字列表 */}
         <div className="space-y-4">
           {names.map((nameItem) => {
-            const isLocked = showPaywall && nameItem.rank > 3 && !unlocked;
+            // 收费模式下：前 hiddenCount 个被锁定，其余免费展示
+            const isLocked = siteConfig 
+              ? isHiddenRank(nameItem.rank, siteConfig) && !unlocked 
+              : false;
+            // 是否收费模式已开启
+            const isPaywallActive = siteConfig?.paywallEnabled === true;
 
             return (
               <div
                 key={nameItem.rank}
                 className={`ancient-card p-6 transition-all duration-300 ${
                   isLocked ? "opacity-75" : ""
-                } ${selectedIdx === nameItem.rank - 1 ? "ring-2 ring-[#C84A2A]" : ""}`}
-                onClick={() => !isLocked && setSelectedIdx(nameItem.rank - 1)}
-                style={{ cursor: isLocked ? "default" : "pointer" }}
+                } ${selectedIdx === nameItem.rank - 1 && !isLocked ? "ring-2 ring-[#C84A2A]" : ""}`}
+                onClick={() => {
+                  if (isLocked) {
+                    handleClickLockedName(nameItem.rank);
+                  } else {
+                    setSelectedIdx(nameItem.rank - 1);
+                  }
+                }}
+                style={{ cursor: "pointer" }}
               >
                 <div className="flex items-start gap-4">
                   {/* 排名 */}
@@ -689,6 +705,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                             {surname}■■
                           </span>
                           <Lock className="w-5 h-5 text-[#C9A84C]" />
+                          <span className="text-xs text-[#C84A2A] font-medium">点击解锁</span>
                         </>
                       ) : (
                         <>
@@ -742,13 +759,12 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                           {nameItem.meaning}
                         </p>
 
-                        {/* 典籍出处（仅在有真实典籍匹配时才展示） */}
+                        {/* 典籍出处 */}
                         {(() => {
                           const hasRealSource = !!(nameItem.sourceBook || nameItem.sourceText || nameItem.sourceModern);
                           if (!hasRealSource) return null;
                           return (
                             <div className="mb-2 p-3 bg-[#F8F3EA] rounded-lg border-l-2 border-[#C9A84C]">
-                              {/* 先展示典籍出处：书名 + 典籍原文 */}
                               {(nameItem.sourceText) && (
                                 <p className="text-xs text-[#2C1810] leading-relaxed mb-1.5">
                                   <span className="font-medium">典籍出处：</span>
@@ -821,7 +837,6 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                             </p>
                           </div>
                         )}
-
                       </>
                     )}
                   </div>
@@ -831,7 +846,7 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           })}
         </div>
 
-        {/* 调试信息 - 如果有错误，显示在这里 */}
+        {/* 调试信息 */}
         {debugError && (
           <div className="mt-8 bg-red-100 border-2 border-red-300 rounded-xl p-4">
             <p className="text-red-700 font-bold text-sm mb-2">🔍 处理错误信息：</p>
@@ -839,8 +854,8 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           </div>
         )}
 
-        {/* 选中名字的操作区 */}
-        {names[selectedIdx] && (!showPaywall || unlocked) ? (
+        {/* 选中的名字操作栏 - 仅当非锁定状态显示 */}
+        {names[selectedIdx] && (!isHiddenRank(names[selectedIdx].rank, siteConfig || { paywallEnabled: false, hiddenCount: 3, paywallPrice: 0 }) || unlocked) && (
           <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-[#E5DDD3]">
             <div className="text-center mb-4">
               <div
@@ -871,9 +886,8 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
                   try {
                     const n = names[selectedIdx];
                     if (!n) return "#";
-                    const fullName = n.name; // n.name 来自 API 已是全名（含姓氏）
+                    const fullName = n.name;
                     const stored = (() => { try { return sessionStorage.getItem(`name:${fullName}`); } catch { return null; } })();
-                    // btoa 不支持中文，需先 encodeURIComponent 再 btoa
                     const data = stored ? btoa(encodeURIComponent(stored)) : "";
                     return `/naming/${encodeURIComponent(fullName)}?surname=${encodeURIComponent(surname)}&gender=${encodeURIComponent(gender)}&birthDate=${encodeURIComponent(birthDate)}&data=${data}`;
                   } catch {
@@ -894,35 +908,34 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
               </button>
             </div>
           </div>
-        ) : null}
+        )}
 
-        {/* 付费解锁区域 */}
-        {showPaywall && !unlocked && (
+        {/* 收费模式下显示解锁区域 */}
+        {siteConfig?.paywallEnabled && !unlocked && names.length > 0 && (
           <div className="mt-8 ancient-card p-8 text-center bg-gradient-to-br from-[#F8F3EA] to-[#FDFAF4] border-[#C9A84C]">
             <Crown className="w-12 h-12 text-[#C9A84C] mx-auto mb-4" />
             <h3
               className="text-xl font-bold text-[#2C1810] mb-2"
               style={{ fontFamily: "'Noto Serif SC', serif" }}
             >
-              解锁更多精选好名
+              解锁前{siteConfig.hiddenCount}个精品好名
             </h3>
-            <p className="text-[#5C4A42] mb-6">
-              查看完整解析、五行匹配度、典籍出处及用字建议
+            <p className="text-[#5C4A42] mb-4">
+              第{siteConfig.hiddenCount + 1}名及以后的名字已免费展示，解锁后可查看完整名字、五行匹配度、典籍出处及用字建议
             </p>
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-[#C84A2A]">¥{SITE_CONFIG.paywall.price}</div>
-                <div className="text-xs text-[#9CA3AF] line-through">¥{SITE_CONFIG.paywall.originalPrice}</div>
+                <div className="text-2xl font-bold text-[#C84A2A]">¥{siteConfig.paywallPrice}</div>
               </div>
               <div className="w-px h-12 bg-[#E5DDD3]" />
               <div className="text-sm text-[#5C4A42]">
-                <div>✓ 更多精品名字</div>
+                <div>✓ 查看更多精品名字</div>
                 <div>✓ 详细八字分析</div>
-                <div>✓ 终身可用</div>
+                <div>✓ 永久可用</div>
               </div>
             </div>
             <button
-              onClick={handleUnlock}
+              onClick={() => setShowPaywallModal(true)}
               className="btn-primary w-full sm:w-auto px-12"
             >
               <Unlock className="w-5 h-5 mr-2" />
@@ -949,6 +962,17 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
           </p>
         )}
       </main>
+
+      {/* 付费弹窗 */}
+      {siteConfig && (
+        <PaywallModal
+          isOpen={showPaywallModal}
+          onClose={() => setShowPaywallModal(false)}
+          onUnlock={handleUnlock}
+          price={siteConfig.paywallPrice}
+          siteName="寻名网"
+        />
+      )}
     </div>
   );
 }

@@ -96,6 +96,7 @@ export default function OrdersPage() {
     <div
       style={{
         minHeight: "100vh",
+        paddingTop: 60,
         background:
           "linear-gradient(135deg, #FDF8F3 0%, #F5EDE0 50%, #EDE5D8 100%)",
       }}
