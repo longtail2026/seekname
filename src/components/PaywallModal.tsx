@@ -8,7 +8,6 @@ import {
   QrCode,
   CheckCircle,
   Download,
-  Copy,
 } from "lucide-react";
 
 interface PaywallModalProps {
@@ -253,18 +252,6 @@ export default function PaywallModal({
     }, 800);
   };
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(`${shareTitle}：${shareUrl}`);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 1500);
-    } catch {
-      // 静默失败
-    }
-  };
-
   // 下载海报
   const handleDownloadPoster = () => {
     if (!posterUrl) return;
@@ -420,21 +407,13 @@ export default function PaywallModal({
                       alt="分享海报"
                       className="w-44 mx-auto rounded-lg border border-[#E5DDD3] shadow-sm"
                     />
-                    <div className="flex items-center justify-center gap-3 mt-2">
+                    <div className="flex items-center justify-center mt-2">
                       <button
                         onClick={handleDownloadPoster}
                         className="inline-flex items-center gap-1 text-xs text-[#C84A2A] hover:underline"
                       >
                         <Download className="w-3 h-3" />
                         保存海报
-                      </button>
-                      <span className="text-xs text-[#9CA3AF]">|</span>
-                      <button
-                        onClick={handleCopyLink}
-                        className="inline-flex items-center gap-1 text-xs text-[#C84A2A] hover:underline"
-                      >
-                        <Copy className="w-3 h-3" />
-                        {copied ? "已复制" : "复制链接"}
                       </button>
                     </div>
                     <p className="text-xs text-[#8B7355] mt-2 leading-relaxed">

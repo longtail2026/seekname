@@ -43,10 +43,10 @@ export default function Header() {
         { label: "Stage Names", href: "/stage-name", desc: "Streamer · Actor · Writer" },
       ]
     : [
-        { label: "商业项目", href: "/business-name", desc: "公司·品牌·店铺·项目" },
-        { label: "跨境电商英文起名", href: "/business-name/cross-border-en-name", desc: "易读易记无歧义·适合跨境" },
-        { label: "作品起名", href: "/work-name", desc: "文学作品·文章·影视剧" },
-        { label: "艺名笔名", href: "/stage-name", desc: "主播·演员·作家" },
+        { label: "公司・品牌・店铺起名", href: "/business-name", desc: "公司·品牌·店铺·项目" },
+        { label: "跨境电商品牌英文名", href: "/business-name/cross-border-en-name", desc: "易读易记无歧义·适合跨境" },
+        { label: "文艺作品起名", href: "/work-name", desc: "文学作品·文章·影视剧" },
+        { label: "艺名・笔名・主播名", href: "/stage-name", desc: "主播·演员·作家" },
       ];
 
   // 语言菜单外部点击关闭
