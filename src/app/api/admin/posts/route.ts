@@ -4,6 +4,21 @@ import prisma from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+
+    // 如果传了 id，返回单条完整记录（含 content）
+    const idParam = searchParams.get("id");
+    if (idParam) {
+      const id = parseInt(idParam, 10);
+      if (!id) return NextResponse.json({ error: "无效ID" }, { status: 400 });
+
+      const post = await prisma.blogPost.findUnique({
+        where: { id },
+      });
+      if (!post) return NextResponse.json({ error: "文章不存在" }, { status: 404 });
+
+      return NextResponse.json({ post });
+    }
+
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "20");
     const search = searchParams.get("search") || "";
@@ -31,11 +46,14 @@ export async function GET(req: NextRequest) {
           title: true,
           slug: true,
           summary: true,
+          content: true,           // ← 也返回 content，前端编辑时需要
           category: true,
           status: true,
           isPinned: true,
+          coverImage: true,
           viewCount: true,
           source: true,
+          sourceUrl: true,
           createdAt: true,
           user: { select: { id: true, name: true } },
           _count: { select: { comments: true } },

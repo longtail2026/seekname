@@ -176,10 +176,32 @@ export default function AdminBlogPage() {
                   <td style={tdStyle}><span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 12, background: st.bg, color: st.color }}>{st.text}</span></td>
                   <td style={tdStyle}>{post.isPinned ? "📌" : "-"}</td>
                   <td style={tdStyle}><span style={{ fontSize: 12, color: "#999" }}>{post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("zh-CN") : "-"}</span></td>
-                  <td style={tdStyle}>
+                    <td style={tdStyle}>
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button onClick={() => { setEditingPost(post); setForm({ title: post.title, category: post.category, content: "", status: post.status, isPinned: post.isPinned, coverImage: post.coverImage || "" }); setShowEditor(true); }}
-                        style={btnStyle}>编辑</button>
+                      <button onClick={async () => {
+                        setEditingPost(post);
+                        // 获取完整文章内容
+                        try {
+                          const res = await fetch(`/api/admin/posts?id=${post.id}`);
+                          if (res.ok) {
+                            const data = await res.json();
+                            const p = data.post || data;
+                            setForm({
+                              title: p.title,
+                              category: p.category,
+                              content: p.content || "",
+                              status: p.status,
+                              isPinned: p.isPinned,
+                              coverImage: p.coverImage || "",
+                            });
+                          } else {
+                            setForm({ title: post.title, category: post.category, content: "", status: post.status, isPinned: post.isPinned, coverImage: post.coverImage || "" });
+                          }
+                        } catch {
+                          setForm({ title: post.title, category: post.category, content: "", status: post.status, isPinned: post.isPinned, coverImage: post.coverImage || "" });
+                        }
+                        setShowEditor(true);
+                      }} style={btnStyle}>编辑</button>
                       <button onClick={() => handlePin(post.id, post.isPinned)} style={btnStyle}>{post.isPinned ? "取消置顶" : "置顶"}</button>
                       <button onClick={() => handleDelete(post.id)} style={{ ...btnStyle, color: "#ff4d4f" }}>删除</button>
                     </div>
