@@ -23,10 +23,24 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
  * 1. 获取自动发文配置
  */
 async function fetchConfig() {
+  // 尝试获取配置
   const res = await fetch(`${API_BASE}/api/admin/auto-blog`);
-  if (!res.ok) throw new Error(`获取配置失败: ${res.status}`);
-  const data = await res.json();
-  return data.config;
+  if (res.ok) {
+    const data = await res.json();
+    if (data.config && data.config.isEnabled) {
+      return data.config;
+    }
+  }
+  // 无配置或引擎关闭 — 用默认值
+  console.log("[AutoBlog] 配置缺失或引擎关闭，使用默认配置");
+  return {
+    isEnabled: true,
+    frequency: "daily",
+    crawlKeywords: ["英文名大全", "男生英文名", "女生英文名", "宝宝起名禁忌", "好听不重名的名字", "公司起名规则", "工商核名技巧", "跨境电商品牌名怎么取", "外国人中文名怎么起", "艺名主播名笔名技巧", "姓氏起源", "名字寓意", "名字文化", "好名字测试", "名字打分因素"],
+    requireReview: true,
+    defaultCategory: "起名知识",
+    writingStyle: "formal",
+  };
 }
 
 /**

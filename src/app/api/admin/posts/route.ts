@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -95,6 +95,16 @@ export async function POST(req: NextRequest) {
       .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
       .replace(/(^-|-$)/g, "") + "-" + Date.now();
 
+    // 如果没有传 userId，从数据库查第一个用户作为作者
+    let realUserId = userId;
+    if (!realUserId) {
+      const firstUser = await prisma.user.findFirst({
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      realUserId = firstUser?.id || "unknown";
+    }
+
     const postData: any = {
       title,
       slug,
@@ -103,7 +113,7 @@ export async function POST(req: NextRequest) {
       category,
       status,
       coverImage,
-      userId: userId || "admin",
+      userId: realUserId,
     };
     if (source !== undefined) postData.source = source;
     if (sourceUrl !== undefined) postData.sourceUrl = sourceUrl;
