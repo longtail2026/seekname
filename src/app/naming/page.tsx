@@ -665,8 +665,6 @@ ${name.source ? `文化出处：\n${name.source}` : ""}
             const isLocked = siteConfig 
               ? isHiddenRank(nameItem.rank, siteConfig) && !unlocked 
               : false;
-            // 是否收费模式已开启
-            const isPaywallActive = siteConfig?.paywallEnabled === true;
 
             return (
               <div

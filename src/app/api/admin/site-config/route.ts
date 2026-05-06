@@ -35,7 +35,16 @@ export async function GET() {
       paywallPrice: parseFloat(config.paywall_price),
       hiddenCount: parseInt(config.paywall_hidden_count, 10),
     });
-  } catch (error) {
+  } catch (error: any) {
+    // 如果表不存在（如迁移尚未执行），返回默认值而非报错
+    if (error?.message?.includes("does not exist") || error?.code === "P2021") {
+      console.warn("[site-config] Table not yet available, returning defaults");
+      return NextResponse.json({
+        paywallEnabled: DEFAULTS.paywall_enabled === "true",
+        paywallPrice: parseFloat(DEFAULTS.paywall_price),
+        hiddenCount: parseInt(DEFAULTS.paywall_hidden_count, 10),
+      });
+    }
     console.error("Failed to fetch site config:", error);
     return NextResponse.json({ error: "获取配置失败" }, { status: 500 });
   }

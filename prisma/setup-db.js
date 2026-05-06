@@ -313,7 +313,28 @@ async function main() {
     `);
     console.log("[setup-db] Table 'subscription' OK");
 
-    // ── 9. naming_materials（起名素材表，带 pgvector 向量支持）───────────────
+    // ── 9. site_config（站点配置表：收费开关、价格等）────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "site_config" (
+        "id"          SERIAL       PRIMARY KEY,
+        "key"         VARCHAR(100) NOT NULL UNIQUE,
+        "value"       TEXT         NOT NULL,
+        "created_at"  TIMESTAMPTZ  DEFAULT NOW(),
+        "updated_at"  TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+    // 插入默认收费配置（如不存在）
+    await client.query(`
+      INSERT INTO "site_config" ("key", "value")
+      VALUES
+        ('paywall_enabled', 'false'),
+        ('paywall_price', '9.9'),
+        ('paywall_hidden_count', '3')
+      ON CONFLICT ("key") DO NOTHING
+    `);
+    console.log("[setup-db] Table 'site_config' OK");
+
+    // ── 10. naming_materials（起名素材表，带 pgvector 向量支持）───────────────
     await client.query(`CREATE EXTENSION IF NOT EXISTS vector`).catch(() => {});
     
     await client.query(`
@@ -359,11 +380,12 @@ async function main() {
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'public'
       AND tablename IN (
-        'character_frequency','user','name_record','order',
-        'name_favorite','blog_post','blog_comment','subscription','naming_materials'
+        'character_frequency','users','name_record','order',
+        'name_favorite','blog_post','blog_comment','subscription','naming_materials',
+        'site_config'
       )
     `);
-    console.log(`[setup-db] Verified ${tables.length}/9 tables exist:`, tables.map(r=>r.tablename).join(', '));
+    console.log(`[setup-db] Verified ${tables.length}/10 tables exist:`, tables.map(r=>r.tablename).join(', '));
 
     client.release();
     await pool.end();
