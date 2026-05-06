@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getConfig, pickTopic, aiRewrite, publishPost } from "@/lib/auto-blog-core";
+import { getConfig, pickTopic, aiRewrite } from "@/lib/auto-blog-core";
 
 // 获取自动发文配置
 export async function GET() {
@@ -93,6 +93,52 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+// 辅助：直接通过 Prisma 创建文章（避免 HTTP 自调用）
+async function createPostDirectly(postData: any, requireReview: boolean) {
+  const { title, content, category, keywords, sourceUrl } = postData;
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/(^-|-$)/g, "") + "-" + Date.now();
+
+  const firstUser = await prisma.user.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+
+  const post = await prisma.blogPost.create({
+    data: {
+      title,
+      slug,
+      content,
+      category,
+      status: requireReview ? "draft" : "published",
+      source: "auto_blog",
+      sourceUrl,
+      userId: firstUser?.id || "unknown",
+    },
+  });
+
+  // 创建标签
+  if (keywords && Array.isArray(keywords) && keywords.length > 0) {
+    for (const tagName of keywords) {
+      const tag = await prisma.blogTag.upsert({
+        where: { name: tagName },
+        update: { count: { increment: 1 } },
+        create: {
+          name: tagName,
+          slug: tagName.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-"),
+        },
+      });
+      await prisma.blogPostTag.create({
+        data: { postId: post.id, tagId: tag.id },
+      }).catch(() => {});
+    }
+  }
+
+  return post;
+}
+
 // 手动触发一次完整的爬取+改写+发布
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -104,11 +150,10 @@ export async function POST(req: NextRequest) {
     // 1. 获取配置
     const config = await getConfig();
     if (!config || !config.isEnabled) {
-      // 即使引擎关闭，手动触发也允许执行（但记录时注明）
       console.log("[Manual] 引擎当前关闭，手动触发强制执行");
     }
 
-    // 2. 选话题（如果传了 keyword 则优先匹配）
+    // 2. 选话题
     const searchKeywords = keyword ? [keyword] : (config?.crawlKeywords || ["起名"]);
     const topic = pickTopic(searchKeywords);
     console.log(`[Manual] 话题: ${topic.title}`);
@@ -122,9 +167,9 @@ export async function POST(req: NextRequest) {
     );
     console.log(`[Manual] 改写完成: ${rewritten.title}`);
 
-    // 4. 发布文章
+    // 4. 直接通过 Prisma 发布（避免 HTTP 自调用）
     console.log("[Manual] 发布中...");
-    const post = await publishPost({
+    const post = await createPostDirectly({
       title: rewritten.title,
       content: rewritten.content,
       category: config?.defaultCategory || "起名知识",
@@ -133,23 +178,22 @@ export async function POST(req: NextRequest) {
     }, config?.requireReview !== false);
 
     const duration = Math.round((Date.now() - startTime) / 1000);
-    const postId = post.post?.id || post.id;
-    console.log(`[Manual] 发布成功! ID: ${postId}, 耗时: ${duration}s`);
+    console.log(`[Manual] 发布成功! ID: ${post.id}, 耗时: ${duration}s`);
 
-    // 5. 写日志（直接入库）
+    // 5. 写日志
     await prisma.autoBlogLog.create({
       data: {
         sourceUrl: `manual:${topicLabel}`,
         sourceTitle: `手动触发-${topicLabel}`,
         status: "success",
         duration,
-        postId: postId ? parseInt(String(postId), 10) : null,
+        postId: post.id,
       },
     });
 
     return NextResponse.json({
       success: true,
-      postId,
+      postId: post.id,
       title: rewritten.title,
       message: `文章已成功发布（${config?.requireReview !== false ? "待审核" : "已发布"}）`,
     });
@@ -157,7 +201,6 @@ export async function POST(req: NextRequest) {
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.error("[Manual] 触发失败:", error.message);
 
-    // 写失败日志
     await prisma.autoBlogLog.create({
       data: {
         sourceUrl: "manual:error",
