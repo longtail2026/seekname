@@ -1,33 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getConfig, pickTopic, aiRewrite } from "@/lib/auto-blog-core";
+import { getConfig, pickTopic, aiRewrite, LONGTAIL_KEYWORD_POOL } from "@/lib/auto-blog-core";
 
 // 获取自动发文配置
 export async function GET() {
   try {
     let config = await prisma.autoBlogConfig.findFirst();
     if (!config) {
+      const allKeywords = LONGTAIL_KEYWORD_POOL.flatMap(g => g.keywords);
       config = await prisma.autoBlogConfig.create({
         data: {
           isEnabled: true,
           frequency: "daily",
-      crawlKeywords: [
-        "英文名大全",
-        "男生英文名",
-        "女生英文名",
-        "宝宝起名禁忌",
-        "好听不重名的名字",
-        "公司起名规则",
-        "工商核名技巧",
-        "跨境电商品牌名怎么取",
-        "外国人中文名怎么起",
-        "艺名主播名笔名技巧",
-        "姓氏起源",
-        "名字寓意",
-        "名字文化",
-        "好名字测试",
-        "名字打分因素",
-      ],
+          crawlKeywords: allKeywords,
           requireReview: true,
           defaultCategory: "起名知识",
           writingStyle: "formal",
@@ -155,15 +140,16 @@ export async function POST(req: NextRequest) {
 
     // 2. 选话题
     const searchKeywords = keyword ? [keyword] : (config?.crawlKeywords || ["起名"]);
-    const topic = pickTopic(searchKeywords);
-    console.log(`[Manual] 话题: ${topic.title}`);
+    const topic = await pickTopic(searchKeywords);
+    console.log(`[Manual] 话题: ${topic.title}, 目标长尾关键词: ${topic.targetKeyword}`);
 
-    // 3. AI 改写
+    // 3. AI 改写（传入目标长尾关键词）
     console.log("[Manual] AI 改写中...");
     const rewritten = await aiRewrite(
       topic.content,
       config?.writingStyle || "formal",
-      config?.defaultCategory || "起名知识"
+      topic.category || config?.defaultCategory || "起名知识",
+      topic.targetKeyword
     );
     console.log(`[Manual] 改写完成: ${rewritten.title}`);
 

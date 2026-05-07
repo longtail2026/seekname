@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/auto-blog",
-      "schedule": "0 8 * * *"
+      "schedule": "0 20 * * *"
     }
   ],
   "headers": [

@@ -4,66 +4,95 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-// 话题池
-export const TOPIC_POOL = [
-  {
-    keywords: ["英文名大全", "男生英文名", "女生英文名"],
-    title: "2025年最受欢迎英文名大全",
-    category: "英文名大全",
-    content: `给自家孩子取一个好听又有内涵的英文名，是很多家长的愿望。英文名不仅在学校和社交场合中使用，未来的工作环境中也常常需要一个合适的英文名。一个好的英文名应该简洁易读、发音优美、寓意积极。男生常见的英文名如 William（坚定的保护者）、Alexander（人类的守护者）、Benjamin（幸运之子），女生常见的英文名如 Olivia（橄榄树，象征和平）、Emma（universal, 全能）、Sophia（智慧）等。选择英文名时需要注意名字的文化背景，避免选择容易引起歧义的词。同时也建议名字的发音在中文语境下也自然顺口，比如 Lily、Lucy、Alice 这类音译和原音都很优美的名字。`
-  },
-  {
-    keywords: ["宝宝起名禁忌", "好听不重名的名字"],
-    title: "宝宝起名禁忌与好听不重名名字推荐",
-    category: "宝宝起名",
-    content: `给宝宝起名大有讲究，避开以下禁忌，帮你家宝贝取一个好名字。第一，忌用生僻字，如"鑫"等虽然寓意好但笔画复杂的字，会给孩子日后的书写和社交带来麻烦。第二，忌谐音不好的字，比如"杜子腾"容易被叫成"肚子疼"。第三，忌过于跟风，所谓的大热名字如"梓涵""子轩"等，班里同名率极高。推荐一些好听又不重名的名字：女孩名"知鸢"（知书达礼，鸢飞唳天）、男孩名"凌霄"（志存高远）、中性名"南絮"（南方柳絮般温柔）。选择名字时，建议多考虑字与姓氏的搭配是否和谐，音律是否优美，字形是否平衡。`
-  },
-  {
-    keywords: ["公司起名规则", "工商核名技巧"],
-    title: "公司起名全攻略：从规则到技巧一网打尽",
-    category: "公司起名",
-    content: `开公司第一步就是起个好名字。企业名称通常由行政区划+字号+行业+组织形式四部分组成。核名是公司注册的关键环节，技巧如下：一、准备3-5个备选名，按优先级排列。二、字号避免使用国家名称、行业通用词等禁用词。三、字号最好寓意积极、朗朗上口，如"华为"意为"中华有为"。四、查重时注意同音字和形近字也可能被驳回。五、含"集团""国际"等字眼需要满足一定的注册资本门槛。推荐常见的命名方式：寓意法（为众人、聚成）、谐音法（行远——行远必自迩）、拆字法、古诗取词法等。`
-  },
-  {
-    keywords: ["跨境电商品牌名怎么取"],
-    title: "跨境电商品牌命名策略：让老外记住你的品牌",
-    category: "跨境电商",
-    content: `跨境电商的崛起让越来越多的中国品牌走向世界。一个好的跨境品牌名需要兼顾中文语境和海外市场。命名原则：一、全球可读性——拼读规则在各种语言中基本一致。二、域名可用性——确保.com或主流后缀可以注册。三、文化适应性——在主要目标市场没有负面联想。四、简短易记——3-5个字母最佳。案例：Shein（取自"she"+"in"，简洁有力）、Anker（锚，象征稳定可靠）、Zaful（zeal+full的变体，充满热情）。避免使用拼音直译（如"Xiexie"）或过于中文化的表达，这样的名字在国外用户看来难以发音和记忆。`
-  },
-  {
-    keywords: ["外国人中文名怎么起"],
-    title: "外国人起中文名的艺术：好听又有文化底蕴",
-    category: "外国人中文名",
-    content: `越来越多的外国友人对中国文化产生兴趣，想要为自己取一个中文名字。给外国人起中文名不同于中国人取名，侧重于音译的贴切和意境的传达。好的中文名应该：一、发音与原名相近，如Elon Musk→马一龙、Taylor Swift→泰勒·斯威夫特。二、选取有美好寓意的汉字，如Chris→可睿（智慧）、Alice→爱丽丝（优雅）。三、注意声调搭配，避免拗口的三声连读。四、姓氏最好选择常见百家姓，让名字更像地道中文名。为外国人取中文名时，可以结合他们的性格特征、职业特点，让名字不仅"像中文名"还要"像他们自己的名字"。`
-  },
-  {
-    keywords: ["艺名主播名笔名技巧"],
-    title: "艺名·主播名·笔名：让你的名字会说话",
-    category: "艺名笔名主播名",
-    content: `自媒体时代，一个好名字就是一张最佳名片。艺名、主播名和笔名的取名思路各有不同。艺名强调记忆点和辨识度，如"周深"（上周的深度）、"王一博"（唯一的搏击）。主播名侧重亲和力和传播性，如"李佳琦"简洁有力，"疯狂小杨哥"带有动作画面感。笔名则更注重文艺气质和独特性，如"韩寒"（冷冽）、"八月长安"（诗意）。取名技巧：可以使用叠字（如"范冰冰"）、反义组合（如"白夜"）、物品+情感（如"薄荷微凉"）、数字+文字（如"七月"）等方式。建议避免过于复杂或存在歧义的名字。`
-  },
-  {
-    keywords: ["姓氏起源", "名字寓意", "名字文化"],
-    title: "中国姓氏起源与名字文化探源",
-    category: "名字文化寓意",
-    content: `中国姓氏源远流长，承载着中华民族的文化基因。姓氏起源主要分为几大类：以国为氏（如齐、鲁、宋）、以封邑为氏（如屈、解）、以官名为氏（如司马、司徒）、以职业为氏（如巫、陶）、以居住地为氏（如东郭、西门）。《百家姓》中"赵钱孙李"的排序源于宋代，赵为皇姓故排第一。名字文化方面，古人有名有字有号，名是出生时取，字是成年后取，号是自取。如李白字太白号青莲居士。现代起名则更注重寓意和个性。一个名字寄托着父母对孩子的殷切期望和美好祝愿。`
-  },
-  {
-    keywords: ["好名字测试", "名字打分因素"],
-    title: "名字测试与打分：什么是一个好名字？",
-    category: "名字打分测试",
-    content: `网上流传的各种名字打分测试，究竟有没有参考价值？一个名字的好坏可以从多个维度来评估。一、音韵维度：名字的声调搭配是否和谐，平仄是否错落有致，读起来是否朗朗上口。二、字形维度：汉字结构是否平衡，书写是否流畅美观，名字整体的视觉感受。三、寓意维度：每个字的含义是否积极正面，组合起来是否有好的整体寓意。四、文化维度：是否有文化出处，是否与经典诗词或典故相关。五、独特性维度：重名率是否适中，既不过于大众化也不过于生僻。六、五行维度：是否与生辰八字相补，五行是否平衡。提醒家长，名字打分仅供参考，不必过分迷信。最适合孩子的名字，就是最好的名字。`
-  }
+// ========== 起名行业长尾关键词库（7大类） ==========
+export const LONGTAIL_KEYWORD_POOL: {
+  category: string;
+  keywords: string[];
+  titleTemplate: string;
+  contentHint: string;
+}[] = [
+  // 1. 男孩起名长尾
+  { category: "男孩起名", keywords: ["姓张好听有寓意男孩名字", "2026年丙午年男孩取名大全", "古风儒雅男孩单字名推荐", "大气沉稳男孩双字名字", "带诗意典故的男孩名字", "五行属木适合男孩的名字", "简单不俗气男孩取名技巧", "小众不重名男孩名字精选", "阳光开朗男孩起名用字", "楚辞诗经男孩取名寓意解析"], titleTemplate: "【男孩起名】%s", contentHint: "男孩取名方法论、用字推荐、寓意解析" },
+  // 2. 女孩起名长尾
+  { category: "女孩起名", keywords: ["温柔仙气女孩古风名字", "好听清雅女孩诗意名字", "冷门又优美的女孩名字", "诗经出处女孩高分名字", "五行属水女孩雅致名字", "温婉有涵养女孩取名", "简约干净女孩单字名", "不易重名文艺女孩名字", "夏天出生女孩起名宜忌", "甜美灵动女孩名字推荐"], titleTemplate: "【女孩起名】%s", contentHint: "女孩取名风格、用字推荐、文化典故" },
+  // 3. 姓氏专属长尾
+  { category: "姓氏起名", keywords: ["李氏好听男孩女孩名字大全", "王氏寓意好的取名推荐", "张姓古风诗意名字怎么取", "刘姓简约不俗起名技巧", "陈姓男孩大气取名用字", "杨姓女孩温柔雅致名字", "黄姓小众不重名名字精选", "赵姓有典故出处名字推荐"], titleTemplate: "【姓氏起名】%s", contentHint: "特定姓氏搭配建议、百家姓文化" },
+  // 4. 英文名/中文名转英文长尾
+  { category: "英文名", keywords: ["中文名谐音洋气英文名", "男生高级感小众英文名", "女生温柔治愈系英文名", "按姓氏匹配专属英文名", "简约不烂大街英文名推荐", "中文名字音译英文名技巧"], titleTemplate: "【英文名】%s", contentHint: "英文名选取技巧、音译方法、流行趋势" },
+  // 5. 公司名/品牌起名长尾
+  { category: "公司起名", keywords: ["如何给公司起名", "如何给品牌起名", "高端大气的公司品牌名推荐", "品牌名反应产品诉求", "容易通过注册审核的公司名", "容易通过注册审核的品牌名"], titleTemplate: "【公司品牌起名】%s", contentHint: "工商核名规则、品牌命名策略、案例解析" },
+  // 6. 宠物起名长尾
+  { category: "宠物起名", keywords: ["如何给你的毛孩子起个合适的名字", "宠物需要起名的必要性", "宠物性格和名字"], titleTemplate: "【宠物起名】%s", contentHint: "宠物取名趣味方法、性格匹配建议" },
+  // 7. 起名常识/避坑类
+  { category: "起名知识", keywords: ["起名避讳用字有哪些", "名字音律搭配有什么讲究", "生辰八字取名正确方法", "取名为什么不能用生僻字", "三字名和双字名哪个更好", "如何给孩子取不易重名的名字"], titleTemplate: "【起名常识】%s", contentHint: "起名禁忌、音律五行、文化常识" },
 ];
 
+// 将长尾关键词展平为简易话题列表（供 pickTopic 使用）
+function buildTopicPoolFromLongtail() {
+  const pool: { keywords: string[]; title: string; category: string; content: string }[] = [];
+  for (const group of LONGTAIL_KEYWORD_POOL) {
+    for (const kw of group.keywords) {
+      pool.push({
+        keywords: [kw],
+        title: kw,
+        category: group.category,
+        content: `${group.contentHint}。目标长尾关键词：${kw}`,
+      });
+    }
+  }
+  return pool;
+}
+
+// 动态话题池（由长尾关键词构建）
+function getTopicPool() {
+  // 先尝试从数据库读取补充素材，若无则用长尾关键词池
+  try {
+    return buildTopicPoolFromLongtail();
+  } catch {
+    return buildTopicPoolFromLongtail();
+  }
+}
+
+// ========== 去重检查：本站已有文章标题 ==========
+let existingTitlesCache: string[] | null = null;
+let existingTitlesCacheTime = 0;
+const CACHE_TTL = 30 * 60 * 1000; // 30分钟
+
+export async function getExistingTitles(): Promise<string[]> {
+  const now = Date.now();
+  if (existingTitlesCache && (now - existingTitlesCacheTime) < CACHE_TTL) {
+    return existingTitlesCache;
+  }
+  try {
+    const posts = await prisma.blogPost.findMany({
+      select: { title: true },
+      where: { source: "auto_blog" },
+    });
+    existingTitlesCache = posts.map(p => p.title.trim().toLowerCase());
+    existingTitlesCacheTime = now;
+  } catch {
+    existingTitlesCache = [];
+  }
+  return existingTitlesCache!;
+}
+
+export async function isDuplicateTitle(title: string): Promise<boolean> {
+  const existing = await getExistingTitles();
+  const cleanTitle = title.trim().toLowerCase();
+  return existing.some(t => t === cleanTitle || t.includes(cleanTitle) || cleanTitle.includes(t));
+}
+
+// ========== 配置管理 ==========
 export async function getConfig() {
   let config = await prisma.autoBlogConfig.findFirst();
   if (!config) {
+    // 将所有长尾关键词压平作为默认爬取关键词
+    const allKeywords = LONGTAIL_KEYWORD_POOL.flatMap(g => g.keywords);
     config = await prisma.autoBlogConfig.create({
       data: {
         isEnabled: true,
         frequency: "daily",
-        crawlKeywords: ["英文名大全", "男生英文名", "女生英文名", "宝宝起名禁忌", "好听不重名的名字", "公司起名规则", "工商核名技巧", "跨境电商品牌名怎么取", "外国人中文名怎么起", "艺名主播名笔名技巧", "姓氏起源", "名字寓意", "名字文化", "好名字测试", "名字打分因素"],
+        crawlKeywords: allKeywords,
         requireReview: true,
         defaultCategory: "起名知识",
         writingStyle: "formal",
@@ -73,54 +102,142 @@ export async function getConfig() {
   return config;
 }
 
-export function pickTopic(keywords: string[]) {
-  const today = new Date();
-  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-  const idx = dayOfYear % TOPIC_POOL.length;
+// ========== 话题选取（优先匹配配置中的关键词，去重） ==========
+export async function pickTopic(keywords: string[]): Promise<{ title: string; category: string; content: string; targetKeyword: string }> {
+  const pool = getTopicPool();
 
-  const matched = TOPIC_POOL.find(p =>
-    keywords.some((kw: string) => p.keywords.some((pk: string) => pk.includes(kw) || kw.includes(pk)))
-  );
-  return matched || TOPIC_POOL[idx];
-}
-
-export async function aiRewrite(content: string, style: string, category: string) {
-  if (!DEEPSEEK_API_KEY) {
-    // mock rewrite
-    const styleLabel = style === "formal" ? "【正式】" : style === "casual" ? "【通俗】" : "【专业】";
-    const hint = content.trim().substring(0, 10).replace(/\n/g, "");
-    return {
-      title: `${styleLabel}深度解析：${hint}... - 全方位指南`,
-      content: `# 深度解析：${hint}... - 全方位指南\n\n## 为什么这个话题如此重要？\n\n${content}\n\n## 深入分析与实用建议\n\n在当代社会，起名已经不再仅仅是一个简单的标签问题。越来越多的父母和企业开始注重名字的文化内涵和品牌价值。一个好的名字不仅能够让人在人群中脱颖而出，更能够影响自信心和品牌发展。\n\n## 关键要点总结\n\n1. **音韵搭配**：名字的声调搭配要和谐，避免拗口\n2. **字形美观**：选择结构均衡、书写美观的汉字\n3. **寓意深刻**：名字应该具有积极向上的寓意\n4. **文化底蕴**：可以从古典诗词中汲取灵感\n5. **避免谐音**：仔细检查是否有不好的谐音\n\n## 结语\n\n起名是一门学问，也是一份责任。希望每一位用户都能找到那个最完美的名字。`,
-      keywords: ["起名", "起名技巧", category, "名字寓意", "传统文化"],
-    };
+  // 按配置关键词匹配优先级
+  const matched: { item: typeof pool[0]; priority: number }[] = [];
+  for (let i = 0; i < keywords.length; i++) {
+    const kw = keywords[i].trim().toLowerCase();
+    for (const item of pool) {
+      if (item.keywords.some(k => k.trim().toLowerCase() === kw)) {
+        matched.push({ item, priority: i });
+      }
+    }
   }
 
-  const styleMap: Record<string, string> = { formal: "正式、典雅", casual: "通俗易懂、亲切自然", professional: "专业严谨、有深度" };
-  const prompt = `你是一位专业的起名知识博主。请根据以下原文进行深度改写，要求：
-1. 保持核心信息，但改变句式结构和表达方式
-2. 扩充内容，增加更多实用建议和案例
-3. 风格：${styleMap[style] || "正式"}
-4. 生成新标题（吸引眼球的博客标题）
-5. 生成 3-5 个 SEO关键词
-6. 分类：${category}
+  // 按优先级排序
+  matched.sort((a, b) => a.priority - b.priority);
 
-原文：${content}
+  // 尝试找到未写过的话题（去重）
+  for (const m of matched) {
+    const exists = await isDuplicateTitle(m.item.title);
+    if (!exists) {
+      return {
+        title: m.item.title,
+        category: m.item.category,
+        content: m.item.content,
+        targetKeyword: m.item.keywords[0],
+      };
+    }
+  }
 
-请按以下 JSON 格式返回（不要包含其他内容）：
-{"title": "新标题", "content": "改写后的完整文章内容（不少于 800 字）", "keywords": ["关键词1", "关键词2", "关键词3"]}`;
+  // 如果全部写过，随机选取一个（仍然生成新内容）
+  const fallback = matched.length > 0
+    ? matched[Math.floor(Math.random() * matched.length)].item
+    : pool[Math.floor(Math.random() * pool.length)];
+
+  // 对标题加时间戳避免完全重复
+  const dateStr = new Date().toISOString().slice(0, 10);
+  return {
+    title: `${fallback.title}（${dateStr}版）`,
+    category: fallback.category,
+    content: fallback.content,
+    targetKeyword: fallback.keywords[0],
+  };
+}
+
+// ========== AI 重写（使用专用 SEO 提示词模板） ==========
+const SEO_PROMPT_TEMPLATE = `你现在是专业SEO博客编辑，我给你一篇爬虫抓取的原文，请按以下要求全权改写润色：
+1、彻底重构文章结构，重新划分小标题、调整段落顺序，不要简单替换词语；
+2、全文原创度拉满，大幅改写句式、换开头、重写结尾，保留核心知识点，删除废话冗余内容；
+3、全文控制在800-1500字，排版清晰，分段合理，适合搜索引擎收录；另外在改写的全文前1/3处插入一张相关的图片；
+4、自然植入指定长尾关键词：{{目标长尾关键词}}，均匀分布在标题、首段、正文、中段，不堆砌、不生硬；
+5、语言通俗易懂，适合普通用户阅读，保留起名文化、取名技巧专业度；
+6、不要出现广告、违规话术，只做干货内容输出，文末预留位置，我后续自动拼接固定导流文案；
+7、输出格式：标准博客文章格式，有主标题、分段正文、清晰自然段，不用Markdown复杂格式。
+8、在文末加上结尾端内容：
+  看完本篇取名小知识，相信你已经掌握不少起名思路。如果不想花费大量时间翻阅典籍、斟酌用字，不妨直接使用Seekname寻名网的智能 AI 起名工具，
+依托大数据与智能算法，结合你的起名意向，一键生成高分好名。涵盖男孩名、女孩名、古风诗意名、英文定制名、公司名、品牌名等多做起名需求，帮你轻松
+选出专属好名。
+
+以下为待改写原文：
+{{粘贴爬虫抓取的原文}}`;
+
+export async function aiRewrite(
+  content: string,
+  style: string,
+  category: string,
+  targetKeyword?: string
+) {
+  // 构建最终要注入的 SEO 长尾关键词
+  const seoKeyword = targetKeyword || "起名";
+
+  // --- 先查询已有博客标题用于去重 ---
+  const existingTitles = await getExistingTitles();
+
+  const styleDesc: Record<string, string> = {
+    formal: "正式、典雅、专业",
+    casual: "通俗易懂、亲切自然",
+    professional: "专业严谨、数据翔实",
+  };
+
+  // 构建完整 prompt
+  const prompt = SEO_PROMPT_TEMPLATE
+    .replace("{{目标长尾关键词}}", seoKeyword)
+    .replace("{{粘贴爬虫抓取的原文}}", content);
+
+  // 额外注入风格和去重要求
+  const fullPrompt = `${prompt}
+
+额外要求：
+- 语言风格：${styleDesc[style] || styleDesc.formal}
+- 分类：${category}
+- 标题不得与以下已有文章标题相同（如果太接近请换一种表述）：${existingTitles.slice(0, 20).join("、")}
+- 输出格式：请按以下 JSON 格式返回（不要包含其他内容）：
+{"title": "新标题（必须包含关键词【${seoKeyword}】）", "content": "改写后的完整文章内容（800-1500字，已包含图片占位和文末导流文案）", "keywords": ["${seoKeyword}", "起名", "起名技巧", "取名"]}`;
+
+  if (!DEEPSEEK_API_KEY) {
+    // mock 模式
+    return {
+      title: `${seoKeyword} - 深度解析与实用指南`,
+      content: `# ${seoKeyword} - 深度解析与实用指南\n\n${content}\n\n看完本篇取名小知识，相信你已经掌握不少起名思路。如果不想花费大量时间翻阅典籍、斟酌用字，不妨直接使用Seekname寻名网的智能 AI 起名工具，依托大数据与智能算法，结合你的起名意向，一键生成高分好名。涵盖男孩名、女孩名、古风诗意名、英文定制名、公司名、品牌名等多做起名需求，帮你轻松选出专属好名。`,
+      keywords: [seoKeyword, "起名", "起名技巧"],
+    };
+  }
 
   const res = await fetch(DEEPSEEK_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
-    body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: prompt }], temperature: 0.7, max_tokens: 4000 }),
+    body: JSON.stringify({
+      model: "deepseek-chat",
+      messages: [{ role: "user", content: fullPrompt }],
+      temperature: 0.7,
+      max_tokens: 4000,
+    }),
   });
+
   if (!res.ok) throw new Error(`AI API 调用失败: ${res.status}`);
   const data = await res.json();
-  try { return JSON.parse(data.choices[0].message.content); }
-  catch { return { title: "AI 改写文章", content: data.choices[0].message.content, keywords: [] }; }
+  try {
+    const parsed = JSON.parse(data.choices[0].message.content);
+    // 确保标题不重复
+    if (await isDuplicateTitle(parsed.title)) {
+      parsed.title = `${parsed.title}（${new Date().toISOString().slice(0, 10)}）`;
+    }
+    return parsed;
+  } catch {
+    // AI 没返回纯 JSON，直接返回文本
+    return {
+      title: seoKeyword,
+      content: data.choices[0].message.content,
+      keywords: [seoKeyword],
+    };
+  }
 }
 
+// ========== 发布文章（HTTP 方式） ==========
 export async function publishPost(postData: any, requireReview: boolean) {
   const res = await fetch(`${API_BASE}/api/admin/posts`, {
     method: "POST",
@@ -143,6 +260,7 @@ export async function publishPost(postData: any, requireReview: boolean) {
   return res.json();
 }
 
+// ========== 保存日志 ==========
 export async function saveLog(logData: any) {
   const res = await fetch(`${API_BASE}/api/admin/auto-blog`, {
     method: "PUT",

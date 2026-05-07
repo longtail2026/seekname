@@ -48,7 +48,7 @@ async function createPost(postData: any, requireReview: boolean) {
 }
 
 /**
- * Vercel Cron Job 入口 - 每天 16:00 (CST，即 8:00 UTC) 触发
+ * Vercel Cron Job 入口 - 每天 04:00 (CST，即 20:00 UTC) 触发
  */
 export async function GET() {
   const startTime = Date.now();
@@ -62,14 +62,14 @@ export async function GET() {
       return NextResponse.json({ status: "skipped", message: "引擎已关闭" });
     }
 
-    // 2. 选话题
+    // 2. 选话题（先去重，优先选未写过的话题）
     const keywords = config.crawlKeywords?.length ? config.crawlKeywords : ["起名"];
-    const topic = pickTopic(keywords);
-    console.log(`[Cron] 话题: ${topic.title}`);
+    const topic = await pickTopic(keywords);
+    console.log(`[Cron] 话题: ${topic.title}, 目标长尾关键词: ${topic.targetKeyword}`);
 
-    // 3. AI 改写
+    // 3. AI 改写（传入目标长尾关键词）
     console.log("[Cron] AI 改写中...");
-    const rewritten = await aiRewrite(topic.content, config.writingStyle || "formal", config.defaultCategory || "起名知识");
+    const rewritten = await aiRewrite(topic.content, config.writingStyle || "formal", topic.category || config.defaultCategory || "起名知识", topic.targetKeyword);
     console.log(`[Cron] 改写完成: ${rewritten.title}`);
 
     // 4. 直接 Prisma 发布（避免 HTTP 自调用）
@@ -77,7 +77,7 @@ export async function GET() {
     const post = await createPost({
       title: rewritten.title,
       content: rewritten.content,
-      category: config.defaultCategory || "起名知识",
+      category: topic.category || config.defaultCategory || "起名知识",
       keywords: rewritten.keywords || [],
       sourceUrl: `cron:${encodeURIComponent(topic.category)}`,
     }, config.requireReview !== false);

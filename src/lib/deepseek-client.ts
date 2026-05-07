@@ -70,22 +70,22 @@ export async function generateEnglishNameByDeepSeek(
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
+        body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
           {
             role: "system",
-            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON，不要任何其他文字或 markdown 格式。",
+            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON。",
           },
           {
             role: "user",
             content: prompt,
           },
         ],
-        temperature: 0.7,
-        max_tokens: 500,
+        temperature: 0.3,
+        max_tokens: 300,
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
@@ -175,22 +175,22 @@ export async function generateEnglishNamesByPrompt(
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
+          body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
           {
             role: "system",
-            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON 数组，不要任何其他文字。",
+            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON 数组。",
           },
           {
             role: "user",
             content: customPrompt,
           },
         ],
-        temperature: 0.7,
-        max_tokens: 4096,
+        temperature: 0.3,
+        max_tokens: 2048,
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
@@ -285,17 +285,17 @@ export async function generateEnglishNameBatchByDeepSeek(
         messages: [
           {
             role: "system",
-            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON 数组，不要任何其他文字。",
+            content: "你是精通中美文化的姓名学专家。根据中文名发音推荐发音接近的英文名。只返回纯 JSON 数组。",
           },
           {
             role: "user",
             content: prompt,
           },
         ],
-        temperature: 0.7,
-        max_tokens: 800,
+        temperature: 0.3,
+        max_tokens: 500,
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
